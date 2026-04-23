@@ -26,13 +26,14 @@ def get_upstream_url(path: str) -> str:
 
 def _strip_api_prefix(path: str) -> str:
     """
-    Removes the /api/service-name prefix from the path.
-    Example: /api/auth/login -> /login
+    Removes only the /api prefix from the path.
+    Example: /api/auth/login -> /auth/login
+             /api/projects/  -> /projects/
     """
-    parts = path.strip("/").split("/")
-    if len(parts) >= 2 and parts[0] == "api":
-        return "/" + "/".join(parts[2:])
+    if path.startswith("/api/"):
+        return path[4:]  # Remove "/api", keep everything after
     return path
+
 
 
 def _filter_request_headers(headers: dict[str, str]) -> dict[str, str]:

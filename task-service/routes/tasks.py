@@ -12,7 +12,7 @@ from rbac import require_role
 from schemas import CommentCreate, CommentResponse, KanbanResponse, TaskCreate, TaskPositionUpdate, TaskResponse, TaskUpdate
 from services.redis_service import RedisAuditService
 
-router = APIRouter(prefix="/api/tasks", tags=["tasks"])
+router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
 def _validate_status_transition(old_status: TaskStatus, new_status: TaskStatus) -> None:

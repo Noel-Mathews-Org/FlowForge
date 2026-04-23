@@ -9,7 +9,7 @@ from models import AuditEvent, DailyTaskStats, UserActivityStats
 from rbac import require_role
 from schemas import AuditEventResponse, OverviewResponse, ProjectStatsRow, ThroughputPoint, UserActivityRow
 
-router = APIRouter(prefix="/api/analytics", tags=["analytics"], dependencies=[require_role("admin")])
+router = APIRouter(prefix="/analytics", tags=["analytics"], dependencies=[require_role("admin")])
 
 
 @router.get("/overview", response_model=OverviewResponse)

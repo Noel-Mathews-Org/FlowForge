@@ -12,7 +12,7 @@ from rbac import get_current_user_id, require_role
 from schemas import ApprovalAction, ApprovalRequestResponse
 from services.redis_service import append_audit_log, publish_user_notification
 
-router = APIRouter(prefix="/api/projects", tags=["approvals"])
+router = APIRouter(prefix="/projects", tags=["approvals"])
 
 
 def _parse_user_uuid(raw_id: str) -> UUID:

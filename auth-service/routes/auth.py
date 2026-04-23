@@ -23,7 +23,7 @@ from schemas import (
 )
 from services import email_service, jwt_service, redis_service
 
-router = APIRouter(prefix="/api/auth", tags=["auth"])
+router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 def _to_profile(user: User) -> UserProfile:

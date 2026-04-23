@@ -21,7 +21,7 @@ from schemas import (
 )
 from services.redis_service import append_audit_log, publish_manager_notification
 
-router = APIRouter(prefix="/api/projects", tags=["projects"])
+router = APIRouter(prefix="/projects", tags=["projects"])
 
 
 def _parse_user_uuid(raw_id: str) -> UUID:

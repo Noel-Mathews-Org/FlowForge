@@ -8,7 +8,7 @@ from database import get_db
 from models import User, UserRole
 from schemas import AdminUserUpdateRequest, UserProfile
 
-router = APIRouter(prefix="/api/auth/admin", tags=["admin"])
+router = APIRouter(prefix="/auth/admin", tags=["admin"])
 
 
 def _require_admin(x_user_role: str | None) -> None:
