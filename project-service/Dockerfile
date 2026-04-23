@@ -11,5 +11,5 @@ COPY --from=builder /install /usr/local
 RUN addgroup --system stgroup && adduser --system --group stuser
 COPY --chown=stuser:stgroup . .
 USER stuser
-EXPOSE 8001
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001"]
+EXPOSE 8002
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8002"]
