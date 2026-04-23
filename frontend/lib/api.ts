@@ -3,8 +3,6 @@
 import axios from "axios";
 import { getToken, logout } from "@/lib/auth";
 
-const GATEWAY_URL = process.env.NEXT_PUBLIC_GATEWAY_URL ?? "http://localhost:8000";
-
 const withInterceptors = (baseURL: string) => {
   const instance = axios.create({ baseURL, timeout: 15000 });
 
@@ -29,7 +27,14 @@ const withInterceptors = (baseURL: string) => {
   return instance;
 };
 
-export const authApi = withInterceptors(process.env.NEXT_PUBLIC_AUTH_URL ?? `${GATEWAY_URL}/api/auth`);
-export const projectApi = withInterceptors(process.env.NEXT_PUBLIC_PROJECT_URL ?? `${GATEWAY_URL}/api/projects`);
-export const taskApi = withInterceptors(process.env.NEXT_PUBLIC_TASK_URL ?? `${GATEWAY_URL}/api/tasks`);
-export const analyticsApi = withInterceptors(process.env.NEXT_PUBLIC_ANALYTICS_URL ?? `${GATEWAY_URL}/api/analytics`);
+// These are baked in at build time via Dockerfile ARG BASE_PUBLIC_URL
+// Never fall back to localhost — fail loudly so misconfiguration is obvious
+const AUTH_URL = process.env.NEXT_PUBLIC_AUTH_URL!;
+const PROJECT_URL = process.env.NEXT_PUBLIC_PROJECT_URL!;
+const TASK_URL = process.env.NEXT_PUBLIC_TASK_URL!;
+const ANALYTICS_URL = process.env.NEXT_PUBLIC_ANALYTICS_URL!;
+
+export const authApi = withInterceptors(AUTH_URL);
+export const projectApi = withInterceptors(PROJECT_URL);
+export const taskApi = withInterceptors(TASK_URL);
+export const analyticsApi = withInterceptors(ANALYTICS_URL);

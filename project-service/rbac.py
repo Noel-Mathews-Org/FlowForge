@@ -1,5 +1,3 @@
-from collections.abc import Callable
-
 from fastapi import Depends, HTTPException, Request, status
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -22,7 +20,12 @@ def get_current_user_id(request: Request) -> str:
     return user_id
 
 
-def require_role(*roles: str) -> Callable[[Request], None]:
+def require_role(*roles: str):
+    """
+    Returns a FastAPI Depends() object directly.
+    Usage: dependencies=[require_role("manager", "admin")]
+    FastAPI receives Depends(checker) — not Depends(Depends(checker)).
+    """
     def checker(request: Request) -> None:
         user_role = getattr(request.state, "user_role", None)
         if user_role not in roles:
