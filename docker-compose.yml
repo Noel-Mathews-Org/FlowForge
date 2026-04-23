@@ -77,7 +77,7 @@ services:
     env_file:
       - ./task-service/.env
 
-  analytics-service:
+  analysis-service:
     build: ./analysis-service
     depends_on:
       postgres:
