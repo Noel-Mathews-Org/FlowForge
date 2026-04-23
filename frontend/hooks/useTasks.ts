@@ -19,6 +19,6 @@ export const useTasks = (projectId?: string) =>
           DONE: mockBoard.DONE.filter((t) => t.project_id === projectId)
         };
       }
-      return (await taskApi.get(`/api/tasks/project/${projectId}`)).data;
+      return (await taskApi.get(`/project/${projectId}`)).data;
     }
   });

@@ -20,7 +20,7 @@ export default function LoginPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const { data } = await authApi.post("/api/auth/login", { email, password });
+      const { data } = await authApi.post("/login", { email, password });
       setToken(data.access_token);
       const user = getUser();
       if (user) window.location.href = routeForRole(user.role);

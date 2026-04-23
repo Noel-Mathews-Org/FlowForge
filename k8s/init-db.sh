@@ -1,0 +1,35 @@
+#!/bin/bash
+set -e
+
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+    CREATE DATABASE auth_db;
+    CREATE DATABASE project_db;
+    CREATE DATABASE task_db;
+    CREATE DATABASE analytics_db;
+EOSQL
+
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "auth_db" <<-EOSQL
+    DO \$\$ 
+    BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
+            CREATE TYPE user_role AS ENUM ('admin', 'manager', 'member');
+        END IF;
+    END \$\$;
+
+    CREATE TABLE IF NOT EXISTS users (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        email VARCHAR(255) UNIQUE NOT NULL,
+        hashed_password VARCHAR(255) NOT NULL,
+        full_name VARCHAR(255) NOT NULL,
+        role user_role NOT NULL,
+        org VARCHAR(255) NOT NULL DEFAULT 'flowforge',
+        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    );
+
+    INSERT INTO users (email, hashed_password, full_name, role) VALUES
+    ('admin@stratum.com', '\$2b$12$tQAsvk..7eZ7z.6tU4oo2uCHc3p6wEEF0w/wF18KXXL/PBZJbeRn6', 'Admin User', 'admin'),
+    ('manager@stratum.com', '\$2b$12$tQAsvk..7eZ7z.6tU4oo2uCHc3p6wEEF0w/wF18KXXL/PBZJbeRn6', 'Manager User', 'manager'),
+    ('user@stratum.com', '\$2b$12$tQAsvk..7eZ7z.6tU4oo2uCHc3p6wEEF0w/wF18KXXL/PBZJbeRn6', 'Regular User', 'member')
+    ON CONFLICT (email) DO NOTHING;
+EOSQL

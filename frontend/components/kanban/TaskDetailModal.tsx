@@ -45,7 +45,7 @@ export const TaskDetailModal = ({
                   setComments((v) => [...v, optimistic]);
                   setContent("");
                   try {
-                    await taskApi.post(`/api/tasks/${task.id}/comments`, { content: optimistic.content });
+                    await taskApi.post(`/${task.id}/comments`, { content: optimistic.content });
                   } catch {
                     setComments((v) => v.filter((c) => c.id !== optimistic.id));
                     toast.error("Could not add comment");

@@ -27,7 +27,7 @@ function RegisterForm() {
     setLoading(true);
     setError(null);
     try {
-      await authApi.post("/api/auth/register", { token, full_name: fullName, password });
+      await authApi.post("/register", { token, full_name: fullName, password });
       toast.success("Account created! Sign in to continue");
       router.replace("/login");
     } catch {

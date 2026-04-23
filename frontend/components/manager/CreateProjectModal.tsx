@@ -20,7 +20,7 @@ export const CreateProjectModal = ({ open, onOpenChange }: { open: boolean; onOp
     if (name.trim().length < 2) return;
     setLoading(true);
     try {
-      await projectApi.post("/api/projects/", { name, description });
+      await projectApi.post("/", { name, description });
       await client.invalidateQueries({ queryKey: ["projects"] });
       setName("");
       setDescription("");

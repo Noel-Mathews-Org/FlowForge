@@ -10,5 +10,5 @@ const mock = process.env.NEXT_PUBLIC_MOCK_MODE === "true";
 export const useApprovals = () =>
   useQuery<ApprovalRequest[]>({
     queryKey: ["approvals"],
-    queryFn: async () => (mock ? mockApprovals : (await projectApi.get("/api/projects/approvals")).data)
+    queryFn: async () => (mock ? mockApprovals : (await projectApi.get("/approvals")).data)
   });

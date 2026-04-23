@@ -10,7 +10,7 @@ const mock = process.env.NEXT_PUBLIC_MOCK_MODE === "true";
 export const useProjects = () =>
   useQuery<Project[]>({
     queryKey: ["projects"],
-    queryFn: async () => (mock ? mockProjects : (await projectApi.get("/api/projects/")).data)
+    queryFn: async () => (mock ? mockProjects : (await projectApi.get("/")).data)
   });
 
 export const useProjectDetail = (id: string) =>
@@ -18,7 +18,7 @@ export const useProjectDetail = (id: string) =>
     queryKey: ["project", id],
     queryFn: async () => {
       if (mock) return mockProjects.find((p) => p.id === id) as Project;
-      return (await projectApi.get(`/api/projects/${id}`)).data;
+      return (await projectApi.get(`/${id}`)).data;
     },
     enabled: Boolean(id)
   });

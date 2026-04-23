@@ -26,7 +26,7 @@ export const KanbanBoard = ({ initialBoard }: { initialBoard: Board }) => {
     setBoard(cloned);
 
     try {
-      await taskApi.put(`/api/tasks/${moved.id}`, { status: dest });
+      await taskApi.put(`/${moved.id}`, { status: dest });
     } catch {
       setBoard(prev);
       toast.error("Failed to update status");
@@ -56,7 +56,7 @@ export const KanbanBoard = ({ initialBoard }: { initialBoard: Board }) => {
                 };
                 setBoard((b) => ({ ...b, [col]: [optimisticTask, ...b[col]] }));
                 try {
-                  await taskApi.post("/api/tasks/", { title, priority, status: col });
+                  await taskApi.post("/", { title, priority, status: col });
                 } catch {
                   setBoard((b) => ({ ...b, [col]: b[col].filter((task) => task.id !== optimisticTask.id) }));
                   toast.error("Failed to create task");

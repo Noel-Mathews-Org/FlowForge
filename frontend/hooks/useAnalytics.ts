@@ -10,17 +10,17 @@ const mock = process.env.NEXT_PUBLIC_MOCK_MODE === "true";
 export const useAnalyticsOverview = () =>
   useQuery<AnalyticsOverview>({
     queryKey: ["analytics-overview"],
-    queryFn: async () => (mock ? mockOverview : (await analyticsApi.get("/api/analytics/overview")).data)
+    queryFn: async () => (mock ? mockOverview : (await analyticsApi.get("/overview")).data)
   });
 
 export const useThroughput = (days = 7) =>
   useQuery<ThroughputDataPoint[]>({
     queryKey: ["throughput", days],
-    queryFn: async () => (mock ? mockThroughput : (await analyticsApi.get(`/api/analytics/task-throughput?days=${days}`)).data)
+    queryFn: async () => (mock ? mockThroughput : (await analyticsApi.get(`/task-throughput?days=${days}`)).data)
   });
 
 export const useAudit = () =>
   useQuery<UserActivityStat[]>({
     queryKey: ["audit"],
-    queryFn: async () => (mock ? mockAudit : (await analyticsApi.get("/api/analytics/audit-log")).data)
+    queryFn: async () => (mock ? mockAudit : (await analyticsApi.get("/audit-log")).data)
   });

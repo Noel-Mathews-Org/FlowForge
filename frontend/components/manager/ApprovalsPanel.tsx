@@ -16,7 +16,7 @@ export const ApprovalsPanel = ({ approvals }: { approvals: ApprovalRequest[] }) 
     const prev = optimistic;
     setOptimistic((v) => v.filter((a) => a.id !== id));
     try {
-      await projectApi.patch(`/api/projects/approvals/${id}`, { action });
+      await projectApi.patch(`/approvals/${id}`, { action });
       await client.invalidateQueries({ queryKey: ["approvals"] });
       toast.success(`Request ${action.toLowerCase()}`);
     } catch {
