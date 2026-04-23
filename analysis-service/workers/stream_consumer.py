@@ -91,7 +91,7 @@ async def _process_message(redis_client: Redis, session_factory: async_sessionma
                     user_email=user_email,
                     project_id=project_id,
                     task_id=task_id,
-                    metadata=metadata,
+                    event_metadata=metadata,
                     occurred_at=occurred_at,
                 )
             )

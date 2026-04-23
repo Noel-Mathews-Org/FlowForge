@@ -35,7 +35,7 @@ class AuditEventResponse(BaseModel):
     user_email: str
     project_id: str | None
     task_id: str | None
-    metadata: dict
+    event_metadata: dict
     occurred_at: datetime
     ingested_at: datetime
 

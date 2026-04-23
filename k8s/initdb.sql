@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- Insert test users (password is 'password123' hashed)
 INSERT INTO users (email, hashed_password, full_name, role) VALUES
-('admin@stratum.com', '$2b$12$LQvPHFaUD9zUMZe.8SDeNuS3vU9sK1F2S3vU9sK1F2S3vU9sK1F2', 'Admin User', 'admin'),
-('manager@stratum.com', '$2b$12$LQvPHFaUD9zUMZe.8SDeNuS3vU9sK1F2S3vU9sK1F2S3vU9sK1F2', 'Manager User', 'manager'),
-('user@stratum.com', '$2b$12$LQvPHFaUD9zUMZe.8SDeNuS3vU9sK1F2S3vU9sK1F2S3vU9sK1F2', 'Regular User', 'member')
+('admin@stratum.com', '$2b$12$tQAsvk..7eZ7z.6tU4oo2uCHc3p6wEEF0w/wF18KXXL/PBZJbeRn6', 'Admin User', 'admin'),
+('manager@stratum.com', '$2b$12$tQAsvk..7eZ7z.6tU4oo2uCHc3p6wEEF0w/wF18KXXL/PBZJbeRn6', 'Manager User', 'manager'),
+('user@stratum.com', '$2b$12$tQAsvk..7eZ7z.6tU4oo2uCHc3p6wEEF0w/wF18KXXL/PBZJbeRn6', 'Regular User', 'member')
 ON CONFLICT (email) DO NOTHING;
