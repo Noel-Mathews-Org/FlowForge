@@ -6,9 +6,9 @@ import type { AnalyticsOverview } from "@/types";
 
 export const OverviewCards = ({ overview }: { overview: AnalyticsOverview }) => {
   const cards = [
-    { label: "Total Tasks", value: overview.total_tasks, color: "border-indigo-500", trend: overview.trend_total_tasks },
-    { label: "Active Projects", value: overview.active_projects, color: "border-emerald-500", trend: 8 },
-    { label: "Team Members", value: overview.team_members, color: "border-violet-500", trend: 5 },
+    { label: "Total Tasks", value: overview.total_tasks, color: "border-indigo-500", trend: overview.events_today },
+    { label: "Active Projects", value: overview.total_projects, color: "border-emerald-500", trend: 8 },
+    { label: "Team Members", value: overview.total_users, color: "border-violet-500", trend: 5 },
     { label: "Completion Rate", value: `${overview.completion_rate}%`, color: "border-amber-500", trend: 3, circle: true }
   ];
   return (

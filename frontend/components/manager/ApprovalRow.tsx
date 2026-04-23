@@ -16,16 +16,17 @@ export const ApprovalRow = ({
   onReject: (id: string) => void;
 }) => {
   const [confirmReject, setConfirmReject] = useState(false);
+  const initials = approval.requester_email.split("@")[0].split(".").map((n) => n[0]?.toUpperCase()).join("");
   return (
     <motion.div layout initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ type: "spring", stiffness: 300, damping: 28 }} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-xs font-medium text-indigo-700">
-        {approval.requester_name.split(" ").map((n) => n[0]).join("")}
+        {initials}
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm text-slate-700 dark:text-slate-200">
-          <strong>{approval.requester_email}</strong> requested access to <strong>{approval.project_name}</strong>
+          <strong>{approval.requester_email}</strong> requested access
         </p>
-        <p className="text-xs text-slate-500">{formatDistanceToNow(new Date(approval.created_at), { addSuffix: true })}</p>
+        <p className="text-xs text-slate-500">{formatDistanceToNow(new Date(approval.requested_at), { addSuffix: true })}</p>
       </div>
       {!confirmReject ? (
         <div className="flex gap-2">

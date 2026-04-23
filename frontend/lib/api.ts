@@ -3,6 +3,8 @@
 import axios from "axios";
 import { getToken, logout } from "@/lib/auth";
 
+const GATEWAY_URL = process.env.NEXT_PUBLIC_GATEWAY_URL ?? "http://localhost:8000";
+
 const withInterceptors = (baseURL: string) => {
   const instance = axios.create({ baseURL, timeout: 15000 });
 
@@ -27,7 +29,7 @@ const withInterceptors = (baseURL: string) => {
   return instance;
 };
 
-export const authApi = withInterceptors(process.env.NEXT_PUBLIC_AUTH_URL ?? "http://localhost:8001");
-export const projectApi = withInterceptors(process.env.NEXT_PUBLIC_PROJECT_URL ?? "http://localhost:8002");
-export const taskApi = withInterceptors(process.env.NEXT_PUBLIC_TASK_URL ?? "http://localhost:8003");
-export const analyticsApi = withInterceptors(process.env.NEXT_PUBLIC_ANALYTICS_URL ?? "http://localhost:8004");
+export const authApi = withInterceptors(process.env.NEXT_PUBLIC_AUTH_URL ?? `${GATEWAY_URL}/api/auth`);
+export const projectApi = withInterceptors(process.env.NEXT_PUBLIC_PROJECT_URL ?? `${GATEWAY_URL}/api/projects`);
+export const taskApi = withInterceptors(process.env.NEXT_PUBLIC_TASK_URL ?? `${GATEWAY_URL}/api/tasks`);
+export const analyticsApi = withInterceptors(process.env.NEXT_PUBLIC_ANALYTICS_URL ?? `${GATEWAY_URL}/api/analytics`);

@@ -17,9 +17,10 @@ export default function ManagerPage() {
   const approvals = useApprovals();
 
   const filtered = useMemo(() => {
-    if (!projects.data) return [];
-    if (tab === "ALL") return projects.data;
-    return projects.data.filter((p) => p.status === tab);
+    const list = projects.data ?? [];
+    if (tab === "ALL") return list;
+    if (tab === "ACTIVE") return list.filter((p) => !p.is_archived);
+    return list.filter((p) => p.is_archived);
   }, [projects.data, tab]);
 
   return (

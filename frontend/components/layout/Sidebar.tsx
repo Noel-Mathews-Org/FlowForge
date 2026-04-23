@@ -10,17 +10,15 @@ import { cn } from "@/lib/utils";
 const navByRole = {
   admin: [
     { href: "/admin", label: "Overview", icon: LayoutDashboard },
-    { href: "/admin#users", label: "Users", icon: Users },
-    { href: "/admin#audit", label: "Audit Log", icon: ScrollText }
+    { href: "/admin/users", label: "Users", icon: Users },
+    { href: "/admin/audit", label: "Audit Log", icon: ScrollText }
   ],
   manager: [
     { href: "/manager", label: "Projects", icon: FolderKanban },
-    { href: "/manager#approvals", label: "Approvals", icon: CheckCircle },
-    { href: "/manager#team", label: "Team", icon: Users }
+    { href: "/manager/approvals", label: "Approvals", icon: CheckCircle },
   ],
   member: [
     { href: "/dashboard", label: "My Board", icon: Kanban },
-    { href: "/dashboard#projects", label: "My Projects", icon: FolderOpen }
   ]
 } as const;
 

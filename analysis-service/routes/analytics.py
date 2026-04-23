@@ -90,6 +90,26 @@ async def get_events(
     return [AuditEventResponse.model_validate(e) for e in result.scalars().all()]
 
 
+@router.get("/audit-log", response_model=list[AuditEventResponse])
+async def get_audit_log(
+    event_type: str | None = None,
+    user_id: str | None = None,
+    project_id: str | None = None,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+):
+    """Alias for /events — kept for frontend compatibility."""
+    return await get_events(
+        event_type=event_type,
+        user_id=user_id,
+        project_id=project_id,
+        page=page,
+        page_size=page_size,
+        db=db,
+    )
+
+
 @router.get("/project/{project_id}/stats", response_model=list[ProjectStatsRow])
 async def get_project_stats(project_id: str, db: AsyncSession = Depends(get_db)):
     start_date = date.today() - timedelta(days=29)

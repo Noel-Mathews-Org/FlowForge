@@ -22,7 +22,7 @@ export default function DashboardPage() {
       <div className="max-w-sm">
         <SelectField value={selectedProject!} onValueChange={setSelected} options={options} />
       </div>
-      {tasks.isLoading ? <Skeleton className="h-[560px]" /> : tasks.isError || !tasks.data ? <div className="rounded-xl bg-rose-50 p-4 text-rose-700">Board failed to load. <button className="underline" onClick={() => tasks.refetch()}>Retry</button></div> : <KanbanBoard initialBoard={tasks.data} />}
+      {tasks.isLoading ? <Skeleton className="h-[560px]" /> : tasks.isError || !tasks.data ? <div className="rounded-xl bg-rose-50 p-4 text-rose-700">Board failed to load. <button className="underline" onClick={() => tasks.refetch()}>Retry</button></div> : <KanbanBoard initialBoard={tasks.data} projectId={selectedProject} />}
     </div>
   );
 }

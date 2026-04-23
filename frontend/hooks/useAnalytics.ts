@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { analyticsApi } from "@/lib/api";
 import { mockAudit, mockOverview, mockThroughput } from "@/lib/mock-data";
-import type { AnalyticsOverview, ThroughputDataPoint, UserActivityStat } from "@/types";
+import type { AnalyticsOverview, AuditEvent, ThroughputDataPoint, UserActivityStat } from "@/types";
 
 const mock = process.env.NEXT_PUBLIC_MOCK_MODE === "true";
 
@@ -20,7 +20,11 @@ export const useThroughput = (days = 7) =>
   });
 
 export const useAudit = () =>
-  useQuery<UserActivityStat[]>({
+  useQuery<AuditEvent[]>({
     queryKey: ["audit"],
-    queryFn: async () => (mock ? mockAudit : (await analyticsApi.get("/audit-log")).data)
+    queryFn: async () => {
+      if (mock) return mockAudit as unknown as AuditEvent[];
+      const res = (await analyticsApi.get("/audit-log")).data;
+      return Array.isArray(res) ? res : [];
+    }
   });

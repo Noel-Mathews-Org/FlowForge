@@ -10,9 +10,9 @@ export const mockUsers: User[] = [
 ];
 
 export const mockProjects: Project[] = [
-  { id: "p1", name: "Platform Redesign", description: "Rebuild the customer dashboard with unified design tokens and performance budgets.", manager_email: "theo.bennett@flowforge.io", created_at: subDays(new Date(), 24).toISOString(), status: "ACTIVE", members: [], task_count: 5 },
-  { id: "p2", name: "API Gateway Migration", description: "Migrate legacy edge services to gateway v2 with canary rollout safeguards.", manager_email: "nina.patel@flowforge.io", created_at: subDays(new Date(), 43).toISOString(), status: "ACTIVE", members: [], task_count: 4 },
-  { id: "p3", name: "Q4 Marketing Campaign", description: "Coordinate launch timeline, content approvals, and analytics instrumentation.", manager_email: "theo.bennett@flowforge.io", created_at: subDays(new Date(), 12).toISOString(), status: "ARCHIVED", members: [], task_count: 3 }
+  { id: "p1", name: "Platform Redesign", description: "Rebuild the customer dashboard with unified design tokens and performance budgets.", manager_id: "u2", manager_email: "theo.bennett@flowforge.io", created_at: subDays(new Date(), 24).toISOString(), is_archived: false, member_count: 5 },
+  { id: "p2", name: "API Gateway Migration", description: "Migrate legacy edge services to gateway v2 with canary rollout safeguards.", manager_id: "u3", manager_email: "nina.patel@flowforge.io", created_at: subDays(new Date(), 43).toISOString(), is_archived: false, member_count: 4 },
+  { id: "p3", name: "Q4 Marketing Campaign", description: "Coordinate launch timeline, content approvals, and analytics instrumentation.", manager_id: "u2", manager_email: "theo.bennett@flowforge.io", created_at: subDays(new Date(), 12).toISOString(), is_archived: true, member_count: 3 }
 ];
 
 const now = new Date();
@@ -38,9 +38,9 @@ export const mockBoard: KanbanBoard = {
 };
 
 export const mockApprovals: ApprovalRequest[] = [
-  { id: "a1", requester_name: "Ari Singh", requester_email: "ari.singh@flowforge.io", project_id: "p1", project_name: "Platform Redesign", created_at: subDays(now, 1).toISOString() },
-  { id: "a2", requester_name: "Leila Chen", requester_email: "leila.chen@flowforge.io", project_id: "p2", project_name: "API Gateway Migration", created_at: subDays(now, 2).toISOString() },
-  { id: "a3", requester_name: "Mateo Alvarez", requester_email: "mateo.alvarez@flowforge.io", project_id: "p3", project_name: "Q4 Marketing Campaign", created_at: subDays(now, 3).toISOString() }
+  { id: "a1", requester_id: "u6", requester_email: "ari.singh@flowforge.io", project_id: "p1", status: "PENDING", message: null, requested_at: subDays(now, 1).toISOString(), resolved_at: null, resolved_by: null },
+  { id: "a2", requester_id: "u7", requester_email: "leila.chen@flowforge.io", project_id: "p2", status: "PENDING", message: null, requested_at: subDays(now, 2).toISOString(), resolved_at: null, resolved_by: null },
+  { id: "a3", requester_id: "u8", requester_email: "mateo.alvarez@flowforge.io", project_id: "p3", status: "PENDING", message: null, requested_at: subDays(now, 3).toISOString(), resolved_at: null, resolved_by: null }
 ];
 
 export const mockThroughput: ThroughputDataPoint[] = Array.from({ length: 7 }).map((_, i) => ({
@@ -51,10 +51,11 @@ export const mockThroughput: ThroughputDataPoint[] = Array.from({ length: 7 }).m
 
 export const mockOverview: AnalyticsOverview = {
   total_tasks: 126,
-  active_projects: 18,
-  team_members: 47,
+  tasks_by_status: { TODO: 40, IN_PROGRESS: 50, DONE: 36 },
+  total_projects: 18,
+  total_users: 47,
+  events_today: 14,
   completion_rate: 72,
-  trend_total_tasks: 14
 };
 
 export const mockAudit: UserActivityStat[] = Array.from({ length: 20 }).map((_, i) => ({

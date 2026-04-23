@@ -21,13 +21,13 @@ async def _upsert_daily_stats(session: AsyncSession, *, event_type: str, event_d
         stats = DailyTaskStats(date=event_date, project_id=project_id)
         session.add(stats)
     if event_type == "task_created":
-        stats.tasks_created += 1
+        stats.tasks_created = (stats.tasks_created or 0) + 1
     elif event_type == "task_moved":
         new_status = metadata.get("new_status")
         if new_status == "DONE":
-            stats.tasks_completed += 1
+            stats.tasks_completed = (stats.tasks_completed or 0) + 1
         elif new_status == "IN_PROGRESS":
-            stats.tasks_in_progress += 1
+            stats.tasks_in_progress = (stats.tasks_in_progress or 0) + 1
 
 
 async def _upsert_user_stats(session: AsyncSession, *, event_type: str, event_date, user_id: str, user_email: str, metadata: dict):
@@ -36,12 +36,12 @@ async def _upsert_user_stats(session: AsyncSession, *, event_type: str, event_da
     if not stats:
         stats = UserActivityStats(date=event_date, user_id=user_id, user_email=user_email)
         session.add(stats)
-    stats.events_count += 1
+    stats.events_count = (stats.events_count or 0) + 1
     stats.user_email = user_email
     if event_type == "task_created":
-        stats.tasks_created += 1
+        stats.tasks_created = (stats.tasks_created or 0) + 1
     if event_type == "task_moved" and metadata.get("new_status") == "DONE":
-        stats.tasks_completed += 1
+        stats.tasks_completed = (stats.tasks_completed or 0) + 1
 
 
 async def consume_stream(redis_client: Redis, session_factory: async_sessionmaker):

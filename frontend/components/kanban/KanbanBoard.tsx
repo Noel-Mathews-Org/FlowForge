@@ -9,7 +9,7 @@ import type { KanbanBoard as Board, Task } from "@/types";
 import { KanbanColumn } from "@/components/kanban/KanbanColumn";
 import { TaskDetailModal } from "@/components/kanban/TaskDetailModal";
 
-export const KanbanBoard = ({ initialBoard }: { initialBoard: Board }) => {
+export const KanbanBoard = ({ initialBoard, projectId }: { initialBoard: Board; projectId?: string }) => {
   const [board, setBoard] = useState(initialBoard);
   const [openTask, setOpenTask] = useState<Task | null>(null);
   const onDragEnd = async (result: DropResult) => {
@@ -41,22 +41,26 @@ export const KanbanBoard = ({ initialBoard }: { initialBoard: Board }) => {
             <KanbanColumn
               key={status}
               title={status}
-              tasks={board[status]}
+              tasks={board[status] ?? []}
               onOpenTask={setOpenTask}
               onAddTask={async (title, priority, col) => {
+                if (!projectId) {
+                  toast.error("No project selected");
+                  return;
+                }
                 const optimisticTask = {
                   id: crypto.randomUUID(),
                   title,
                   priority,
                   status: col,
                   description: "",
-                  project_id: "p1",
+                  project_id: projectId,
                   comments_count: 0,
                   created_at: new Date().toISOString()
                 };
                 setBoard((b) => ({ ...b, [col]: [optimisticTask, ...b[col]] }));
                 try {
-                  await taskApi.post("/", { title, priority, status: col });
+                  await taskApi.post("/", { title, priority, status: col, project_id: projectId });
                 } catch {
                   setBoard((b) => ({ ...b, [col]: b[col].filter((task) => task.id !== optimisticTask.id) }));
                   toast.error("Failed to create task");

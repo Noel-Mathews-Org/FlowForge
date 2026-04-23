@@ -9,23 +9,26 @@ export type User = {
 };
 
 export type ProjectMember = {
-  id: string;
   user_id: string;
-  email: string;
-  full_name: string;
-  role: "MANAGER" | "MEMBER";
+  user_email: string;
+  member_role: string;
   joined_at: string;
 };
 
 export type Project = {
   id: string;
   name: string;
-  description: string;
+  description: string | null;
+  manager_id: string;
   manager_email: string;
+  is_archived: boolean;
   created_at: string;
-  status: "ACTIVE" | "ARCHIVED";
+  member_count: number;
+};
+
+export type ProjectDetail = Project & {
   members: ProjectMember[];
-  task_count: number;
+  pending_approval_count: number;
 };
 
 export type Comment = {
@@ -58,27 +61,45 @@ export type KanbanBoard = {
 
 export type ApprovalRequest = {
   id: string;
-  requester_name: string;
-  requester_email: string;
   project_id: string;
-  project_name: string;
-  created_at: string;
+  requester_id: string;
+  requester_email: string;
+  status: string;
+  message: string | null;
+  requested_at: string;
+  resolved_at: string | null;
+  resolved_by: string | null;
 };
 
 export type AnalyticsOverview = {
   total_tasks: number;
-  active_projects: number;
-  team_members: number;
+  tasks_by_status: Record<string, number>;
+  total_projects: number;
+  total_users: number;
+  events_today: number;
   completion_rate: number;
-  trend_total_tasks: number;
 };
 
 export type ThroughputDataPoint = {
   date: string;
   tasks_created: number;
   tasks_completed: number;
+  tasks_in_progress?: number;
 };
 
+export type AuditEvent = {
+  id: string;
+  event_type: string;
+  user_id: string;
+  user_email: string;
+  project_id: string | null;
+  task_id: string | null;
+  event_metadata: Record<string, unknown>;
+  occurred_at: string;
+  ingested_at: string;
+};
+
+/** @deprecated kept for mock-data compat */
 export type UserActivityStat = {
   event_type: "task_created" | "task_moved" | "task_deleted" | "comment_added";
   user: string;
