@@ -12,6 +12,7 @@ from rbac import get_current_user_id, require_role
 from schemas import (
     ApprovalRequestCreate,
     ApprovalRequestResponse,
+    AddMemberRequest,
     MemberResponse,
     ProjectCreate,
     ProjectDetailResponse,
@@ -202,6 +203,42 @@ async def update_project(
     await db.refresh(project)
     return await _project_response(db, project)
 
+
+@router.post("/{project_id}/members", response_model=MemberResponse, status_code=status.HTTP_201_CREATED)
+async def add_project_member(
+    project_id: UUID,
+    payload: AddMemberRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    user_id = _parse_user_uuid(get_current_user_id(request))
+    role = getattr(request.state, "user_role", None)
+    await _can_access_project(db, project_id, user_id, role)
+
+    existing = await db.scalar(
+        select(ProjectMember).where(and_(ProjectMember.project_id == project_id, ProjectMember.user_id == payload.user_id))
+    )
+    if existing:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User is already a member")
+
+    member = ProjectMember(
+        project_id=project_id,
+        user_id=payload.user_id,
+        user_email=payload.user_email,
+        member_role="member",
+    )
+    db.add(member)
+    await db.commit()
+    await db.refresh(member)
+    
+    await append_audit_log(
+        event_type="member_added",
+        user_id=str(user_id),
+        project_id=str(project_id),
+        metadata={"added_user": payload.user_email},
+    )
+    
+    return MemberResponse.model_validate(member)
 
 @router.get("/{project_id}/members", response_model=list[MemberResponse])
 async def list_project_members(

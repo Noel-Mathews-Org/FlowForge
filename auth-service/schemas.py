@@ -27,6 +27,14 @@ class InviteResponse(BaseModel):
     token: str
     message: str
 
+class InviteToProjectRequest(BaseModel):
+    email: EmailStr
+    full_name: str | None = None
+
+class InviteToProjectResponse(BaseModel):
+    user_id: UUID
+    email: str
+    message: str
 
 class RegisterRequest(BaseModel):
     token: str

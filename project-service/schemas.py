@@ -11,6 +11,10 @@ class ProjectCreate(BaseModel):
     name: str = Field(min_length=2)
     description: str | None = None
 
+class AddMemberRequest(BaseModel):
+    user_id: UUID
+    user_email: str
+
 
 class ProjectUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=2)

@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { useState } from "react";
 import { toast } from "sonner";
 import { taskApi } from "@/lib/api";
+import { generateId } from "@/lib/utils";
 import type { KanbanBoard as Board, Task } from "@/types";
 import { KanbanColumn } from "@/components/kanban/KanbanColumn";
 import { TaskDetailModal } from "@/components/kanban/TaskDetailModal";
@@ -49,7 +50,7 @@ export const KanbanBoard = ({ initialBoard, projectId }: { initialBoard: Board; 
                   return;
                 }
                 const optimisticTask = {
-                  id: crypto.randomUUID(),
+                  id: generateId(),
                   title,
                   priority,
                   status: col,

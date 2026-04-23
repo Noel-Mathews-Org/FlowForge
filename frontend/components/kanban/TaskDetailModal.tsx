@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { SelectField } from "@/components/ui/select";
 import type { Comment, Task } from "@/types";
 import { taskApi } from "@/lib/api";
+import { generateId } from "@/lib/utils";
 import { toast } from "sonner";
 
 export const TaskDetailModal = ({
@@ -41,7 +42,7 @@ export const TaskDetailModal = ({
               <Button
                 onClick={async () => {
                   if (!content.trim()) return;
-                  const optimistic = { id: crypto.randomUUID(), author: "You", author_email: "you@company.com", content, created_at: new Date().toISOString() };
+                  const optimistic = { id: generateId(), author: "You", author_email: "you@company.com", content, created_at: new Date().toISOString() };
                   setComments((v) => [...v, optimistic]);
                   setContent("");
                   try {

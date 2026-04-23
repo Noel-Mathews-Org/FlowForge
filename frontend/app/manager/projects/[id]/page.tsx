@@ -9,10 +9,13 @@ import { useTasks } from "@/hooks/useTasks";
 import { KanbanBoard } from "@/components/kanban/KanbanBoard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { AddMemberModal } from "@/components/manager/AddMemberModal";
+import { projectApi } from "@/lib/api";
 
 export default function ManagerProjectDetailPage() {
   const params = useParams<{ id: string }>();
   const [tab, setTab] = useState<"BOARD" | "MEMBERS">("BOARD");
+  const [addModalOpen, setAddModalOpen] = useState(false);
   const project = useProjectDetail(params.id);
   const tasks = useTasks(params.id);
 
@@ -41,26 +44,46 @@ export default function ManagerProjectDetailPage() {
           )}
         </div>
       ) : (
-        <div className="space-y-2">
-          {(project.data.members ?? []).length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-300 p-10 text-center text-slate-500 dark:border-slate-700">No members found for this project.</div>
-          ) : (
-            (project.data.members ?? []).map((member) => (
-              <div key={member.user_id} className="flex items-center rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
-                <div className="mr-3 flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-xs font-medium text-indigo-700">
-                  {member.user_email.split("@")[0].split(".").map((n) => n[0]?.toUpperCase()).join("")}
+        <div className="space-y-4">
+          <div className="flex justify-end">
+            <Button onClick={() => setAddModalOpen(true)}>Add Member</Button>
+          </div>
+          <div className="space-y-2">
+            {(project.data.members ?? []).length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-300 p-10 text-center text-slate-500 dark:border-slate-700">No members found for this project.</div>
+            ) : (
+              (project.data.members ?? []).map((member) => (
+                <div key={member.user_id} className="flex items-center rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+                  <div className="mr-3 flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-xs font-medium text-indigo-700">
+                    {member.user_email.split("@")[0].split(".").map((n) => n[0]?.toUpperCase()).join("")}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-slate-800 dark:text-slate-100">{member.user_email}</p>
+                    <p className="text-xs text-slate-500">{member.member_role}</p>
+                  </div>
+                  <span className="mr-3 rounded-full bg-slate-100 px-2 py-0.5 text-xs dark:bg-slate-800">{member.member_role}</span>
+                  {member.member_role !== "manager" && <Button variant="outline" onClick={async () => {
+                    if (confirm("Remove this member?")) {
+                      try {
+                        await projectApi.delete(`/${params.id}/members/${member.user_id}`);
+                        project.refetch();
+                      } catch {
+                        alert("Could not remove member");
+                      }
+                    }
+                  }}><Trash2 className="h-4 w-4" /></Button>}
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-slate-800 dark:text-slate-100">{member.user_email}</p>
-                  <p className="text-xs text-slate-500">{member.member_role}</p>
-                </div>
-                <span className="mr-3 rounded-full bg-slate-100 px-2 py-0.5 text-xs dark:bg-slate-800">{member.member_role}</span>
-                {member.member_role !== "manager" && <Button variant="outline"><Trash2 className="h-4 w-4" /></Button>}
-              </div>
-            ))
-          )}
+              ))
+            )}
+          </div>
         </div>
       )}
+      <AddMemberModal 
+        projectId={params.id} 
+        open={addModalOpen} 
+        onClose={() => setAddModalOpen(false)} 
+        onSuccess={() => project.refetch()} 
+      />
     </div>
   );
 }

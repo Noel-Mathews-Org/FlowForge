@@ -13,6 +13,8 @@ from models import InviteRole, InviteToken, User, UserRole
 from schemas import (
     InviteRequest,
     InviteResponse,
+    InviteToProjectRequest,
+    InviteToProjectResponse,
     LoginRequest,
     LoginResponse,
     PublicKeyResponse,
@@ -109,6 +111,57 @@ async def invite_user(
         message="Invite token created and email dispatched",
     )
 
+@router.post("/invite-to-project", response_model=InviteToProjectResponse)
+async def invite_to_project(
+    payload: InviteToProjectRequest,
+    db: AsyncSession = Depends(get_db),
+    x_user_role: str | None = Header(default=None, alias="X-User-Role"),
+    x_user_name: str | None = Header(default="FlowForge Team", alias="X-User-Name"),
+):
+    if x_user_role not in {"manager", "admin"}:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+
+    result = await db.execute(select(User).where(User.email == payload.email))
+    existing = result.scalar_one_or_none()
+    if existing:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User already exists")
+
+    temp_password = secrets.token_urlsafe(12)
+    hashed = bcrypt.hashpw(temp_password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    
+    user = User(
+        email=payload.email,
+        hashed_password=hashed,
+        full_name=payload.full_name or payload.email.split("@")[0],
+        role=UserRole.MEMBER,
+        is_active=True,
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+
+    login_url = f"{settings.frontend_url}/login"
+    subject = "You've been added to a FlowForge project"
+    html_body = f"""
+    <html>
+      <body>
+        <h2>Welcome to FlowForge</h2>
+        <p>{x_user_name} has invited you to collaborate on a project.</p>
+        <p>An account has been automatically created for you.</p>
+        <p><strong>Email:</strong> {payload.email}</p>
+        <p><strong>Temporary Password:</strong> {temp_password}</p>
+        <p><a href="{login_url}" style="font-size:16px;font-weight:bold;">Log in to FlowForge</a></p>
+        <p>Please change your password after logging in.</p>
+      </body>
+    </html>
+    """
+    await email_service.send_notification_email(str(payload.email), subject, html_body)
+
+    return InviteToProjectResponse(
+        user_id=user.id,
+        email=user.email,
+        message="User created and email dispatched",
+    )
 
 @router.post("/register", response_model=RegisterResponse)
 async def register(payload: RegisterRequest, db: AsyncSession = Depends(get_db)):
@@ -139,6 +192,19 @@ async def register(payload: RegisterRequest, db: AsyncSession = Depends(get_db))
 
     return RegisterResponse(message="Registration successful", user_id=str(user.id))
 
+@router.get("/lookup", response_model=UserProfile)
+async def lookup_user(
+    email: str,
+    db: AsyncSession = Depends(get_db),
+    x_user_role: str | None = Header(default=None, alias="X-User-Role"),
+):
+    if x_user_role not in {"manager", "admin"}:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    return _to_profile(user)
 
 @router.get("/me", response_model=UserProfile)
 async def me(
