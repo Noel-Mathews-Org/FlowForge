@@ -54,10 +54,19 @@ class Settings:
     frontend_url: str
     app_port: int
 
+def _load_key(env_var: str, file_path_env: str, default_path: str) -> str:
+    # Try file first
+    key_path = os.getenv(file_path_env, default_path)
+    if os.path.exists(key_path):
+        with open(key_path, "r") as f:
+            return f.read().strip()
+    # Fallback to env var
+    return os.getenv(env_var, "").strip().replace("\\n", "\n")
+
 
 def _build_settings() -> Settings:
-    private_key = os.getenv("PRIVATE_KEY", "").strip().replace("\\n", "\n")
-    public_key = os.getenv("PUBLIC_KEY", "").strip().replace("\\n", "\n")
+    private_key = _load_key("PRIVATE_KEY", "PRIVATE_KEY_PATH", "/app/keys/private.pem")
+    public_key = _load_key("PUBLIC_KEY", "PUBLIC_KEY_PATH", "/app/keys/public.pem")
 
     if not private_key:
         private_key, generated_public_key = _generate_rsa_key_pair()
