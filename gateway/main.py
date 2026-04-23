@@ -149,7 +149,8 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 
 @app.on_event("startup")
 async def on_startup() -> None:
-    app.state.redis = aioredis.from_url(settings.redis_url, decode_responses=True)
+    from redis.asyncio import Redis
+    app.state.redis = Redis.from_url(settings.redis_url, decode_responses=True)
     await app.state.redis.ping()
     app.state.http_client = httpx.AsyncClient()
     logger.info("Gateway ready")
@@ -159,10 +160,7 @@ async def on_startup() -> None:
 async def on_shutdown() -> None:
     redis_client = getattr(app.state, "redis", None)
     if redis_client is not None:
-        await redis_client.close()
-        wait_closed = getattr(redis_client, "wait_closed", None)
-        if callable(wait_closed):
-            await wait_closed()
+        await redis_client.aclose()
 
     http_client = getattr(app.state, "http_client", None)
     if http_client is not None:

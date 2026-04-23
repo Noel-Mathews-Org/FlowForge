@@ -5,14 +5,13 @@ from redis.asyncio import Redis
 
 from config import settings
 
+_redis_client: Redis | None = None
 
-_redis_client: aioredis.Redis | None = None
 
-
-def get_redis() -> aioredis.Redis:
+def get_redis() -> Redis:
     global _redis_client
     if _redis_client is None:
-        _redis_client = aioredis.from_url(settings.redis_url, decode_responses=True)
+        _redis_client = Redis.from_url(settings.redis_url, decode_responses=True)
     return _redis_client
 
 
@@ -35,4 +34,4 @@ async def subscribe_to_channel(channel: str) -> AsyncGenerator[str, None]:
                     yield str(data)
     finally:
         await pubsub.unsubscribe(channel)
-        await pubsub.close()
+        await pubsub.aclose()
