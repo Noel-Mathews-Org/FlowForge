@@ -1,0 +1,58 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: task-service-active
+  namespace: noel-ns
+spec:
+  selector:
+    app: task-service
+  ports:
+    - name: http
+      port: 8003
+      targetPort: 8003
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: task-service-preview
+  namespace: noel-ns
+spec:
+  selector:
+    app: task-service
+  ports:
+    - name: http
+      port: 8003
+      targetPort: 8003
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: task-service-rollout
+  namespace: noel-ns
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: task-service
+  template:
+    metadata:
+      labels:
+        app: task-service
+    spec:
+      containers:
+        - name: task-service
+          image: flowforge/task-service:latest
+          ports:
+            - containerPort: 8003
+          env:
+            - name: DATABASE_URL
+              value: postgresql+asyncpg://postgres:postgres@postgres:5432/task_db
+            - name: REDIS_URL
+              value: redis://redis:6379
+            - name: APP_PORT
+              value: "8003"
+  strategy:
+    blueGreen:
+      activeService: task-service-active
+      previewService: task-service-preview
+      scaleDownDelaySeconds: 30
