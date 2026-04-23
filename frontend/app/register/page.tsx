@@ -1,13 +1,14 @@
 "use client";
 
+import { Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useMemo, useState, ChangeEvent } from "react";
 import { toast } from "sonner";
 import { authApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-export default function RegisterPage() {
+function RegisterForm() {
   const params = useSearchParams();
   const router = useRouter();
   const token = params.get("token");
@@ -43,14 +44,26 @@ export default function RegisterPage() {
         <p className="mt-1 text-sm text-slate-500">Finish setup for your FlowForge workspace.</p>
         {error && <div className="mt-4 rounded-xl bg-rose-50 p-3 text-sm text-rose-600 dark:bg-rose-900/20">{error}</div>}
         <div className="mt-4 space-y-3">
-          <Input placeholder="Full Name" value={fullName} onChange={(e) => setFullName(e.target.value)} minLength={2} required />
-          <Input placeholder="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-          <Input placeholder="Confirm Password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
+          <Input placeholder="Full Name" value={fullName} onChange={(e: ChangeEvent<HTMLInputElement>) => setFullName(e.target.value)} minLength={2} required />
+          <Input placeholder="Password" type="password" value={password} onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)} required />
+          <Input placeholder="Confirm Password" type="password" value={confirmPassword} onChange={(e: ChangeEvent<HTMLInputElement>) => setConfirmPassword(e.target.value)} required />
           <Button disabled={loading || invalid} className="w-full">
             {loading ? "Creating..." : "Create account"}
           </Button>
         </div>
       </form>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
+      </div>
+    }>
+      <RegisterForm />
+    </Suspense>
   );
 }

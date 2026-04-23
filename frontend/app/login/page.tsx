@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { Eye, EyeOff } from "lucide-react";
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, ChangeEvent } from "react";
 import { authApi } from "@/lib/api";
 import { getUser, routeForRole, setToken } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
@@ -78,11 +78,11 @@ export default function LoginPage() {
           </AnimatePresence>
 
           <div className="mt-6 space-y-4">
-            <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" type="email" required />
+            <Input value={email} onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)} placeholder="Email" type="email" required />
             <div className="relative">
               <Input
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
                 placeholder="Password"
                 type={showPassword ? "text" : "password"}
                 required
