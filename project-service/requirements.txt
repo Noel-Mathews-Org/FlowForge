@@ -2,6 +2,6 @@ fastapi
 uvicorn[standard]
 sqlalchemy[asyncio]
 asyncpg
-aioredis
+redis[asyncio]>=4.5.0
 pydantic[email]
 python-multipart

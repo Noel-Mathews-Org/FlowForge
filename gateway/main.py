@@ -3,7 +3,7 @@ import time
 import uuid
 from typing import Any
 
-import aioredis
+from redis.asyncio import Redis
 import httpx
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError

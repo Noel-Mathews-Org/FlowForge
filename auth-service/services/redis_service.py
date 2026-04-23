@@ -1,7 +1,7 @@
 import json
 from collections.abc import AsyncGenerator
 
-import aioredis
+from redis.asyncio import Redis
 
 from config import settings
 

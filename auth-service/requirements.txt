@@ -5,6 +5,6 @@ asyncpg
 pyjwt[crypto]
 cryptography
 bcrypt
-aioredis
+redis[asyncio]>=4.5.0
 pydantic[email]
 python-multipart

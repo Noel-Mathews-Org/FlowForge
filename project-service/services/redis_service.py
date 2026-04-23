@@ -2,7 +2,7 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
-import aioredis
+from redis.asyncio import Redis
 
 from config import settings
 
