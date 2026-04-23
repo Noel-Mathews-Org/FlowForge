@@ -56,8 +56,8 @@ class Settings:
 
 
 def _build_settings() -> Settings:
-    private_key = os.getenv("PRIVATE_KEY", "").strip()
-    public_key = os.getenv("PUBLIC_KEY", "").strip()
+    private_key = os.getenv("PRIVATE_KEY", "").strip().replace("\\n", "\n")
+    public_key = os.getenv("PUBLIC_KEY", "").strip().replace("\\n", "\n")
 
     if not private_key:
         private_key, generated_public_key = _generate_rsa_key_pair()

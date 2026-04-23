@@ -62,7 +62,10 @@ def _error_payload(code: str, message: str, request_id: str) -> dict[str, Any]:
 
 
 def _is_public_route(request: Request) -> bool:
-    return (request.method.upper(), request.url.path) in PUBLIC_ROUTES
+    path = request.url.path
+    if path.startswith("/api/auth/"):
+        return True
+    return (request.method.upper(), path) in PUBLIC_ROUTES
 
 
 def _extract_bearer_token(request: Request) -> str:

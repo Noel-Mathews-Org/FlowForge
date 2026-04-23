@@ -12,13 +12,16 @@ def _get_env(name: str, default: str | None = None, required: bool = False) -> s
 
 def _parse_origins(raw: str) -> List[str]:
     default_origin = "http://localhost:3000"
-    if not raw:
-        return [default_origin]
-
-    origins = [origin.strip() for origin in raw.split(",") if origin.strip()]
+    origins = [origin.strip() for origin in raw.split(",") if origin.strip()] if raw else [default_origin]
+    
+    public_ip = os.getenv("PUBLIC_IP")
+    if public_ip:
+        origins.append(f"http://{public_ip}:3000")
+        origins.append(f"http://{public_ip}")
+    
     if default_origin not in origins:
         origins.insert(0, default_origin)
-    return origins
+    return list(set(origins))
 
 
 @dataclass(frozen=True)

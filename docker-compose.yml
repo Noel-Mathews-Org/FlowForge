@@ -9,7 +9,7 @@ services:
       POSTGRES_DB: flowforge
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./k8s/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./k8s/initdb.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d flowforge"]
       interval: 10s
@@ -38,6 +38,8 @@ services:
         condition: service_healthy
     env_file:
       - ./gateway/.env
+    environment:
+      - PUBLIC_IP=${PUBLIC_IP:-localhost}
 
   auth-service:
     build: ./auth-service
@@ -86,6 +88,16 @@ services:
         condition: service_healthy
     env_file:
       - ./analysis-service/.env
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        - BASE_PUBLIC_URL=${PUBLIC_IP:-localhost}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - gateway
 
 volumes:
   postgres_data:
