@@ -16,7 +16,7 @@ jobs:
     uses: ./.github/workflows/_ci-reusable.yml
     with:
       service_name: gateway
-      project_key: flowforge-gateway
+      project_key: Flow_gateway
     secrets:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_GATEWAY }}
       SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}

@@ -16,7 +16,7 @@ jobs:
     uses: ./.github/workflows/_ci-reusable.yml
     with:
       service_name: analysis-service
-      project_key: flowforge-analysis
+      project_key: Flow_analysis_service
     secrets:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_ANALYSIS }}
       SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}

@@ -16,7 +16,7 @@ jobs:
     uses: ./.github/workflows/_ci-reusable.yml
     with:
       service_name: auth-service
-      project_key: flowforge-auth
+      project_key: Flow_auth_service
     secrets:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_AUTH }}
       SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
