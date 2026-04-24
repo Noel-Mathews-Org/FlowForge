@@ -18,6 +18,7 @@ from schemas import (
     TaskPositionUpdate,
     TaskProposeMoveRequest,
     TaskResponse,
+    TaskStatusUpdate,
     TaskUpdate,
 )
 from services.redis_service import RedisAuditService
@@ -32,6 +33,8 @@ def _validate_status_transition(old_status: TaskStatus, new_status: TaskStatus) 
 
 
 def _to_task_response(task: Task, include_comments: bool = False) -> TaskResponse:
+    # TaskResponse.model_validate(task) accesses task.comments
+    # This requires task.comments to be eagerly loaded with selectinload()
     payload = TaskResponse.model_validate(task, from_attributes=True)
     if include_comments:
         payload.comments = [CommentResponse.model_validate(comment) for comment in task.comments]
@@ -50,6 +53,8 @@ async def get_project_tasks(project_id: UUID, assignee_id: UUID | None = None, d
         stmt = stmt.where(Task.assignee_id == assignee_id)
     result = await db.execute(stmt)
     tasks = result.scalars().all()
+    
+    # KanbanResponse grouping
     grouped = {
         "PENDING_APPROVAL": [],
         "PENDING_REVIEW": [],
@@ -60,7 +65,10 @@ async def get_project_tasks(project_id: UUID, assignee_id: UUID | None = None, d
         "DONE": [],
     }
     for task in tasks:
-        grouped[task.status.value].append(_to_task_response(task))
+        # If task status is not in grouped keys (like REJECTED), skip or handle
+        if task.status.value in grouped:
+            grouped[task.status.value].append(_to_task_response(task))
+            
     return KanbanResponse(**grouped)
 
 
@@ -88,12 +96,17 @@ async def create_task(payload: TaskCreate, request: Request, db: AsyncSession = 
     if not user_id or not user_email:
         raise HTTPException(status_code=401, detail="Missing user headers")
 
-    count_stmt = select(func.count(Task.id)).where(Task.project_id == payload.project_id, Task.status == TaskStatus.PENDING_REVIEW, Task.deleted_at.is_(None))
+    # Determine position
+    count_stmt = select(func.count(Task.id)).where(
+        Task.project_id == payload.project_id, 
+        Task.deleted_at.is_(None)
+    )
     count_result = await db.execute(count_stmt)
     position = count_result.scalar_one()
 
-    user_role = request.state.user_role or "member"
-    initial_status = TaskStatus.PENDING_APPROVAL if user_role.lower() == "member" else TaskStatus.TODO
+    # Approval Workflow: Role-based initial status
+    user_role = (request.state.user_role or "member").lower()
+    initial_status = TaskStatus.PENDING_APPROVAL if user_role == "member" else TaskStatus.TODO
 
     task = Task(
         project_id=payload.project_id,
@@ -109,7 +122,10 @@ async def create_task(payload: TaskCreate, request: Request, db: AsyncSession = 
     )
     db.add(task)
     await db.commit()
-    await db.refresh(task)
+    
+    # Re-fetch with selectinload to avoid MissingGreenlet in _to_task_response
+    stmt = select(Task).where(Task.id == task.id).options(selectinload(Task.comments))
+    task = (await db.execute(stmt)).scalar_one()
 
     audit: RedisAuditService = request.app.state.audit_service
     await audit.emit_event(
@@ -125,7 +141,8 @@ async def create_task(payload: TaskCreate, request: Request, db: AsyncSession = 
 
 @router.post("/{task_id}/activate", response_model=TaskResponse, dependencies=[require_role("manager", "admin")])
 async def activate_task(task_id: UUID, payload: TaskAssignActivateRequest, request: Request, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Task).where(Task.id == task_id, Task.deleted_at.is_(None)).options(selectinload(Task.comments)))
+    stmt = select(Task).where(Task.id == task_id, Task.deleted_at.is_(None)).options(selectinload(Task.comments))
+    result = await db.execute(stmt)
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -140,7 +157,7 @@ async def activate_task(task_id: UUID, payload: TaskAssignActivateRequest, reque
 
     task.updated_at = datetime.now(timezone.utc)
     await db.commit()
-    await db.refresh(task)
+    await db.refresh(task, attribute_names=["comments"]) # refresh with hints or re-fetch
 
     if task.assignee_email:
         await send_notification_email(task.assignee_email, "Task Activated and Assigned", f"You have been assigned to task: '{task.title}'")
@@ -150,7 +167,8 @@ async def activate_task(task_id: UUID, payload: TaskAssignActivateRequest, reque
 
 @router.post("/{task_id}/propose-move", response_model=TaskResponse)
 async def propose_move(task_id: UUID, payload: TaskProposeMoveRequest, request: Request, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Task).where(Task.id == task_id, Task.deleted_at.is_(None)).options(selectinload(Task.comments)))
+    stmt = select(Task).where(Task.id == task_id, Task.deleted_at.is_(None)).options(selectinload(Task.comments))
+    result = await db.execute(stmt)
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -164,18 +182,18 @@ async def propose_move(task_id: UUID, payload: TaskProposeMoveRequest, request: 
 
     task.updated_at = datetime.now(timezone.utc)
     await db.commit()
-    await db.refresh(task)
+    await db.refresh(task, attribute_names=["comments"])
     return _to_task_response(task)
 
 
 @router.post("/{task_id}/approve-move", response_model=TaskResponse, dependencies=[require_role("manager", "admin")])
 async def approve_move(task_id: UUID, request: Request, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Task).where(Task.id == task_id, Task.deleted_at.is_(None)).options(selectinload(Task.comments)))
+    stmt = select(Task).where(Task.id == task_id, Task.deleted_at.is_(None)).options(selectinload(Task.comments))
+    result = await db.execute(stmt)
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    old_status = task.status
     if task.status == TaskStatus.PENDING_PROGRESS:
         task.status = TaskStatus.IN_PROGRESS
     elif task.status == TaskStatus.PENDING_DONE:
@@ -185,7 +203,7 @@ async def approve_move(task_id: UUID, request: Request, db: AsyncSession = Depen
 
     task.updated_at = datetime.now(timezone.utc)
     await db.commit()
-    await db.refresh(task)
+    await db.refresh(task, attribute_names=["comments"])
 
     if task.assignee_email:
         await send_notification_email(task.assignee_email, "Task Move Approved", f"Your proposed move for '{task.title}' was approved. It is now {task.status.value}.")
@@ -195,7 +213,8 @@ async def approve_move(task_id: UUID, request: Request, db: AsyncSession = Depen
 
 @router.post("/{task_id}/reject-move", response_model=TaskResponse, dependencies=[require_role("manager", "admin")])
 async def reject_move(task_id: UUID, request: Request, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Task).where(Task.id == task_id, Task.deleted_at.is_(None)).options(selectinload(Task.comments)))
+    stmt = select(Task).where(Task.id == task_id, Task.deleted_at.is_(None)).options(selectinload(Task.comments))
+    result = await db.execute(stmt)
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -209,7 +228,7 @@ async def reject_move(task_id: UUID, request: Request, db: AsyncSession = Depend
 
     task.updated_at = datetime.now(timezone.utc)
     await db.commit()
-    await db.refresh(task)
+    await db.refresh(task, attribute_names=["comments"])
 
     if task.assignee_email:
         await send_notification_email(task.assignee_email, "Task Move Rejected", f"Your proposed move for '{task.title}' was rejected. It has been reverted to {task.status.value}.")
@@ -229,14 +248,15 @@ async def get_task(task_id: UUID, db: AsyncSession = Depends(get_db)):
 
 @router.put("/{task_id}", response_model=TaskResponse)
 async def update_task(task_id: UUID, payload: TaskUpdate, request: Request, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Task).where(Task.id == task_id, Task.deleted_at.is_(None)).options(selectinload(Task.comments)))
+    stmt = select(Task).where(Task.id == task_id, Task.deleted_at.is_(None)).options(selectinload(Task.comments))
+    result = await db.execute(stmt)
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    user_role = request.state.user_role or "member"
+    user_role = (request.state.user_role or "member").lower()
     
-    if user_role.lower() == "member":
+    if user_role == "member":
         # Create an approval request instead of updating directly
         import json
         proposal = TaskApprovalRequest(
@@ -247,8 +267,6 @@ async def update_task(task_id: UUID, payload: TaskUpdate, request: Request, db: 
         )
         db.add(proposal)
         await db.commit()
-        
-        # Optionally mark the task as having a pending update if you add that field
         return _to_task_response(task)
 
     if payload.status is not None:
@@ -268,36 +286,48 @@ async def update_task(task_id: UUID, payload: TaskUpdate, request: Request, db: 
 
     task.updated_at = datetime.now(timezone.utc)
     await db.commit()
-    await db.refresh(task)
+    await db.refresh(task, attribute_names=["comments"])
 
+    return _to_task_response(task)
+
+
+@router.patch("/{task_id}/status", response_model=TaskResponse, dependencies=[require_role("manager", "admin")])
+async def update_task_status(task_id: UUID, payload: TaskStatusUpdate, db: AsyncSession = Depends(get_db)):
+    """Specific endpoint for status updates (e.g. approve/reject)."""
+    stmt = select(Task).where(Task.id == task_id, Task.deleted_at.is_(None)).options(selectinload(Task.comments))
+    result = await db.execute(stmt)
+    task = result.scalar_one_or_none()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    task.status = TaskStatus(payload.status)
+    task.updated_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(task, attribute_names=["comments"])
     return _to_task_response(task)
 
 
 @router.patch("/{task_id}/position", response_model=TaskResponse)
 async def update_task_position(task_id: UUID, payload: TaskPositionUpdate, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Task).where(Task.id == task_id, Task.deleted_at.is_(None)).options(selectinload(Task.comments)))
+    stmt = select(Task).where(Task.id == task_id, Task.deleted_at.is_(None)).options(selectinload(Task.comments))
+    result = await db.execute(stmt)
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
     target_status = TaskStatus(payload.status)
-    old_status = task.status
-    old_position = task.position
-    if old_status == target_status and old_position == payload.position:
-        return _to_task_response(task)
-
-    # Simplified position updates to just swap the task position
     task.position = payload.position
     task.status = target_status
     task.updated_at = datetime.now(timezone.utc)
     await db.commit()
-    await db.refresh(task)
+    await db.refresh(task, attribute_names=["comments"])
     return _to_task_response(task)
 
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[require_role("manager", "admin")])
 async def delete_task(task_id: UUID, request: Request, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Task).where(Task.id == task_id, Task.deleted_at.is_(None)).options(selectinload(Task.comments)))
+    stmt = select(Task).where(Task.id == task_id, Task.deleted_at.is_(None)).options(selectinload(Task.comments))
+    result = await db.execute(stmt)
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -356,7 +386,7 @@ async def approve_task_internal(task_id: UUID, db: AsyncSession = Depends(get_db
         raise HTTPException(status_code=404, detail="Task not found")
     task.status = TaskStatus.TODO
     await db.commit()
-    await db.refresh(task)
+    await db.refresh(task, attribute_names=["comments"])
     return _to_task_response(task)
 
 
@@ -369,5 +399,5 @@ async def reject_task_internal(task_id: UUID, db: AsyncSession = Depends(get_db)
         raise HTTPException(status_code=404, detail="Task not found")
     task.status = TaskStatus.REJECTED
     await db.commit()
-    await db.refresh(task)
+    await db.refresh(task, attribute_names=["comments"])
     return _to_task_response(task)

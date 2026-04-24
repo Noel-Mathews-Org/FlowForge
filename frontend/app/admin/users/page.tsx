@@ -170,16 +170,16 @@ export default function AdminUsersPage() {
                         </div>
                         <Button
                           variant="ghost"
-                          size="icon"
+                          size="sm"
                           className={cn(
-                            "h-9 w-9 rounded-xl border border-slate-100 dark:border-slate-800",
-                            user.is_active ? "text-rose-500 hover:bg-rose-50" : "text-emerald-500 hover:bg-emerald-50"
+                            "h-9 rounded-xl border border-slate-100 dark:border-slate-800 font-semibold px-4",
+                            user.is_active ? "text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/30" : "text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
                           )}
-                          title={user.is_active ? "Suspend User" : "Activate User"}
+                          title={user.is_active ? "Deactivate User" : "Activate User"}
                           onClick={() => toggleActive.mutate(user)}
                           disabled={toggleActive.isPending}
                         >
-                          <MoreHorizontal className="h-4 w-4" />
+                          {user.is_active ? "Deactivate" : "Activate"}
                         </Button>
                         <Button
                           variant="ghost"

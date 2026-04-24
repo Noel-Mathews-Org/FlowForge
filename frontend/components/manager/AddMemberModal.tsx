@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { authApi, projectApi } from "@/lib/api";
+import { projectApi } from "@/lib/api";
 import { toast } from "sonner";
 
 export const AddMemberModal = ({
@@ -28,30 +28,11 @@ export const AddMemberModal = ({
     setLoading(true);
     
     try {
-      let userId: string | null = null;
-      try {
-        const lookup = await authApi.get(`/lookup?email=${encodeURIComponent(email)}`);
-        userId = lookup.data.id;
-      } catch (err: any) {
-        if (err?.response?.status === 404) {
-          const inviteRes = await authApi.post("/invite-to-project", { email });
-          userId = inviteRes.data.user_id;
-          toast.success("User account created and invite sent");
-        } else {
-          throw err;
-        }
-      }
-
-      if (userId) {
-        await projectApi.post(`/${projectId}/members`, {
-          user_id: userId,
-          user_email: email
-        });
-        toast.success("Member added successfully");
-        setEmail("");
-        onSuccess();
-        onClose();
-      }
+      const res = await projectApi.post(`/${projectId}/members`, { email });
+      toast.success(res.data?.message || "Member added successfully");
+      setEmail("");
+      onSuccess();
+      onClose();
     } catch (err: any) {
       toast.error(err?.response?.data?.detail || "Failed to add member");
     } finally {

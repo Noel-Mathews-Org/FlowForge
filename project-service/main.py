@@ -7,7 +7,6 @@ import asyncio
 from config import settings
 from database import init_db, SessionLocal
 from rbac import HeaderExtractionMiddleware
-from routes.approvals import router as approvals_router
 from routes.projects import router as projects_router
 from services.redis_service import close_redis, connect_redis, get_redis
 from workers.stream_consumer import consume_stream
@@ -34,14 +33,15 @@ app = FastAPI(title="FlowForge Project & Approval Service", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_url],
+    allow_origins=[settings.frontend_url, "*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 app.add_middleware(HeaderExtractionMiddleware)
 
-app.include_router(approvals_router)
+# Literal routes like /approvals are now defined inside projects_router 
+# before parameterized routes like /{project_id} to ensure correct matching.
 app.include_router(projects_router)
 
 

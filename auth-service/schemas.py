@@ -82,3 +82,11 @@ class AdminUserCreateRequest(BaseModel):
 class AdminUserUpdateRequest(BaseModel):
     role: Literal["admin", "manager", "member"] | None = None
     is_active: bool | None = None
+
+
+class InternalCreateUser(BaseModel):
+    email: EmailStr
+    full_name: str
+    role: str = "member"
+    org: str = "flowforge"
+    temp_password: str

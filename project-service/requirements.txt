@@ -5,3 +5,4 @@ asyncpg
 redis[asyncio]>=4.5.0
 pydantic[email]
 python-multipart
+httpx

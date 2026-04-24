@@ -1,13 +1,20 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Bell, Menu, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
-import { getUser } from "@/lib/auth";
+import { getUser, DecodedUser } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 
 export const TopBar = ({ title, onMenuClick }: { title: string; onMenuClick?: () => void }) => {
   const { theme, setTheme } = useTheme();
-  const user = getUser();
+  const [user, setUser] = useState<DecodedUser | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setUser(getUser());
+    setMounted(true);
+  }, []);
   
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-slate-200 bg-white/80 px-4 backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/80 md:h-16 md:px-8">
@@ -30,7 +37,7 @@ export const TopBar = ({ title, onMenuClick }: { title: string; onMenuClick?: ()
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")} 
           className="h-10 w-10 rounded-xl p-0"
         >
-          {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          {mounted && (theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />)}
         </Button>
         
         <div className="relative">
@@ -40,10 +47,12 @@ export const TopBar = ({ title, onMenuClick }: { title: string; onMenuClick?: ()
           <span className="absolute right-2.5 top-2.5 flex h-2 w-2 rounded-full bg-indigo-500 ring-2 ring-white dark:ring-slate-950" />
         </div>
         
-        <div className="ml-2 hidden flex-col items-end sm:flex">
-          <span className="text-xs font-semibold text-slate-900 dark:text-slate-100">{user?.full_name}</span>
-          <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">{user?.email}</span>
-        </div>
+        {mounted && user && (
+          <div className="ml-2 hidden flex-col items-end sm:flex">
+            <span className="text-xs font-semibold text-slate-900 dark:text-slate-100">{user.full_name}</span>
+            <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">{user.email}</span>
+          </div>
+        )}
       </div>
     </header>
   );

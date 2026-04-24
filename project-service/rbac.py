@@ -4,9 +4,12 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 class HeaderExtractionMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        request.state.user_id = request.headers.get("X-User-ID")
+        # Extract headers provided by the gateway
+        # HTTP headers are case-insensitive, but we'll use lowercase internally for consistency
+        request.state.user_id = request.headers.get("X-User-Id")
         request.state.user_role = request.headers.get("X-User-Role")
         request.state.user_email = request.headers.get("X-User-Email")
+        request.state.org = request.headers.get("X-Org")
         return await call_next(request)
 
 
@@ -22,13 +25,12 @@ def get_current_user_id(request: Request) -> str:
 
 def require_role(*roles: str):
     """
-    Returns a FastAPI Depends() object directly.
+    Returns a FastAPI Depends() object.
     Usage: dependencies=[require_role("manager", "admin")]
-    FastAPI receives Depends(checker) — not Depends(Depends(checker)).
     """
     def checker(request: Request) -> None:
         user_role = getattr(request.state, "user_role", None)
-        if user_role not in roles:
+        if not user_role or user_role.lower() not in [r.lower() for r in roles]:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Insufficient permissions",

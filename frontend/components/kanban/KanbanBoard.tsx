@@ -112,6 +112,12 @@ export const KanbanBoard = ({
       )}
 
       <DragDropContext onDragEnd={onDragEnd}>
+        {(!board.TODO?.length && !board.IN_PROGRESS?.length && !board.DONE?.length && pendingTasks.length === 0) ? (
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 py-24 text-center dark:border-slate-700 bg-white dark:bg-slate-900/50">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">No tasks yet</h3>
+            <p className="mt-2 max-w-sm text-sm text-slate-500">Create the first task in any column to get started.</p>
+          </div>
+        ) : null}
         {/* Responsive Kanban Container: Horizontal scroll on mobile, side-by-side on desktop */}
         <div className="overflow-x-auto pb-6 md:overflow-x-visible">
           <motion.div 

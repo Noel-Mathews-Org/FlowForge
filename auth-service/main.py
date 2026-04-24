@@ -30,9 +30,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Public Auth Routes (/auth/login, /auth/register, etc.)
 app.include_router(auth.router)
+
+# Admin Routes (/auth/admin/users, etc.)
 app.include_router(admin.router)
-app.include_router(internal.router, prefix="/auth")
+
+# Internal Service-to-Service Routes (/auth/internal/user-by-email, etc.)
+# These routes are called by other microservices and do not require JWT.
+app.include_router(internal.router, prefix="/auth/internal")
 
 
 @app.get("/health")

@@ -82,3 +82,7 @@ class TaskAssignActivateRequest(BaseModel):
 
 class TaskProposeMoveRequest(BaseModel):
     target_status: Literal["IN_PROGRESS", "DONE"]
+
+
+class TaskStatusUpdate(BaseModel):
+    status: Literal["PENDING_APPROVAL", "PENDING_REVIEW", "TODO", "PENDING_PROGRESS", "IN_PROGRESS", "PENDING_DONE", "DONE", "REJECTED"]

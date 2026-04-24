@@ -24,7 +24,7 @@ export const OverviewCards = ({ overview }: { overview: AnalyticsOverview }) => 
       initial="hidden" 
       animate="show" 
       variants={{ hidden: {}, show: { transition: { staggerChildren: 0.1 } } }} 
-      className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4"
+      className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4"
     >
       {cards.map((card) => (
         <motion.article

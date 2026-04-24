@@ -36,7 +36,7 @@ class AddMemberByEmailRequest(BaseModel):
 def _parse_user_uuid(raw_id: str) -> UUID:
     try:
         return UUID(raw_id)
-    except ValueError as exc:
+    except (ValueError, TypeError) as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user context") from exc
 
 
@@ -81,6 +81,147 @@ async def _can_access_project(session: AsyncSession, project_id: UUID, user_id: 
     return project
 
 
+# --- Literal Routes (Must be before parameterized routes to avoid 422) ---
+
+@router.get("/approvals")
+async def list_task_approvals(request: Request, db: AsyncSession = Depends(get_db)):
+    """Returns all tasks pending approval for projects managed by the current user."""
+    role = getattr(request.state, "user_role", "").lower()
+    if role not in ("manager", "admin"):
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+
+    user_id_str = get_current_user_id(request)
+    user_id = _parse_user_uuid(user_id_str)
+    
+    # 1. Get projects managed by this user
+    if role == "admin":
+        stmt = select(Project.id)
+    else:
+        stmt = select(Project.id).where(Project.manager_id == user_id)
+    
+    result = await db.execute(stmt)
+    project_ids = [str(pid) for pid in result.scalars().all()]
+    
+    if not project_ids:
+        return []
+
+    # 2. Call task-service to get pending_approval tasks
+    async with httpx.AsyncClient() as client:
+        try:
+            # Task service expects project_ids as repeated query params
+            resp = await client.get(
+                f"{settings.task_service_url}/tasks/internal/approvals",
+                params={"project_ids": project_ids}
+            )
+            if resp.status_code != 200:
+                raise HTTPException(status_code=500, detail=f"Failed to fetch tasks: {resp.text}")
+            return resp.json()
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Communication error with task-service: {str(e)}")
+
+
+@router.post("/approvals/{task_id}/approve")
+async def approve_task(task_id: UUID, request: Request):
+    role = getattr(request.state, "user_role", "").lower()
+    if role not in ("manager", "admin"):
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            resp = await client.post(f"{settings.task_service_url}/tasks/internal/{task_id}/approve")
+            if resp.status_code != 200:
+                 raise HTTPException(status_code=resp.status_code, detail=f"Approval failed: {resp.text}")
+            return resp.json()
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Communication error with task-service: {str(e)}")
+
+
+@router.post("/approvals/{task_id}/reject")
+async def reject_task(task_id: UUID, request: Request):
+    role = getattr(request.state, "user_role", "").lower()
+    if role not in ("manager", "admin"):
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+        
+    async with httpx.AsyncClient() as client:
+        try:
+            resp = await client.post(f"{settings.task_service_url}/tasks/internal/{task_id}/reject")
+            if resp.status_code != 200:
+                 raise HTTPException(status_code=resp.status_code, detail=f"Rejection failed: {resp.text}")
+            return resp.json()
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Communication error with task-service: {str(e)}")
+
+
+@router.post("/request-access", response_model=ApprovalRequestResponse)
+async def request_project_access(
+    payload: ApprovalRequestCreate,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    requester_id_raw = get_current_user_id(request)
+    requester_email = _require_email(request)
+    requester_id = _parse_user_uuid(requester_id_raw)
+
+    project = await db.get(Project, payload.project_id)
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+
+    is_member = await db.scalar(
+        select(ProjectMember.id).where(
+            and_(ProjectMember.project_id == payload.project_id, ProjectMember.user_id == requester_id)
+        )
+    )
+    if is_member:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Already a member")
+
+    pending = await db.scalar(
+        select(ApprovalRequest.id).where(
+            and_(
+                ApprovalRequest.project_id == payload.project_id,
+                ApprovalRequest.requester_id == requester_id,
+                ApprovalRequest.status == ApprovalStatus.PENDING,
+            )
+        )
+    )
+    if pending:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Request already pending")
+
+    approval = ApprovalRequest(
+        project_id=payload.project_id,
+        requester_id=requester_id,
+        requester_email=requester_email,
+        message=payload.message,
+    )
+    db.add(approval)
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Request already pending") from exc
+    await db.refresh(approval)
+
+    await publish_manager_notification(
+        {
+            "type": "access_request",
+            "project_id": str(project.id),
+            "project_name": project.name,
+            "requester_id": requester_id_raw,
+            "requester_email": requester_email,
+            "request_id": str(approval.id),
+        }
+    )
+    await append_audit_log(
+        event_type="approval_requested",
+        user_id=requester_id_raw,
+        project_id=str(project.id),
+        metadata={"request_id": str(approval.id), "message": payload.message},
+    )
+
+    return ApprovalRequestResponse.model_validate(approval)
+
+
+# --- Parameterized Routes ---
+
 @router.get("/", response_model=ProjectListResponse)
 async def list_projects(
     request: Request,
@@ -111,11 +252,10 @@ async def list_projects(
                 .limit(page_size)
             )
         )
-        .scalars()
-        .all()
     )
+    results = projects.scalars().all()
 
-    response_projects = [await _project_response(db, project) for project in projects]
+    response_projects = [await _project_response(db, project) for project in results]
     return ProjectListResponse(projects=response_projects, total=total or 0)
 
 
@@ -219,7 +359,8 @@ async def add_project_member(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    user_id = _parse_user_uuid(get_current_user_id(request))
+    user_id_raw = get_current_user_id(request)
+    user_id = _parse_user_uuid(user_id_raw)
     role = getattr(request.state, "user_role", None)
     
     project = await db.get(Project, project_id)
@@ -233,41 +374,49 @@ async def add_project_member(
     temp_password = None
     
     async with httpx.AsyncClient() as client:
+        # Step 1: Look up user by email
         lookup_url = f"http://auth-service:8001/auth/internal/user-by-email?email={payload.email}"
-        response = await client.get(lookup_url)
-        
-        if response.status_code == 200:
-            target_user_id = response.json().get("id")
-        elif response.status_code == 404:
-            create_url = "http://auth-service:8001/auth/internal/create-user"
-            temp_password = secrets.token_urlsafe(12)
-            req_data = {
-                "email": payload.email,
-                "full_name": payload.email.split("@")[0],
-                "role": "member",
-                "org": "Default",
-                "temp_password": temp_password
-            }
-            create_response = await client.post(create_url, json=req_data)
-            if create_response.status_code in (200, 201):
-                target_user_id = create_response.json().get("id")
-                created = True
+        try:
+            response = await client.get(lookup_url)
+            
+            if response.status_code == 200:
+                target_user_id = response.json().get("id")
+            elif response.status_code == 404:
+                # Step 2: Create user if not found
+                create_url = "http://auth-service:8001/auth/internal/create-user"
+                temp_password = secrets.token_urlsafe(9)  # Roughly 12 characters
+                req_data = {
+                    "email": payload.email,
+                    "full_name": payload.email.split("@")[0],
+                    "role": "member",
+                    "org": "stratum",
+                    "temp_password": temp_password
+                }
+                create_response = await client.post(create_url, json=req_data)
+                if create_response.status_code in (200, 201):
+                    target_user_id = create_response.json().get("id")
+                    created = True
+                else:
+                    raise HTTPException(status_code=500, detail=f"Failed to create user in auth-service: {create_response.text}")
             else:
-                raise HTTPException(status_code=500, detail="Failed to create user via internal API")
-        else:
-            raise HTTPException(status_code=500, detail="Failed to look up user via internal API")
+                raise HTTPException(status_code=500, detail=f"Unexpected response from auth-service lookup: {response.text}")
+        except Exception as e:
+             if isinstance(e, HTTPException): raise e
+             raise HTTPException(status_code=500, detail=f"Internal service communication error: {str(e)}")
             
     if not target_user_id:
-        raise HTTPException(status_code=500, detail="Could not determine user ID")
+        raise HTTPException(status_code=500, detail="Could not determine user ID from auth-service")
 
     parsed_target_id = UUID(target_user_id)
 
+    # Check if already a member
     existing = await db.scalar(
         select(ProjectMember).where(and_(ProjectMember.project_id == project_id, ProjectMember.user_id == parsed_target_id))
     )
     if existing:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User is already a member")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User is already a member of this project")
 
+    # Add member
     member = ProjectMember(
         project_id=project_id,
         user_id=parsed_target_id,
@@ -280,25 +429,26 @@ async def add_project_member(
     
     await append_audit_log(
         event_type="member_added",
-        user_id=str(user_id),
+        user_id=user_id_raw,
         project_id=str(project_id),
-        metadata={"added_user": payload.email},
+        metadata={"added_user": payload.email, "was_created": created},
     )
 
+    # Notify user
     frontend_url = settings.frontend_url
     name = payload.email.split('@')[0]
     
     if created:
-        subject = f"Welcome to Stratum - You've been added to {project.name}"
-        text_body = f"Hi {name}, an account has been created for you on Stratum.\nEmail: {payload.email}\nTemporary password: {temp_password}\nYou have been assigned to project: {project.name}\nLog in at {frontend_url} and change your password."
-        html_body = text_body.replace("\n", "<br>")
+        subject = f"Welcome to FlowForge - You've been added to {project.name}"
+        text_body = f"Hi {name},\n\nAn account has been created for you on FlowForge.\nEmail: {payload.email}\nTemporary password: {temp_password}\n\nYou have been assigned to project: {project.name}\n\nLog in at {frontend_url} and change your password."
     else:
         subject = f"You've been added to project {project.name}"
-        text_body = f"Hi {name}, you have been added to the project '{project.name}' on Stratum. \nLog in at {frontend_url} to view your tasks."
-        html_body = text_body.replace("\n", "<br>")
-
+        text_body = f"Hi {name},\n\nYou have been added to the project '{project.name}' on FlowForge. \n\nLog in at {frontend_url} to view your tasks."
+    
+    html_body = text_body.replace("\n", "<br>")
     await send_task_notification_email(payload.email, subject, html_body, text_body)
 
+    # Return updated list
     members_result = await db.execute(
         select(ProjectMember).where(ProjectMember.project_id == project_id).order_by(ProjectMember.joined_at)
     )
@@ -364,72 +514,4 @@ async def remove_project_member(
 
     await db.delete(member)
     await db.commit()
-    return None
-
-
-@router.post("/request-access", response_model=ApprovalRequestResponse)
-async def request_project_access(
-    payload: ApprovalRequestCreate,
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-):
-    requester_id_raw = get_current_user_id(request)
-    requester_email = _require_email(request)
-    requester_id = _parse_user_uuid(requester_id_raw)
-
-    project = await db.get(Project, payload.project_id)
-    if not project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
-
-    is_member = await db.scalar(
-        select(ProjectMember.id).where(
-            and_(ProjectMember.project_id == payload.project_id, ProjectMember.user_id == requester_id)
-        )
-    )
-    if is_member:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Already a member")
-
-    pending = await db.scalar(
-        select(ApprovalRequest.id).where(
-            and_(
-                ApprovalRequest.project_id == payload.project_id,
-                ApprovalRequest.requester_id == requester_id,
-                ApprovalRequest.status == ApprovalStatus.PENDING,
-            )
-        )
-    )
-    if pending:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Request already pending")
-
-    approval = ApprovalRequest(
-        project_id=payload.project_id,
-        requester_id=requester_id,
-        requester_email=requester_email,
-        message=payload.message,
-    )
-    db.add(approval)
-    try:
-        await db.commit()
-    except IntegrityError as exc:
-        await db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Request already pending") from exc
-    await db.refresh(approval)
-
-    await publish_manager_notification(
-        {
-            "type": "access_request",
-            "project_id": str(project.id),
-            "project_name": project.name,
-            "requester_id": requester_id_raw,
-            "requester_email": requester_email,
-            "request_id": str(approval.id),
-        }
-    )
-    await append_audit_log(
-        event_type="approval_requested",
-        user_id=requester_id_raw,
-        project_id=str(project.id),
-        metadata={"request_id": str(approval.id), "message": payload.message},
-    )
-
-    return ApprovalRequestResponse.model_validate(approval)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
