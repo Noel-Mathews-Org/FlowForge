@@ -10,10 +10,7 @@ FROM node:18-alpine AS builder
 WORKDIR /app
 ARG BASE_PUBLIC_URL
 # Pass build-time variables for Next.js client-side injection
-ENV NEXT_PUBLIC_AUTH_URL=http://${BASE_PUBLIC_URL}:8000/api/auth
-ENV NEXT_PUBLIC_PROJECT_URL=http://${BASE_PUBLIC_URL}:8000/api/projects
-ENV NEXT_PUBLIC_TASK_URL=http://${BASE_PUBLIC_URL}:8000/api/tasks
-ENV NEXT_PUBLIC_ANALYTICS_URL=http://${BASE_PUBLIC_URL}:8000/api/analytics
+ENV NEXT_PUBLIC_API_URL=http://${BASE_PUBLIC_URL}:8000/api
 ENV NEXT_PUBLIC_MOCK_MODE=false 
 
 COPY --from=deps /app/node_modules ./node_modules

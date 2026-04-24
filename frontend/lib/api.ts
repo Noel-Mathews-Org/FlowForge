@@ -29,12 +29,9 @@ const withInterceptors = (baseURL: string) => {
 
 // These are baked in at build time via Dockerfile ARG BASE_PUBLIC_URL
 // Never fall back to localhost — fail loudly so misconfiguration is obvious
-const AUTH_URL = process.env.NEXT_PUBLIC_AUTH_URL!;
-const PROJECT_URL = process.env.NEXT_PUBLIC_PROJECT_URL!;
-const TASK_URL = process.env.NEXT_PUBLIC_TASK_URL!;
-const ANALYTICS_URL = process.env.NEXT_PUBLIC_ANALYTICS_URL!;
+const API_URL = process.env.NEXT_PUBLIC_API_URL!;
 
-export const authApi = withInterceptors(AUTH_URL);
-export const projectApi = withInterceptors(PROJECT_URL);
-export const taskApi = withInterceptors(TASK_URL);
-export const analyticsApi = withInterceptors(ANALYTICS_URL);
+export const authApi = withInterceptors(`${API_URL}/auth`);
+export const projectApi = withInterceptors(`${API_URL}/projects`);
+export const taskApi = withInterceptors(`${API_URL}/tasks`);
+export const analyticsApi = withInterceptors(`${API_URL}/analytics`);
