@@ -1,0 +1,23 @@
+name: Project Service CI
+
+on:
+  push:
+    branches:
+      - test
+    paths:
+      - 'project-service/**'
+
+jobs:
+  run-ci:
+    uses: ./.github/workflows/_ci-reusable.yml
+    with:
+      service_name: project-service
+      project_key: flowforge-project
+    secrets:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_PROJECT }}
+      SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+      MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+      DEVELOPMENT_TEAM_EMAIL: ${{ secrets.DEVELOPMENT_TEAM_EMAIL }}
+      GH_PAT: ${{ secrets.GH_PAT }}

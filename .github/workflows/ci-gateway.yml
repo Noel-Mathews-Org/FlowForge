@@ -1,0 +1,23 @@
+name: Gateway CI
+
+on:
+  push:
+    branches:
+      - test
+    paths:
+      - 'gateway/**'
+
+jobs:
+  run-ci:
+    uses: ./.github/workflows/_ci-reusable.yml
+    with:
+      service_name: gateway
+      project_key: flowforge-gateway
+    secrets:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_GATEWAY }}
+      SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+      MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+      DEVELOPMENT_TEAM_EMAIL: ${{ secrets.DEVELOPMENT_TEAM_EMAIL }}
+      GH_PAT: ${{ secrets.GH_PAT }}

@@ -1,0 +1,144 @@
+name: Production Release Pipeline
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  promote-to-prod:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: prod
+
+      - name: Parse Release Tag
+        id: parse
+        run: |
+          TAG_NAME="${{ github.event.release.tag_name }}"
+          SERVICE=$(echo "$TAG_NAME" | sed -r 's/-v[0-9]+\.[0-9]+\.[0-9]+.*//')
+          VERSION=$(echo "$TAG_NAME" | grep -o 'v[0-9]\+\.[0-9]\+\.[0-9]\+.*')
+          
+          if [ -z "$SERVICE" ] || [ -z "$VERSION" ]; then
+            echo "Error: Invalid release tag format. Must be <service-name>-v<version>"
+            exit 1
+          fi
+          
+          echo "service=$SERVICE" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Fetch Dev SHA
+        id: fetch-sha
+        run: |
+          git fetch origin test
+          git checkout origin/test -- Helm/values-dev.yaml
+          
+          DEV_SHA=$(yq eval ".${{ steps.parse.outputs.service }}.image.tag" Helm/values-dev.yaml)
+          echo "Found verified SHA in Dev: $DEV_SHA"
+          echo "sha=$DEV_SHA" >> $GITHUB_OUTPUT
+          rm Helm/values-dev.yaml
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull Image
+        run: docker pull ghcr.io/${{ github.repository }}/${{ steps.parse.outputs.service }}:${{ steps.fetch-sha.outputs.sha }}
+
+      - name: Trivy Scan Before Promotion
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'ghcr.io/${{ github.repository }}/${{ steps.parse.outputs.service }}:${{ steps.fetch-sha.outputs.sha }}'
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Retag with SemVer and Push
+        run: |
+          docker tag ghcr.io/${{ github.repository }}/${{ steps.parse.outputs.service }}:${{ steps.fetch-sha.outputs.sha }} ghcr.io/${{ github.repository }}/${{ steps.parse.outputs.service }}:${{ steps.parse.outputs.version }}
+          docker push ghcr.io/${{ github.repository }}/${{ steps.parse.outputs.service }}:${{ steps.parse.outputs.version }}
+
+      - name: Update values-prod.yaml and Push
+        run: |
+          yq eval ".${{ steps.parse.outputs.service }}.image.tag = \"${{ steps.parse.outputs.version }}\"" -i Helm/values-prod.yaml
+          
+          git config user.name "FlowForge Release Bot"
+          git config user.email "releases@flowforge.com"
+          git add Helm/values-prod.yaml
+          git commit -m "chore(release): promote ${{ steps.parse.outputs.service }} to ${{ steps.parse.outputs.version }} in PROD"
+          git push origin prod
+
+  notify:
+    name: Notify Team
+    needs: [promote-to-prod]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Get commit details
+        id: commit
+        run: |
+          echo "AUTHOR_NAME=$(git log -1 --pretty=format:'%an')" >> $GITHUB_OUTPUT
+          echo "AUTHOR_EMAIL=$(git log -1 --pretty=format:'%ae')" >> $GITHUB_OUTPUT
+          echo "COMMIT_MSG=$(git log -1 --pretty=format:'%s')" >> $GITHUB_OUTPUT
+          echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+          echo "COMMIT_URL=https://github.com/${{ github.repository }}/commit/${{ github.sha }}" >> $GITHUB_OUTPUT
+
+      - name: Determine status
+        id: status
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
+            echo "EMOJI=❌" >> $GITHUB_OUTPUT
+            echo "COLOR=#d9534f" >> $GITHUB_OUTPUT
+            echo "STATUS_TEXT=FAILED" >> $GITHUB_OUTPUT
+          elif [[ "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "EMOJI=⚠️" >> $GITHUB_OUTPUT
+            echo "COLOR=#f0ad4e" >> $GITHUB_OUTPUT
+            echo "STATUS_TEXT=CANCELLED" >> $GITHUB_OUTPUT
+          else
+            echo "EMOJI=✅" >> $GITHUB_OUTPUT
+            echo "COLOR=#5cb85c" >> $GITHUB_OUTPUT
+            echo "STATUS_TEXT=PASSED" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Send Summary Email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          to: ${{ secrets.DEVELOPMENT_TEAM_EMAIL }}
+          from: FlowForge DevOps <${{ secrets.MAIL_USERNAME }}>
+          subject: "${{ steps.status.outputs.EMOJI }} ${{ steps.status.outputs.STATUS_TEXT }} | Release Pipeline | ${{ github.event_name }}"
+          html_body: |
+            <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden">
+              <div style="background:${{ steps.status.outputs.COLOR }};color:white;padding:20px">
+                <h2 style="margin:0;font-size:20px">${{ steps.status.outputs.EMOJI }} Release Pipeline ${{ steps.status.outputs.STATUS_TEXT }}</h2>
+                <p style="margin:6px 0 0;opacity:0.9;font-size:14px">${{ github.event_name }} on ${{ github.ref_name }}</p>
+              </div>
+              <div style="background:#f8f9fa;padding:16px 20px;border-bottom:1px solid #e9ecef">
+                <h3 style="margin:0 0 12px;font-size:14px;color:#6c757d;text-transform:uppercase">Release Details</h3>
+                <table style="width:100%;border-collapse:collapse;font-size:14px">
+                  <tr><td style="padding:4px 0;color:#6c757d;width:120px">Author</td><td style="font-weight:bold">${{ steps.commit.outputs.AUTHOR_NAME }}</td></tr>
+                  <tr><td style="padding:4px 0;color:#6c757d">Commit ID</td><td><a href="${{ steps.commit.outputs.COMMIT_URL }}" style="color:#0366d6;font-family:monospace;font-weight:bold">${{ steps.commit.outputs.SHORT_SHA }}</a></td></tr>
+                  <tr><td style="padding:4px 0;color:#6c757d">Tag</td><td style="font-style:italic">${{ github.event.release.tag_name }}</td></tr>
+                </table>
+              </div>
+              <div style="padding:20px">
+                <h3 style="margin:0 0 12px;font-size:14px;color:#6c757d;text-transform:uppercase">Pipeline Results</h3>
+                <div style="text-align:center;margin-top:20px">
+                  <a href="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" style="background:#24292e;color:white;padding:10px 24px;border-radius:6px;text-decoration:none;font-size:14px;display:inline-block">View Logs</a>
+                </div>
+              </div>
+            </div>
