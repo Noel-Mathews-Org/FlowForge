@@ -105,3 +105,6 @@ async def _process_message(redis_client: Redis, session_factory: async_sessionma
         except Exception:  # noqa: BLE001
             await session.rollback()
             logger.exception("Failed processing stream message %s", message_id)
+            # Acknowledge the message even on failure to prevent "poison pills" from clogging the PEL.
+            # In a production system, this could instead push to a Dead Letter Queue (DLQ).
+            await redis_client.xack("audit_log", settings.STREAM_CONSUMER_GROUP, message_id)
