@@ -91,13 +91,17 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
+      - name: Lowercase Repository Name
+        id: repo
+        run: echo "name=${GITHUB_REPOSITORY,,}" >> $GITHUB_OUTPUT
+
       - name: Build Docker Image
-        run: docker build -t ghcr.io/${{ github.repository }}/${{ inputs.service_name }}:${{ steps.vars.outputs.short_sha }} ./${{ inputs.service_name }}
+        run: docker build -t ghcr.io/${{ steps.repo.outputs.name }}/${{ inputs.service_name }}:${{ steps.vars.outputs.short_sha }} ./${{ inputs.service_name }}
 
       - name: Trivy Scan
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: 'ghcr.io/${{ github.repository }}/${{ inputs.service_name }}:${{ steps.vars.outputs.short_sha }}'
+          image-ref: 'ghcr.io/${{ steps.repo.outputs.name }}/${{ inputs.service_name }}:${{ steps.vars.outputs.short_sha }}'
           format: 'table'
           exit-code: '1'
           severity: 'CRITICAL,HIGH'
@@ -110,7 +114,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push to GHCR
-        run: docker push ghcr.io/${{ github.repository }}/${{ inputs.service_name }}:${{ steps.vars.outputs.short_sha }}
+        run: docker push ghcr.io/${{ steps.repo.outputs.name }}/${{ inputs.service_name }}:${{ steps.vars.outputs.short_sha }}
 
       - name: Update values-dev.yaml and Push
         run: |
