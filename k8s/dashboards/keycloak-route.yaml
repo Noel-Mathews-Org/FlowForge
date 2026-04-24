@@ -11,5 +11,5 @@ spec:
   - "keycloak.flowforge.fun"
   rules:
   - backendRefs:
-    - name: keycloak-http
+    - name: keycloak
       port: 8080
