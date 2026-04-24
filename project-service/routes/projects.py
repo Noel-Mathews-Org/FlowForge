@@ -1,4 +1,5 @@
 import json
+import secrets
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
@@ -231,33 +232,39 @@ async def add_project_member(
     target_user_id = None
     created = False
     
-    create_url = "http://auth-service:8001/auth/admin/users"
-    req_data = json.dumps({
-        "email": payload.email,
-        "full_name": payload.email.split("@")[0],
-        "role": "member",
-        "org": "Default"
-    }).encode("utf-8")
-    req = urllib.request.Request(create_url, data=req_data, headers={"Content-Type": "application/json", "X-User-Role": "admin"})
+    import urllib.request
+    import urllib.parse
+    import json
     
+    lookup_url = f"http://auth-service:8001/auth/internal/user-by-email?email={urllib.parse.quote(payload.email)}"
     try:
+        req = urllib.request.Request(lookup_url)
         with urllib.request.urlopen(req) as resp:
             data = json.loads(resp.read().decode())
             target_user_id = data["id"]
-            created = True
     except urllib.error.HTTPError as e:
-        if e.code == 400:
-            # User already exists, fetch ID
-            lookup_url = f"http://auth-service:8001/auth/lookup?email={urllib.parse.quote(payload.email)}"
-            req2 = urllib.request.Request(lookup_url, headers={"X-User-Role": "admin"})
+        if e.code == 404:
+            # User not found, create via internal API
+            create_url = "http://auth-service:8001/auth/internal/create-user"
+            req_data = json.dumps({
+                "email": payload.email,
+                "full_name": payload.email.split("@")[0],
+                "role": "member",
+                "org": "Default",
+                "temp_password": secrets.token_urlsafe(12)
+            }).encode("utf-8")
+            req2 = urllib.request.Request(create_url, data=req_data, headers={"Content-Type": "application/json"})
             try:
                 with urllib.request.urlopen(req2) as resp2:
                     data2 = json.loads(resp2.read().decode())
                     target_user_id = data2["id"]
-            except Exception:
-                raise HTTPException(status_code=400, detail="User exists but could not retrieve ID")
+                    created = True
+            except Exception as exc:
+                raise HTTPException(status_code=500, detail="Failed to create user via internal API") from exc
         else:
-            raise HTTPException(status_code=500, detail="Failed to communicate with auth service")
+            raise HTTPException(status_code=500, detail="Failed to look up user via internal API") from e
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Failed to communicate with auth service") from exc
             
     if not target_user_id:
         raise HTTPException(status_code=500, detail="Could not determine user ID")

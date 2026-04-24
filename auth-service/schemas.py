@@ -57,6 +57,7 @@ class UserProfile(BaseModel):
     full_name: str
     role: str
     org: str
+    is_active: bool = True
     created_at: datetime
 
 

@@ -58,7 +58,11 @@ export default function ManagerProjectDetailPage() {
             Board failed to load. <button className="underline" onClick={() => tasks.refetch()}>Retry</button>
           </div>
         ) : (
-          <KanbanBoard initialBoard={tasks.data} projectId={params.id} />
+          <KanbanBoard 
+            initialBoard={tasks.data} 
+            projectId={params.id} 
+            projectMembers={project.data.members} 
+          />
         )}
       </div>
 

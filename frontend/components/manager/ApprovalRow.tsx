@@ -24,7 +24,7 @@ export const ApprovalRow = ({
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm text-slate-700 dark:text-slate-200">
-          <strong>{approval.requester_email}</strong> requested access
+          <strong>{approval.requester_email}</strong> requested access to <strong>{approval.project_name || "Project"}</strong>
         </p>
         <p className="text-xs text-slate-500">{formatDistanceToNow(new Date(approval.requested_at), { addSuffix: true })}</p>
       </div>

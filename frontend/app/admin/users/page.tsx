@@ -1,9 +1,9 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { format } from "date-fns";
-import { Shield, ShieldAlert, Key, Plus } from "lucide-react";
+import { Shield, ShieldAlert, Key, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { authApi } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,34 +13,46 @@ import { SelectField } from "@/components/ui/select";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function AdminUsersPage() {
+  const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const [newUser, setNewUser] = useState({ email: "", full_name: "", role: "member", org: "Default" });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { data: users, isLoading, refetch, isError } = useQuery({
+  const { data: users, isLoading, isError } = useQuery({
     queryKey: ["admin-users"],
     queryFn: async () => (await authApi.get("/admin/users")).data,
   });
 
-  const toggleActive = async (userId: string, isActive: boolean) => {
-    try {
-      await authApi.patch(`/admin/users/${userId}`, { is_active: !isActive });
+  const toggleActive = useMutation({
+    mutationFn: (user: any) =>
+      authApi.patch(`/admin/users/${user.id}`, { is_active: !user.is_active }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
       toast.success("User status updated");
-      refetch();
-    } catch {
-      toast.error("Failed to update user status");
-    }
-  };
+    },
+    onError: () => toast.error("Failed to update user status"),
+  });
 
-  const changeRole = async (userId: string, newRole: string) => {
-    try {
-      await authApi.patch(`/admin/users/${userId}`, { role: newRole });
+  const changeRole = useMutation({
+    mutationFn: ({ userId, newRole }: { userId: string; newRole: string }) =>
+      authApi.patch(`/admin/users/${userId}`, { role: newRole }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
       toast.success("User role updated");
-      refetch();
-    } catch {
-      toast.error("Failed to update user role");
-    }
-  };
+    },
+    onError: () => toast.error("Failed to update user role"),
+  });
+
+  const deleteUser = useMutation({
+    mutationFn: (userId: string) => authApi.delete(`/admin/users/${userId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      toast.success("User deactivated");
+      setDeleteTarget(null);
+    },
+    onError: () => toast.error("Failed to delete user"),
+  });
 
   const handleCreate = async () => {
     if (!newUser.email.trim() || !newUser.full_name.trim()) {
@@ -53,7 +65,7 @@ export default function AdminUsersPage() {
       toast.success("User created and email sent");
       setModalOpen(false);
       setNewUser({ email: "", full_name: "", role: "member", org: "Default" });
-      refetch();
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
     } catch (err: any) {
       toast.error(err?.response?.data?.detail || "Failed to create user");
     } finally {
@@ -78,11 +90,11 @@ export default function AdminUsersPage() {
           <table className="w-full text-left text-sm text-slate-600 dark:text-slate-400">
             <thead className="border-b border-slate-200 bg-slate-50/50 text-slate-500 dark:border-slate-800 dark:bg-slate-800/50">
               <tr>
-                <th className="px-6 py-3 font-medium">User</th>
-                <th className="px-6 py-3 font-medium">Role</th>
-                <th className="px-6 py-3 font-medium">Status</th>
-                <th className="px-6 py-3 font-medium">Joined</th>
-                <th className="px-6 py-3 font-medium text-right">Actions</th>
+                <th className="px-4 py-3 font-medium md:px-6">User</th>
+                <th className="px-4 py-3 font-medium md:px-6">Role</th>
+                <th className="px-4 py-3 font-medium md:px-6">Status</th>
+                <th className="hidden px-4 py-3 font-medium md:table-cell md:px-6">Joined</th>
+                <th className="px-4 py-3 font-medium text-right md:px-6">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -102,11 +114,11 @@ export default function AdminUsersPage() {
               ) : (
                 users.map((user: any) => (
                   <tr key={user.id} className="transition-colors hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-4 md:px-6">
                       <div className="font-medium text-slate-900 dark:text-slate-100">{user.full_name}</div>
                       <div className="text-xs text-slate-500">{user.email}</div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-4 md:px-6">
                       <div className="flex items-center gap-2">
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                           {user.role === "admin" ? <ShieldAlert className="h-3 w-3 text-rose-500" /> : user.role === "manager" ? <Shield className="h-3 w-3 text-indigo-500" /> : <Key className="h-3 w-3 text-emerald-500" />}
@@ -114,31 +126,44 @@ export default function AdminUsersPage() {
                         </span>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${(user.is_active ?? true) ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>
-                        {(user.is_active ?? true) ? "Active" : "Inactive"}
+                    <td className="px-4 py-4 md:px-6">
+                      <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${user.is_active ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400"}`}>
+                        {user.is_active ? "Active" : "Inactive"}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-slate-500">{format(new Date(user.created_at), "MMM d, yyyy")}</td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="hidden px-4 py-4 text-slate-500 md:table-cell md:px-6">{format(new Date(user.created_at), "MMM d, yyyy")}</td>
+                    <td className="px-4 py-4 text-right md:px-6">
                       <div className="flex items-center justify-end gap-2">
-                        <div className="w-32 text-left">
-                          <SelectField 
-                            value={user.role} 
-                            onValueChange={(val) => changeRole(user.id, val)} 
+                        <div className="hidden w-32 text-left sm:block">
+                          <SelectField
+                            value={user.role}
+                            onValueChange={(val) => changeRole.mutate({ userId: user.id, newRole: val })}
                             options={[
                               { value: "member", label: "Member" },
                               { value: "manager", label: "Manager" },
                               { value: "admin", label: "Admin" }
-                            ]} 
+                            ]}
                           />
                         </div>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={() => toggleActive(user.id, user.is_active ?? true)}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className={user.is_active
+                            ? "border-rose-200 text-rose-600 hover:bg-rose-50 dark:border-rose-800 dark:text-rose-400 dark:hover:bg-rose-900/20"
+                            : "border-emerald-200 text-emerald-600 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-900/20"
+                          }
+                          onClick={() => toggleActive.mutate(user)}
+                          disabled={toggleActive.isPending}
                         >
-                          {(user.is_active ?? true) ? "Deactivate" : "Activate"}
+                          {user.is_active ? "Deactivate" : "Activate"}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8 border-rose-200 text-rose-500 hover:bg-rose-50 dark:border-rose-800 dark:hover:bg-rose-900/20"
+                          onClick={() => setDeleteTarget(user)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     </td>
@@ -150,6 +175,7 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
+      {/* Create User Modal */}
       <AnimatePresence>
         {modalOpen && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -170,14 +196,14 @@ export default function AdminUsersPage() {
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium">Role</label>
-                  <SelectField 
-                    value={newUser.role} 
-                    onValueChange={(val) => setNewUser({ ...newUser, role: val })} 
+                  <SelectField
+                    value={newUser.role}
+                    onValueChange={(val) => setNewUser({ ...newUser, role: val })}
                     options={[
                       { value: "member", label: "Member" },
                       { value: "manager", label: "Manager" },
                       { value: "admin", label: "Admin" }
-                    ]} 
+                    ]}
                   />
                 </div>
                 <div className="mt-6 flex justify-end gap-3">
@@ -186,6 +212,30 @@ export default function AdminUsersPage() {
                     {isSubmitting ? "Creating..." : "Create User"}
                   </Button>
                 </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {deleteTarget && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl dark:bg-slate-900">
+              <h3 className="mb-2 text-lg font-semibold text-slate-900 dark:text-slate-100">Confirm Deletion</h3>
+              <p className="mb-6 text-sm text-slate-500">
+                Are you sure you want to deactivate <strong>{deleteTarget.full_name}</strong> ({deleteTarget.email})? This will prevent them from logging in.
+              </p>
+              <div className="flex justify-end gap-3">
+                <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+                <Button
+                  className="bg-rose-600 text-white hover:bg-rose-700"
+                  onClick={() => deleteUser.mutate(deleteTarget.id)}
+                  disabled={deleteUser.isPending}
+                >
+                  {deleteUser.isPending ? "Deleting..." : "Delete User"}
+                </Button>
               </div>
             </motion.div>
           </motion.div>

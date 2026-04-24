@@ -9,10 +9,20 @@ import { generateId } from "@/lib/utils";
 import type { KanbanBoard as Board, Task } from "@/types";
 import { KanbanColumn } from "@/components/kanban/KanbanColumn";
 import { TaskDetailModal } from "@/components/kanban/TaskDetailModal";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 
-export const KanbanBoard = ({ initialBoard, projectId }: { initialBoard: Board; projectId?: string }) => {
+export const KanbanBoard = ({ 
+  initialBoard, 
+  projectId,
+  projectMembers = []
+}: { 
+  initialBoard: Board; 
+  projectId?: string;
+  projectMembers?: import("@/types").ProjectMember[];
+}) => {
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const [board, setBoard] = useState(initialBoard);
   const [openTask, setOpenTask] = useState<Task | null>(null);
@@ -97,7 +107,9 @@ export const KanbanBoard = ({ initialBoard, projectId }: { initialBoard: Board; 
               tasks={board[status] ?? []}
               onOpenTask={setOpenTask}
               isDragDisabled={!isManager}
-              onAddTask={async (title, priority, col) => {
+              isManager={isManager}
+              members={projectMembers}
+              onAddTask={async (title, priority, col, assigneeId, assigneeEmail) => {
                 if (!projectId) {
                   toast.error("No project selected");
                   return;
@@ -109,13 +121,23 @@ export const KanbanBoard = ({ initialBoard, projectId }: { initialBoard: Board; 
                   status: "PENDING_REVIEW" as any,
                   description: "",
                   project_id: projectId,
+                  assignee_id: assigneeId,
+                  assignee_email: assigneeEmail,
                   comments_count: 0,
                   created_at: new Date().toISOString()
                 };
                 setBoard((b) => ({ ...b, PENDING_REVIEW: [optimisticTask, ...(b.PENDING_REVIEW || [])] }));
                 try {
-                  await taskApi.post("/", { title, priority, status: col, project_id: projectId });
-                  window.location.reload();
+                  await taskApi.post("/", { 
+                    title, 
+                    priority, 
+                    status: col, 
+                    project_id: projectId,
+                    assignee_id: assigneeId,
+                    assignee_email: assigneeEmail
+                  });
+                  queryClient.invalidateQueries({ queryKey: ["tasks", projectId] });
+                  toast.success("Task created");
                 } catch {
                   setBoard((b) => ({ ...b, PENDING_REVIEW: (b.PENDING_REVIEW || []).filter((task) => task.id !== optimisticTask.id) }));
                   toast.error("Failed to create task");

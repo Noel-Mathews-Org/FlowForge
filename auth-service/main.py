@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from config import settings
 from database import init_db
-from routes import admin, auth
+from routes import admin, auth, internal
 from services.redis_service import get_redis
 
 
@@ -32,6 +32,7 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(admin.router)
+app.include_router(internal.router)
 
 
 @app.get("/health")

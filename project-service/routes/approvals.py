@@ -41,16 +41,21 @@ async def list_approvals(
     user_id_raw = get_current_user_id(request)
     current_user_id = _parse_uuid(user_id_raw)
 
-    query = select(ApprovalRequest).where(ApprovalRequest.status == approval_status)
+    query = select(ApprovalRequest, Project.name.label("project_name")).join(Project, ApprovalRequest.project_id == Project.id).where(ApprovalRequest.status == approval_status)
     if project_id:
         query = query.where(ApprovalRequest.project_id == project_id)
     if role == "manager":
-        query = query.join(Project, ApprovalRequest.project_id == Project.id).where(
-            Project.manager_id == current_user_id
-        )
+        query = query.where(Project.manager_id == current_user_id)
 
-    rows = (await db.execute(query.order_by(ApprovalRequest.requested_at.desc()))).scalars().all()
-    return [ApprovalRequestResponse.model_validate(r) for r in rows]
+    rows = (await db.execute(query.order_by(ApprovalRequest.requested_at.desc()))).all()
+    
+    result = []
+    for row in rows:
+        app_req = row.ApprovalRequest
+        data = ApprovalRequestResponse.model_validate(app_req).model_dump()
+        data["project_name"] = row.project_name
+        result.append(ApprovalRequestResponse(**data))
+    return result
 
 
 @router.patch("/approvals/{request_id}", response_model=ApprovalRequestResponse)
@@ -109,9 +114,18 @@ async def resolve_approval(
 @router.get("/my-requests", response_model=list[ApprovalRequestResponse])
 async def my_requests(request: Request, db: AsyncSession = Depends(get_db)):
     uid = _parse_uuid(get_current_user_id(request))
-    rows = (await db.execute(
-        select(ApprovalRequest)
+    query = (
+        select(ApprovalRequest, Project.name.label("project_name"))
+        .join(Project, ApprovalRequest.project_id == Project.id)
         .where(ApprovalRequest.requester_id == uid)
         .order_by(ApprovalRequest.requested_at.desc())
-    )).scalars().all()
-    return [ApprovalRequestResponse.model_validate(r) for r in rows]
+    )
+    rows = (await db.execute(query)).all()
+    
+    result = []
+    for row in rows:
+        app_req = row.ApprovalRequest
+        data = ApprovalRequestResponse.model_validate(app_req).model_dump()
+        data["project_name"] = row.project_name
+        result.append(ApprovalRequestResponse(**data))
+    return result

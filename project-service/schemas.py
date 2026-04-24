@@ -50,6 +50,7 @@ class ApprovalRequestResponse(BaseModel):
 
     id: UUID
     project_id: UUID
+    project_name: str | None = None
     requester_id: UUID
     requester_email: str
     status: ApprovalStatus

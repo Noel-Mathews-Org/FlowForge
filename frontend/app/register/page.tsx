@@ -22,8 +22,12 @@ function RegisterForm() {
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (invalid) return;
+    
+    // Basic validations
+    if (!fullName.trim()) return setError("Full name is required.");
     if (password !== confirmPassword) return setError("Passwords do not match.");
     if (password.length < 8) return setError("Password must be at least 8 characters.");
+    
     setLoading(true);
     setError(null);
     try {

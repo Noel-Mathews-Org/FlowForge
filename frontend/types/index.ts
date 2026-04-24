@@ -68,6 +68,7 @@ export type KanbanBoard = {
 export type ApprovalRequest = {
   id: string;
   project_id: string;
+  project_name?: string;
   requester_id: string;
   requester_email: string;
   status: string;

@@ -35,6 +35,7 @@ def _to_profile(user: User) -> UserProfile:
         full_name=user.full_name,
         role=user.role.value,
         org=user.org,
+        is_active=user.is_active,
         created_at=user.created_at,
     )
 
@@ -46,11 +47,14 @@ async def login(payload: LoginRequest, db: AsyncSession = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is deactivated. Contact your administrator.",
+        )
+
     if not bcrypt.checkpw(payload.password.encode("utf-8"), user.hashed_password.encode("utf-8")):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
-
-    if not user.is_active:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account disabled")
 
     token = jwt_service.sign_jwt(user)
     return LoginResponse(

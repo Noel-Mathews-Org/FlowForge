@@ -19,6 +19,21 @@ export default function LoginPage() {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
+
+    // Basic Validations
+    if (!email.trim() || !password.trim()) {
+      setError("Please fill in both email and password.");
+      setSubmitting(false);
+      return;
+    }
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError("Please enter a valid email address.");
+      setSubmitting(false);
+      return;
+    }
+
     try {
       const { data } = await authApi.post("/login", { email, password });
       setToken(data.access_token);

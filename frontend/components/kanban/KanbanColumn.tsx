@@ -5,7 +5,7 @@ import { Plus } from "lucide-react";
 import { useState } from "react";
 import { AddTaskForm } from "@/components/kanban/AddTaskForm";
 import { TaskCard } from "@/components/kanban/TaskCard";
-import type { Task } from "@/types";
+import type { ProjectMember, Task } from "@/types";
 
 const color = { TODO: "bg-slate-500", IN_PROGRESS: "bg-amber-500", DONE: "bg-emerald-500" };
 
@@ -14,13 +14,17 @@ export const KanbanColumn = ({
   tasks,
   onOpenTask,
   onAddTask,
-  isDragDisabled
+  isDragDisabled,
+  isManager,
+  members
 }: {
   title: "TODO" | "IN_PROGRESS" | "DONE";
   tasks: Task[];
   onOpenTask: (task: Task) => void;
-  onAddTask: (title: string, priority: "LOW" | "MEDIUM" | "HIGH", status: "TODO" | "IN_PROGRESS" | "DONE") => Promise<void>;
+  onAddTask: (title: string, priority: "LOW" | "MEDIUM" | "HIGH", status: "TODO" | "IN_PROGRESS" | "DONE", assigneeId?: string, assigneeEmail?: string) => Promise<void>;
   isDragDisabled: boolean;
+  isManager?: boolean;
+  members?: ProjectMember[];
 }) => {
   const [adding, setAdding] = useState(false);
   
@@ -50,7 +54,14 @@ export const KanbanColumn = ({
         {!adding ? (
           <button onClick={() => setAdding(true)} className="flex items-center gap-1 text-sm text-slate-500 hover:text-indigo-600"><Plus className="h-4 w-4" /> Add a task...</button>
         ) : (
-          <AddTaskForm onSubmit={async (name, p) => { await onAddTask(name, p, title); setAdding(false); }} />
+          <AddTaskForm 
+            isManager={isManager}
+            members={members}
+            onSubmit={async (name, p, aId, aEmail) => { 
+              await onAddTask(name, p, title, aId, aEmail); 
+              setAdding(false); 
+            }} 
+          />
         )}
       </div>
     </div>
