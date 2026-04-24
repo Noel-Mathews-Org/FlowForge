@@ -77,11 +77,15 @@ def _extract_bearer_token(request: Request) -> str:
 
 
 def _client_ip(request: Request) -> str:
+    # In a real production setup, only trust X-Forwarded-For if it comes from a known trusted proxy (e.g. AWS ALB).
+    # For now, default to the actual socket IP to prevent trivial spoofing.
+    if request.client and request.client.host:
+        return request.client.host
+    
     forwarded_for = request.headers.get("X-Forwarded-For")
     if forwarded_for:
         return forwarded_for.split(",")[0].strip()
-    if request.client and request.client.host:
-        return request.client.host
+        
     return "unknown"
 
 
