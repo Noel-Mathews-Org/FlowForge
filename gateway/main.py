@@ -63,8 +63,6 @@ def _error_payload(code: str, message: str, request_id: str) -> dict[str, Any]:
 
 def _is_public_route(request: Request) -> bool:
     path = request.url.path
-    if path.startswith("/api/auth/"):
-        return True
     return (request.method.upper(), path) in PUBLIC_ROUTES
 
 
