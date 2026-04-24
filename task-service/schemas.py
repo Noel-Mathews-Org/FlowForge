@@ -32,16 +32,11 @@ class TaskCreate(BaseModel):
 class TaskUpdate(BaseModel):
     title: str | None = None
     description: str | None = None
-    status: Literal["PENDING_APPROVAL", "PENDING_REVIEW", "TODO", "PENDING_PROGRESS", "IN_PROGRESS", "PENDING_DONE", "DONE", "REJECTED"] | None = None
+    status: Literal["TODO", "IN_PROGRESS", "DONE"] | None = None
     priority: Literal["LOW", "MEDIUM", "HIGH"] | None = None
     assignee_id: UUID | None = None
     assignee_email: str | None = None
     position: int | None = None
-
-
-class TaskPositionUpdate(BaseModel):
-    position: int = Field(..., ge=0)
-    status: Literal["PENDING_APPROVAL", "PENDING_REVIEW", "TODO", "PENDING_PROGRESS", "IN_PROGRESS", "PENDING_DONE", "DONE", "REJECTED"]
 
 
 class TaskResponse(BaseModel):
@@ -49,7 +44,7 @@ class TaskResponse(BaseModel):
     project_id: UUID
     title: str
     description: str | None
-    status: Literal["PENDING_APPROVAL", "PENDING_REVIEW", "TODO", "PENDING_PROGRESS", "IN_PROGRESS", "PENDING_DONE", "DONE", "REJECTED"]
+    status: Literal["TODO", "IN_PROGRESS", "DONE"]
     priority: Literal["LOW", "MEDIUM", "HIGH"]
     assignee_id: UUID | None
     assignee_email: str | None
@@ -60,29 +55,14 @@ class TaskResponse(BaseModel):
     updated_at: datetime
     deleted_at: datetime | None
     comments: list[CommentResponse] | None = None
-    approval_status: str | None = None
+    needs_approval: bool = False
+    proposed_status: str | None = None
+    proposed_by: UUID | None = None
 
     model_config = {"from_attributes": True}
 
 
 class KanbanResponse(BaseModel):
-    PENDING_APPROVAL: list[TaskResponse]
-    PENDING_REVIEW: list[TaskResponse]
     TODO: list[TaskResponse]
-    PENDING_PROGRESS: list[TaskResponse]
     IN_PROGRESS: list[TaskResponse]
-    PENDING_DONE: list[TaskResponse]
     DONE: list[TaskResponse]
-
-
-class TaskAssignActivateRequest(BaseModel):
-    assignee_id: UUID | None = None
-    assignee_email: str | None = None
-
-
-class TaskProposeMoveRequest(BaseModel):
-    target_status: Literal["IN_PROGRESS", "DONE"]
-
-
-class TaskStatusUpdate(BaseModel):
-    status: Literal["PENDING_APPROVAL", "PENDING_REVIEW", "TODO", "PENDING_PROGRESS", "IN_PROGRESS", "PENDING_DONE", "DONE", "REJECTED"]

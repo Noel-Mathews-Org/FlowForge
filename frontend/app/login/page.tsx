@@ -20,13 +20,12 @@ export default function LoginPage() {
     setSubmitting(true);
     setError(null);
 
-    // Basic Validations
     if (!email.trim() || !password.trim()) {
       setError("Please fill in both email and password.");
       setSubmitting(false);
       return;
     }
-    
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       setError("Please enter a valid email address.");
@@ -47,8 +46,8 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="grid min-h-screen grid-cols-[45%_55%]">
-      <section className="relative flex flex-col justify-between overflow-hidden bg-gradient-to-br from-[#1e1b4b] to-[#4c1d95] p-12 text-white">
+    <div className="grid min-h-screen grid-cols-1 md:grid-cols-[45%_55%]">
+      <section className="relative hidden flex-col justify-between overflow-hidden bg-gradient-to-br from-[#1e1b4b] to-[#4c1d95] p-12 text-white md:flex">
         <div>
           <h1 className="text-5xl font-light tracking-tight">FlowForge</h1>
           <p className="mt-3 text-base text-indigo-100">Enterprise workflow orchestration</p>
@@ -67,7 +66,7 @@ export default function LoginPage() {
         </div>
       </section>
 
-      <section className="flex items-center justify-center bg-white px-20 dark:bg-slate-950">
+      <section className="flex items-center justify-center bg-white px-4 py-12 sm:px-8 md:px-20 dark:bg-slate-950">
         <motion.form
           onSubmit={onSubmit}
           initial={{ opacity: 0, y: 16 }}
@@ -93,7 +92,7 @@ export default function LoginPage() {
           </AnimatePresence>
 
           <div className="mt-6 space-y-4">
-            <Input value={email} onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)} placeholder="Email" type="email" required />
+            <Input value={email} onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)} placeholder="Email" type="email" required className="w-full" />
             <div className="relative">
               <Input
                 value={password}
@@ -101,6 +100,7 @@ export default function LoginPage() {
                 placeholder="Password"
                 type={showPassword ? "text" : "password"}
                 required
+                className="w-full"
               />
               <button type="button" onClick={() => setShowPassword((v) => !v)} className="absolute right-3 top-3 text-slate-400">
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -118,6 +118,10 @@ export default function LoginPage() {
               </AnimatePresence>
             </Button>
           </div>
+
+          <p className="mt-6 text-center text-xs text-slate-400 dark:text-slate-500">
+            Don&apos;t have an account? Contact your administrator.
+          </p>
         </motion.form>
       </section>
     </div>

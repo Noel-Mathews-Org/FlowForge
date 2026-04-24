@@ -1,20 +1,18 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Clock } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProjectGrid } from "@/components/manager/ProjectGrid";
 import { CreateProjectModal } from "@/components/manager/CreateProjectModal";
-import { ApprovalsPanel } from "@/components/manager/ApprovalsPanel";
-import { useApprovals } from "@/hooks/useApprovals";
 import { useProjects } from "@/hooks/useProjects";
 
 export default function ManagerPage() {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<"ALL" | "ACTIVE" | "ARCHIVED">("ALL");
   const projects = useProjects();
-  const approvals = useApprovals();
 
   const filtered = useMemo(() => {
     const list = projects.data ?? [];
@@ -39,8 +37,19 @@ export default function ManagerPage() {
       </section>
 
       <section id="approvals">
-        <h3 className="mb-3 text-xl font-semibold text-slate-900 dark:text-slate-100">Access Requests <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-xs text-rose-600"><span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse-dot" />{approvals.data?.length ?? 0}</span></h3>
-        {approvals.isLoading ? <Skeleton className="h-40" /> : approvals.isError ? <div className="rounded-xl bg-rose-50 p-4 text-rose-700">Unable to load approvals. <button className="underline" onClick={() => approvals.refetch()}>Retry</button></div> : <ApprovalsPanel approvals={approvals.data ?? []} />}
+        <div className="flex items-center justify-between">
+          <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+            <Clock className="h-5 w-5 text-amber-500" />
+            Task Approvals
+          </h3>
+          <Link href="/manager/approvals">
+            <Button variant="outline" size="sm">View All Approvals</Button>
+          </Link>
+        </div>
+        <p className="mt-1 text-sm text-slate-500">Tasks pending your review from team members.</p>
+        <div className="mt-3 rounded-xl border border-dashed border-slate-200 bg-white p-6 text-center dark:border-slate-700 dark:bg-slate-900">
+          <p className="text-sm text-slate-500">Go to the <Link href="/manager/approvals" className="font-semibold text-indigo-600 hover:underline dark:text-indigo-400">Approvals page</Link> to review pending tasks.</p>
+        </div>
       </section>
       <CreateProjectModal open={open} onOpenChange={setOpen} />
     </div>

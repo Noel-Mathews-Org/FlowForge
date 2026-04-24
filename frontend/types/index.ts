@@ -33,13 +33,13 @@ export type ProjectDetail = Project & {
 
 export type Comment = {
   id: string;
-  author: string;
+  author_id?: string;
   author_email: string;
-  content: string;
+  body: string;
   created_at: string;
 };
 
-export type TaskStatus = "PENDING_REVIEW" | "TODO" | "PENDING_PROGRESS" | "IN_PROGRESS" | "PENDING_DONE" | "DONE";
+export type TaskStatus = "TODO" | "IN_PROGRESS" | "DONE";
 
 export type Task = {
   id: string;
@@ -51,31 +51,20 @@ export type Task = {
   assignee_id?: string;
   assignee_name?: string;
   assignee_email?: string;
+  created_by?: string;
+  created_by_email?: string;
   comments_count: number;
+  needs_approval: boolean;
+  proposed_status: string | null;
+  proposed_by: string | null;
   due_date?: string;
   created_at: string;
 };
 
 export type KanbanBoard = {
-  PENDING_REVIEW: Task[];
   TODO: Task[];
-  PENDING_PROGRESS: Task[];
   IN_PROGRESS: Task[];
-  PENDING_DONE: Task[];
   DONE: Task[];
-};
-
-export type ApprovalRequest = {
-  id: string;
-  project_id: string;
-  project_name?: string;
-  requester_id: string;
-  requester_email: string;
-  status: string;
-  message: string | null;
-  requested_at: string;
-  resolved_at: string | null;
-  resolved_by: string | null;
 };
 
 export type AnalyticsOverview = {

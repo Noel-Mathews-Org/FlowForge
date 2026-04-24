@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, BarChart3, Shield, Zap, Menu, X } from "lucide-react";
+import { BarChart3, Shield, Zap, Menu, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
@@ -23,15 +23,13 @@ export default function LandingPage() {
           {/* Desktop Nav */}
           <div className="hidden items-center gap-8 md:flex">
             <Link href="#features" className="text-sm font-medium text-slate-600 hover:text-indigo-600 dark:text-slate-300 dark:hover:text-indigo-400">Features</Link>
-            <Link href="#pricing" className="text-sm font-medium text-slate-600 hover:text-indigo-600 dark:text-slate-300 dark:hover:text-indigo-400">Pricing</Link>
-            <Link href="/login" className="text-sm font-medium text-indigo-600 dark:text-indigo-400">Sign In</Link>
             <Button asChild className="rounded-full bg-indigo-600 px-6 hover:bg-indigo-700">
-              <Link href="/register">Get Started</Link>
+              <Link href="/login">Sign In</Link>
             </Button>
           </div>
 
           {/* Mobile Menu Button */}
-          <button 
+          <button
             className="md:hidden text-slate-600 dark:text-slate-300"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
@@ -44,11 +42,9 @@ export default function LandingPage() {
           <div className="border-t border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 md:hidden">
             <div className="flex flex-col gap-4">
               <Link href="#features" className="text-sm font-medium text-slate-600 dark:text-slate-300" onClick={() => setMobileMenuOpen(false)}>Features</Link>
-              <Link href="#pricing" className="text-sm font-medium text-slate-600 dark:text-slate-300" onClick={() => setMobileMenuOpen(false)}>Pricing</Link>
               <div className="h-px w-full bg-slate-100 dark:bg-slate-800" />
-              <Link href="/login" className="text-sm font-medium text-indigo-600 dark:text-indigo-400" onClick={() => setMobileMenuOpen(false)}>Sign In</Link>
               <Button asChild className="w-full rounded-full bg-indigo-600 hover:bg-indigo-700">
-                <Link href="/register" onClick={() => setMobileMenuOpen(false)}>Get Started</Link>
+                <Link href="/login" onClick={() => setMobileMenuOpen(false)}>Sign In</Link>
               </Button>
             </div>
           </div>
@@ -62,7 +58,7 @@ export default function LandingPage() {
             <div className="flex flex-col items-start gap-6">
               <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-600 dark:border-indigo-900/50 dark:bg-indigo-900/20 dark:text-indigo-400">
                 <span className="flex h-2 w-2 rounded-full bg-indigo-600 animate-pulse-dot" />
-                FlowForge Enterprise v2.0
+                Enterprise Workflow Orchestration
               </div>
               <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl dark:text-white">
                 Master your <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">workflows.</span>
@@ -72,16 +68,14 @@ export default function LandingPage() {
               </p>
               <div className="flex w-full flex-col gap-4 sm:w-auto sm:flex-row">
                 <Button asChild size="lg" className="w-full sm:w-auto rounded-full bg-indigo-600 px-8 hover:bg-indigo-700">
-                  <Link href="/register">
-                    Start for free <ArrowRight className="ml-2 h-4 w-4" />
-                  </Link>
+                  <Link href="/login">Sign In</Link>
                 </Button>
                 <Button asChild variant="outline" size="lg" className="w-full sm:w-auto rounded-full border-slate-200 px-8 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800">
                   <Link href="#features">Learn more</Link>
                 </Button>
               </div>
             </div>
-            
+
             <div className="relative mx-auto w-full max-w-lg lg:max-w-none">
               <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 opacity-30 blur-2xl dark:opacity-20" />
               <div className="relative aspect-video overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 flex items-center justify-center p-8">
@@ -115,9 +109,9 @@ export default function LandingPage() {
         <div className="mx-auto max-w-7xl">
           <div className="mb-16 text-center">
             <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl dark:text-white">Built for scale. Designed for speed.</h2>
-            <p className="mt-4 text-lg text-slate-500 dark:text-slate-400">Everything you need to manage your organization's workflow from end to end.</p>
+            <p className="mt-4 text-lg text-slate-500 dark:text-slate-400">Everything you need to manage your organization&apos;s workflow from end to end.</p>
           </div>
-          
+
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-8 dark:border-slate-800 dark:bg-slate-950">
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">
@@ -126,7 +120,7 @@ export default function LandingPage() {
               <h3 className="mb-2 text-lg font-bold text-slate-900 dark:text-white">Real-time Kanban</h3>
               <p className="text-sm text-slate-600 dark:text-slate-400">Drag and drop tasks instantly with our highly optimized, real-time Kanban boards.</p>
             </div>
-            
+
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-8 dark:border-slate-800 dark:bg-slate-950">
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400">
                 <Shield className="h-6 w-6" />
@@ -134,7 +128,7 @@ export default function LandingPage() {
               <h3 className="mb-2 text-lg font-bold text-slate-900 dark:text-white">Role-Based Access</h3>
               <p className="text-sm text-slate-600 dark:text-slate-400">Granular permissions and robust approval workflows ensure security at every step.</p>
             </div>
-            
+
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-8 dark:border-slate-800 dark:bg-slate-950 sm:col-span-2 lg:col-span-1">
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
                 <BarChart3 className="h-6 w-6" />
@@ -145,7 +139,7 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
-      
+
       {/* Footer */}
       <footer className="bg-slate-50 py-12 px-4 sm:px-8 lg:px-16 dark:bg-slate-950">
         <div className="mx-auto max-w-7xl flex flex-col sm:flex-row items-center justify-between gap-4">

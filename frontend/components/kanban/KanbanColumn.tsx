@@ -43,7 +43,7 @@ export const KanbanColumn = ({
                 task={task} 
                 index={idx} 
                 onClick={() => onOpenTask(task)} 
-                isDragDisabled={isDragDisabled || task.status.startsWith("PENDING_")}
+                isDragDisabled={isDragDisabled || task.needs_approval}
               />
             ))}
             {provided.placeholder}
