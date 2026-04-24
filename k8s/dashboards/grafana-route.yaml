@@ -11,5 +11,5 @@ spec:
   - "grafana.flowforge.fun"
   rules:
   - backendRefs:
-    - name: grafana
+    - name: prometheus-grafana
       port: 80
