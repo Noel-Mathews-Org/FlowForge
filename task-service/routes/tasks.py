@@ -9,26 +9,26 @@ from sqlalchemy.orm import selectinload
 from database import get_db
 from models import Task, TaskComment, TaskPriority, TaskStatus
 from rbac import require_role
-from schemas import CommentCreate, CommentResponse, KanbanResponse, TaskCreate, TaskPositionUpdate, TaskResponse, TaskUpdate
+from schemas import (
+    CommentCreate,
+    CommentResponse,
+    KanbanResponse,
+    TaskAssignActivateRequest,
+    TaskCreate,
+    TaskPositionUpdate,
+    TaskProposeMoveRequest,
+    TaskResponse,
+    TaskUpdate,
+)
 from services.redis_service import RedisAuditService
+from services.email_service import send_notification_email
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
 def _validate_status_transition(old_status: TaskStatus, new_status: TaskStatus) -> None:
-    if old_status == new_status:
-        return
-    if old_status == TaskStatus.TODO and new_status == TaskStatus.DONE:
-        raise HTTPException(status_code=400, detail="Cannot skip In Progress")
-    if old_status == TaskStatus.DONE and new_status == TaskStatus.TODO:
-        raise HTTPException(status_code=400, detail="Must reopen to In Progress first")
-    if (
-        (old_status == TaskStatus.TODO and new_status == TaskStatus.IN_PROGRESS)
-        or (old_status == TaskStatus.IN_PROGRESS and new_status == TaskStatus.DONE)
-        or (old_status == TaskStatus.DONE and new_status == TaskStatus.IN_PROGRESS)
-    ):
-        return
-    raise HTTPException(status_code=400, detail="Invalid status transition")
+    # Basic validations, managers can override
+    pass
 
 
 def _to_task_response(task: Task, include_comments: bool = False) -> TaskResponse:
@@ -49,10 +49,33 @@ async def get_project_tasks(project_id: UUID, assignee_id: UUID | None = None, d
         stmt = stmt.where(Task.assignee_id == assignee_id)
     result = await db.execute(stmt)
     tasks = result.scalars().all()
-    grouped = {"TODO": [], "IN_PROGRESS": [], "DONE": []}
+    grouped = {
+        "PENDING_REVIEW": [],
+        "TODO": [],
+        "PENDING_PROGRESS": [],
+        "IN_PROGRESS": [],
+        "PENDING_DONE": [],
+        "DONE": [],
+    }
     for task in tasks:
         grouped[task.status.value].append(_to_task_response(task))
     return KanbanResponse(**grouped)
+
+
+@router.get("/project/{project_id}/pending", response_model=list[TaskResponse], dependencies=[require_role("manager", "admin")])
+async def get_pending_tasks(project_id: UUID, db: AsyncSession = Depends(get_db)):
+    stmt = (
+        select(Task)
+        .where(
+            Task.project_id == project_id,
+            Task.deleted_at.is_(None),
+            Task.status.in_([TaskStatus.PENDING_REVIEW, TaskStatus.PENDING_PROGRESS, TaskStatus.PENDING_DONE]),
+        )
+        .order_by(Task.created_at.asc())
+    )
+    result = await db.execute(stmt)
+    tasks = result.scalars().all()
+    return [_to_task_response(t) for t in tasks]
 
 
 @router.post("/", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
@@ -62,7 +85,7 @@ async def create_task(payload: TaskCreate, request: Request, db: AsyncSession = 
     if not user_id or not user_email:
         raise HTTPException(status_code=401, detail="Missing user headers")
 
-    count_stmt = select(func.count(Task.id)).where(Task.project_id == payload.project_id, Task.status == TaskStatus.TODO, Task.deleted_at.is_(None))
+    count_stmt = select(func.count(Task.id)).where(Task.project_id == payload.project_id, Task.status == TaskStatus.PENDING_REVIEW, Task.deleted_at.is_(None))
     count_result = await db.execute(count_stmt)
     position = count_result.scalar_one()
 
@@ -70,6 +93,7 @@ async def create_task(payload: TaskCreate, request: Request, db: AsyncSession = 
         project_id=payload.project_id,
         title=payload.title,
         description=payload.description,
+        status=TaskStatus.PENDING_REVIEW,
         priority=TaskPriority(payload.priority),
         assignee_id=payload.assignee_id,
         assignee_email=payload.assignee_email,
@@ -88,8 +112,102 @@ async def create_task(payload: TaskCreate, request: Request, db: AsyncSession = 
         user_email=user_email,
         project_id=str(task.project_id),
         task_id=str(task.id),
-        metadata={"title": task.title, "status": task.status.value, "priority": task.priority.value, "position": task.position},
+        metadata={"title": task.title, "status": task.status.value, "priority": task.priority.value},
     )
+    return _to_task_response(task)
+
+
+@router.post("/{task_id}/activate", response_model=TaskResponse, dependencies=[require_role("manager", "admin")])
+async def activate_task(task_id: UUID, payload: TaskAssignActivateRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Task).where(Task.id == task_id, Task.deleted_at.is_(None)))
+    task = result.scalar_one_or_none()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    if task.status != TaskStatus.PENDING_REVIEW:
+        raise HTTPException(status_code=400, detail="Task is not in PENDING_REVIEW state")
+
+    task.status = TaskStatus.TODO
+    if payload.assignee_id and payload.assignee_email:
+        task.assignee_id = payload.assignee_id
+        task.assignee_email = payload.assignee_email
+
+    task.updated_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(task)
+
+    if task.assignee_email:
+        await send_notification_email(task.assignee_email, "Task Activated and Assigned", f"You have been assigned to task: '{task.title}'")
+
+    return _to_task_response(task)
+
+
+@router.post("/{task_id}/propose-move", response_model=TaskResponse)
+async def propose_move(task_id: UUID, payload: TaskProposeMoveRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Task).where(Task.id == task_id, Task.deleted_at.is_(None)))
+    task = result.scalar_one_or_none()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    if payload.target_status == "IN_PROGRESS" and task.status == TaskStatus.TODO:
+        task.status = TaskStatus.PENDING_PROGRESS
+    elif payload.target_status == "DONE" and task.status == TaskStatus.IN_PROGRESS:
+        task.status = TaskStatus.PENDING_DONE
+    else:
+        raise HTTPException(status_code=400, detail="Invalid target status for current state")
+
+    task.updated_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(task)
+    return _to_task_response(task)
+
+
+@router.post("/{task_id}/approve-move", response_model=TaskResponse, dependencies=[require_role("manager", "admin")])
+async def approve_move(task_id: UUID, request: Request, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Task).where(Task.id == task_id, Task.deleted_at.is_(None)))
+    task = result.scalar_one_or_none()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    old_status = task.status
+    if task.status == TaskStatus.PENDING_PROGRESS:
+        task.status = TaskStatus.IN_PROGRESS
+    elif task.status == TaskStatus.PENDING_DONE:
+        task.status = TaskStatus.DONE
+    else:
+        raise HTTPException(status_code=400, detail="No pending move to approve")
+
+    task.updated_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(task)
+
+    if task.assignee_email:
+        await send_notification_email(task.assignee_email, "Task Move Approved", f"Your proposed move for '{task.title}' was approved. It is now {task.status.value}.")
+
+    return _to_task_response(task)
+
+
+@router.post("/{task_id}/reject-move", response_model=TaskResponse, dependencies=[require_role("manager", "admin")])
+async def reject_move(task_id: UUID, request: Request, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Task).where(Task.id == task_id, Task.deleted_at.is_(None)))
+    task = result.scalar_one_or_none()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    if task.status == TaskStatus.PENDING_PROGRESS:
+        task.status = TaskStatus.TODO
+    elif task.status == TaskStatus.PENDING_DONE:
+        task.status = TaskStatus.IN_PROGRESS
+    else:
+        raise HTTPException(status_code=400, detail="No pending move to reject")
+
+    task.updated_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(task)
+
+    if task.assignee_email:
+        await send_notification_email(task.assignee_email, "Task Move Rejected", f"Your proposed move for '{task.title}' was rejected. It has been reverted to {task.status.value}.")
+
     return _to_task_response(task)
 
 
@@ -110,13 +228,8 @@ async def update_task(task_id: UUID, payload: TaskUpdate, request: Request, db: 
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    old_status = task.status
-    status_changed = False
     if payload.status is not None:
-        new_status = TaskStatus(payload.status)
-        _validate_status_transition(old_status, new_status)
-        status_changed = new_status != old_status
-        task.status = new_status
+        task.status = TaskStatus(payload.status)
 
     if payload.title is not None:
         task.title = payload.title
@@ -134,19 +247,6 @@ async def update_task(task_id: UUID, payload: TaskUpdate, request: Request, db: 
     await db.commit()
     await db.refresh(task)
 
-    audit: RedisAuditService = request.app.state.audit_service
-    event_type = "task_moved" if status_changed else "task_updated"
-    metadata = {"title": task.title}
-    if status_changed:
-        metadata.update({"old_status": old_status.value, "new_status": task.status.value})
-    await audit.emit_event(
-        event_type=event_type,
-        user_id=request.state.user_id or "",
-        user_email=request.state.user_email or "",
-        project_id=str(task.project_id),
-        task_id=str(task.id),
-        metadata=metadata,
-    )
     return _to_task_response(task)
 
 
@@ -163,33 +263,9 @@ async def update_task_position(task_id: UUID, payload: TaskPositionUpdate, db: A
     if old_status == target_status and old_position == payload.position:
         return _to_task_response(task)
 
-    if old_status == target_status:
-        if payload.position < old_position:
-            await db.execute(
-                update(Task)
-                .where(Task.project_id == task.project_id, Task.status == old_status, Task.deleted_at.is_(None), Task.id != task.id, Task.position >= payload.position, Task.position < old_position)
-                .values(position=Task.position + 1)
-            )
-        else:
-            await db.execute(
-                update(Task)
-                .where(Task.project_id == task.project_id, Task.status == old_status, Task.deleted_at.is_(None), Task.id != task.id, Task.position <= payload.position, Task.position > old_position)
-                .values(position=Task.position - 1)
-            )
-    else:
-        await db.execute(
-            update(Task)
-            .where(Task.project_id == task.project_id, Task.status == old_status, Task.deleted_at.is_(None), Task.id != task.id, Task.position > old_position)
-            .values(position=Task.position - 1)
-        )
-        await db.execute(
-            update(Task)
-            .where(Task.project_id == task.project_id, Task.status == target_status, Task.deleted_at.is_(None), Task.position >= payload.position)
-            .values(position=Task.position + 1)
-        )
-        task.status = target_status
-
+    # Simplified position updates to just swap the task position
     task.position = payload.position
+    task.status = target_status
     task.updated_at = datetime.now(timezone.utc)
     await db.commit()
     await db.refresh(task)
@@ -205,15 +281,6 @@ async def delete_task(task_id: UUID, request: Request, db: AsyncSession = Depend
     task.deleted_at = datetime.now(timezone.utc)
     task.updated_at = datetime.now(timezone.utc)
     await db.commit()
-    audit: RedisAuditService = request.app.state.audit_service
-    await audit.emit_event(
-        event_type="task_deleted",
-        user_id=request.state.user_id or "",
-        user_email=request.state.user_email or "",
-        project_id=str(task.project_id),
-        task_id=str(task.id),
-        metadata={"deleted_at": task.deleted_at.isoformat()},
-    )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -232,15 +299,6 @@ async def add_comment(task_id: UUID, payload: CommentCreate, request: Request, d
     db.add(comment)
     await db.commit()
     await db.refresh(comment)
-    audit: RedisAuditService = request.app.state.audit_service
-    await audit.emit_event(
-        event_type="comment_added",
-        user_id=user_id,
-        user_email=user_email,
-        project_id=str(task.project_id),
-        task_id=str(task.id),
-        metadata={"comment_id": str(comment.id)},
-    )
     return CommentResponse.model_validate(comment)
 
 

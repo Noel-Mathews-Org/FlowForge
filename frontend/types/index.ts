@@ -39,13 +39,16 @@ export type Comment = {
   created_at: string;
 };
 
+export type TaskStatus = "PENDING_REVIEW" | "TODO" | "PENDING_PROGRESS" | "IN_PROGRESS" | "PENDING_DONE" | "DONE";
+
 export type Task = {
   id: string;
   project_id: string;
   title: string;
   description: string;
-  status: "TODO" | "IN_PROGRESS" | "DONE";
+  status: TaskStatus;
   priority: "LOW" | "MEDIUM" | "HIGH";
+  assignee_id?: string;
   assignee_name?: string;
   assignee_email?: string;
   comments_count: number;
@@ -54,8 +57,11 @@ export type Task = {
 };
 
 export type KanbanBoard = {
+  PENDING_REVIEW: Task[];
   TODO: Task[];
+  PENDING_PROGRESS: Task[];
   IN_PROGRESS: Task[];
+  PENDING_DONE: Task[];
   DONE: Task[];
 };
 

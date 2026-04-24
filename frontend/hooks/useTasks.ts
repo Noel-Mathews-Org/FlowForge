@@ -15,8 +15,11 @@ export const useTasks = (projectId?: string) =>
     queryFn: async () => {
       if (mock) {
         return {
+          PENDING_REVIEW: [],
           TODO: mockBoard.TODO.filter((t) => t.project_id === projectId),
+          PENDING_PROGRESS: [],
           IN_PROGRESS: mockBoard.IN_PROGRESS.filter((t) => t.project_id === projectId),
+          PENDING_DONE: [],
           DONE: mockBoard.DONE.filter((t) => t.project_id === projectId)
         };
       }

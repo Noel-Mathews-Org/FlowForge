@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Literal
+from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -27,14 +28,17 @@ class InviteResponse(BaseModel):
     token: str
     message: str
 
+
 class InviteToProjectRequest(BaseModel):
     email: EmailStr
     full_name: str | None = None
+
 
 class InviteToProjectResponse(BaseModel):
     user_id: UUID
     email: str
     message: str
+
 
 class RegisterRequest(BaseModel):
     token: str
@@ -65,6 +69,13 @@ class UpdateMeRequest(BaseModel):
     full_name: str | None = None
     current_password: str | None = None
     new_password: str | None = Field(default=None, min_length=8)
+
+
+class AdminUserCreateRequest(BaseModel):
+    email: EmailStr
+    full_name: str
+    role: Literal["admin", "manager", "member"]
+    org: str
 
 
 class AdminUserUpdateRequest(BaseModel):

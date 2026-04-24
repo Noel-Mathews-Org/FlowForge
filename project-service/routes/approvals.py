@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from sqlalchemy import and_, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,72 +15,45 @@ from services.redis_service import append_audit_log, publish_user_notification
 router = APIRouter(prefix="/projects", tags=["approvals"])
 
 
-def _parse_user_uuid(raw_id: str) -> UUID:
+def _parse_uuid(raw: str) -> UUID:
     try:
-        return UUID(raw_id)
+        return UUID(raw)
     except (ValueError, TypeError) as exc:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid user context"
-        ) from exc
+        raise HTTPException(status_code=401, detail="Invalid user context") from exc
 
 
-@router.get(
-    "/approvals",
-    response_model=list[ApprovalRequestResponse],
-)
+@router.get("/approvals", response_model=list[ApprovalRequestResponse])
 async def list_approvals(
     request: Request,
     status_filter: str = Query(default="PENDING", alias="status"),
     project_id: UUID | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
 ):
-    # Manual role check — avoids FastAPI validation issues with Depends in list
     role = getattr(request.state, "user_role", "")
     if role not in ("manager", "admin"):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions"
-        )
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
 
-    # Validate status filter safely
     try:
         approval_status = ApprovalStatus(status_filter.upper())
     except ValueError:
         approval_status = ApprovalStatus.PENDING
 
     user_id_raw = get_current_user_id(request)
-    if not user_id_raw:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing user identity"
-        )
-    current_user_id = _parse_user_uuid(user_id_raw)
+    current_user_id = _parse_uuid(user_id_raw)
 
     query = select(ApprovalRequest).where(ApprovalRequest.status == approval_status)
-
     if project_id:
         query = query.where(ApprovalRequest.project_id == project_id)
-
     if role == "manager":
-        # Manager only sees approvals for their own projects
-        query = (
-            query
-            .join(Project, ApprovalRequest.project_id == Project.id)
-            .where(Project.manager_id == current_user_id)
+        query = query.join(Project, ApprovalRequest.project_id == Project.id).where(
+            Project.manager_id == current_user_id
         )
 
-    approvals = (
-        await db.execute(query.order_by(ApprovalRequest.requested_at.desc()))
-    ).scalars().all()
-
-    return [ApprovalRequestResponse.model_validate(row) for row in approvals]
+    rows = (await db.execute(query.order_by(ApprovalRequest.requested_at.desc()))).scalars().all()
+    return [ApprovalRequestResponse.model_validate(r) for r in rows]
 
 
-@router.patch(
-    "/approvals/{request_id}",
-    response_model=ApprovalRequestResponse,
-)
+@router.patch("/approvals/{request_id}", response_model=ApprovalRequestResponse)
 async def resolve_approval(
     request_id: UUID,
     payload: ApprovalAction,
@@ -89,43 +62,20 @@ async def resolve_approval(
 ):
     role = getattr(request.state, "user_role", "")
     if role not in ("manager", "admin"):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions"
-        )
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
 
-    actor_id_raw = get_current_user_id(request)
-    if not actor_id_raw:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing user identity"
-        )
-    actor_id = _parse_user_uuid(actor_id_raw)
-
+    actor_id = _parse_uuid(get_current_user_id(request))
     approval = await db.get(ApprovalRequest, request_id)
     if not approval:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Approval request not found"
-        )
+        raise HTTPException(status_code=404, detail="Not found")
     if approval.status != ApprovalStatus.PENDING:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Approval request is already resolved"
-        )
+        raise HTTPException(status_code=400, detail="Already resolved")
 
     project = await db.get(Project, approval.project_id)
     if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found"
-        )
-
+        raise HTTPException(status_code=404, detail="Project not found")
     if role != "admin" and project.manager_id != actor_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only project manager or admin can resolve"
-        )
+        raise HTTPException(status_code=403, detail="Not your project")
 
     new_status = ApprovalStatus(payload.action)
     approval.status = new_status
@@ -133,68 +83,35 @@ async def resolve_approval(
     approval.resolved_by = actor_id
 
     if new_status == ApprovalStatus.APPROVED:
-        db.add(
-            ProjectMember(
-                project_id=approval.project_id,
-                user_id=approval.requester_id,
-                user_email=approval.requester_email,
-                member_role="member",
-            )
-        )
+        db.add(ProjectMember(
+            project_id=approval.project_id,
+            user_id=approval.requester_id,
+            user_email=approval.requester_email,
+            member_role="member",
+        ))
 
     try:
         await db.commit()
     except IntegrityError as exc:
         await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User is already a member"
-        ) from exc
+        raise HTTPException(status_code=400, detail="Already a member") from exc
 
     await db.refresh(approval)
-
-    await publish_user_notification(
-        requester_id=str(approval.requester_id),
-        payload={
-            "type": "approval_result",
-            "project_id": str(project.id),
-            "project_name": project.name,
-            "approved": new_status == ApprovalStatus.APPROVED,
-            "resolved_by": actor_id_raw,
-        },
-    )
-    await append_audit_log(
-        event_type="approval_resolved",
-        user_id=actor_id_raw,
-        project_id=str(project.id),
-        metadata={
-            "request_id": str(approval.id),
-            "status": new_status.value
-        },
-    )
-
+    await publish_user_notification(str(approval.requester_id), {
+        "type": "approval_result",
+        "project_id": str(project.id),
+        "project_name": project.name,
+        "approved": new_status == ApprovalStatus.APPROVED,
+    })
     return ApprovalRequestResponse.model_validate(approval)
 
 
 @router.get("/my-requests", response_model=list[ApprovalRequestResponse])
-async def my_approval_requests(
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-):
-    user_id_raw = get_current_user_id(request)
-    if not user_id_raw:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing user identity"
-        )
-    current_user_id = _parse_user_uuid(user_id_raw)
-
-    rows = (
-        await db.execute(
-            select(ApprovalRequest)
-            .where(ApprovalRequest.requester_id == current_user_id)
-            .order_by(ApprovalRequest.requested_at.desc())
-        )
-    ).scalars().all()
-
-    return [ApprovalRequestResponse.model_validate(row) for row in rows]
+async def my_requests(request: Request, db: AsyncSession = Depends(get_db)):
+    uid = _parse_uuid(get_current_user_id(request))
+    rows = (await db.execute(
+        select(ApprovalRequest)
+        .where(ApprovalRequest.requester_id == uid)
+        .order_by(ApprovalRequest.requested_at.desc())
+    )).scalars().all()
+    return [ApprovalRequestResponse.model_validate(r) for r in rows]

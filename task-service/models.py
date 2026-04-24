@@ -10,8 +10,11 @@ from database import Base
 
 
 class TaskStatus(str, enum.Enum):
+    PENDING_REVIEW = "PENDING_REVIEW"
     TODO = "TODO"
+    PENDING_PROGRESS = "PENDING_PROGRESS"
     IN_PROGRESS = "IN_PROGRESS"
+    PENDING_DONE = "PENDING_DONE"
     DONE = "DONE"
 
 
@@ -29,7 +32,7 @@ class Task(Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[TaskStatus] = mapped_column(
-        Enum(TaskStatus, name="task_status"), nullable=False, default=TaskStatus.TODO, server_default=TaskStatus.TODO.value
+        Enum(TaskStatus, name="task_status"), nullable=False, default=TaskStatus.PENDING_REVIEW, server_default=TaskStatus.PENDING_REVIEW.value
     )
     priority: Mapped[TaskPriority] = mapped_column(
         Enum(TaskPriority, name="task_priority"),

@@ -1,7 +1,11 @@
+import json
+import urllib.parse
+import urllib.request
 from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from pydantic import BaseModel
 from sqlalchemy import and_, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,7 +16,6 @@ from rbac import get_current_user_id, require_role
 from schemas import (
     ApprovalRequestCreate,
     ApprovalRequestResponse,
-    AddMemberRequest,
     MemberResponse,
     ProjectCreate,
     ProjectDetailResponse,
@@ -23,6 +26,10 @@ from schemas import (
 from services.redis_service import append_audit_log, publish_manager_notification
 
 router = APIRouter(prefix="/projects", tags=["projects"])
+
+
+class AddMemberByEmailRequest(BaseModel):
+    email: str
 
 
 def _parse_user_uuid(raw_id: str) -> UUID:
@@ -204,27 +211,69 @@ async def update_project(
     return await _project_response(db, project)
 
 
-@router.post("/{project_id}/members", response_model=MemberResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/{project_id}/members")
 async def add_project_member(
     project_id: UUID,
-    payload: AddMemberRequest,
+    payload: AddMemberByEmailRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
     user_id = _parse_user_uuid(get_current_user_id(request))
     role = getattr(request.state, "user_role", None)
-    await _can_access_project(db, project_id, user_id, role)
+    
+    project = await db.get(Project, project_id)
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    if role != "admin" and project.manager_id != user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only project manager or admin can add members")
+
+    # Internal call to auth-service
+    target_user_id = None
+    created = False
+    
+    create_url = "http://auth-service:8001/auth/admin/users"
+    req_data = json.dumps({
+        "email": payload.email,
+        "full_name": payload.email.split("@")[0],
+        "role": "member",
+        "org": "Default"
+    }).encode("utf-8")
+    req = urllib.request.Request(create_url, data=req_data, headers={"Content-Type": "application/json", "X-User-Role": "admin"})
+    
+    try:
+        with urllib.request.urlopen(req) as resp:
+            data = json.loads(resp.read().decode())
+            target_user_id = data["id"]
+            created = True
+    except urllib.error.HTTPError as e:
+        if e.code == 400:
+            # User already exists, fetch ID
+            lookup_url = f"http://auth-service:8001/auth/lookup?email={urllib.parse.quote(payload.email)}"
+            req2 = urllib.request.Request(lookup_url, headers={"X-User-Role": "admin"})
+            try:
+                with urllib.request.urlopen(req2) as resp2:
+                    data2 = json.loads(resp2.read().decode())
+                    target_user_id = data2["id"]
+            except Exception:
+                raise HTTPException(status_code=400, detail="User exists but could not retrieve ID")
+        else:
+            raise HTTPException(status_code=500, detail="Failed to communicate with auth service")
+            
+    if not target_user_id:
+        raise HTTPException(status_code=500, detail="Could not determine user ID")
+
+    parsed_target_id = UUID(target_user_id)
 
     existing = await db.scalar(
-        select(ProjectMember).where(and_(ProjectMember.project_id == project_id, ProjectMember.user_id == payload.user_id))
+        select(ProjectMember).where(and_(ProjectMember.project_id == project_id, ProjectMember.user_id == parsed_target_id))
     )
     if existing:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User is already a member")
 
     member = ProjectMember(
         project_id=project_id,
-        user_id=payload.user_id,
-        user_email=payload.user_email,
+        user_id=parsed_target_id,
+        user_email=payload.email,
         member_role="member",
     )
     db.add(member)
@@ -235,10 +284,12 @@ async def add_project_member(
         event_type="member_added",
         user_id=str(user_id),
         project_id=str(project_id),
-        metadata={"added_user": payload.user_email},
+        metadata={"added_user": payload.email},
     )
     
-    return MemberResponse.model_validate(member)
+    msg = "Account created and member added" if created else "Member added"
+    return {"success": True, "created_account": created, "message": msg, "member": MemberResponse.model_validate(member).model_dump()}
+
 
 @router.get("/{project_id}/members", response_model=list[MemberResponse])
 async def list_project_members(
@@ -260,10 +311,10 @@ async def list_project_members(
     return [MemberResponse.model_validate(member) for member in members]
 
 
-@router.delete("/{project_id}/members/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{project_id}/members/{target_user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def remove_project_member(
     project_id: UUID,
-    user_id: UUID,
+    target_user_id: UUID,
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
@@ -278,12 +329,12 @@ async def remove_project_member(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only project manager or admin can remove members")
 
     member = await db.scalar(
-        select(ProjectMember).where(and_(ProjectMember.project_id == project_id, ProjectMember.user_id == user_id))
+        select(ProjectMember).where(and_(ProjectMember.project_id == project_id, ProjectMember.user_id == target_user_id))
     )
     if not member:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found")
 
-    if user_id == current_user_id:
+    if target_user_id == current_user_id:
         manager_count = await db.scalar(
             select(func.count(ProjectMember.id)).where(
                 and_(ProjectMember.project_id == project_id, ProjectMember.member_role == "manager")

@@ -1,12 +1,16 @@
+import secrets
 import uuid
 
+import bcrypt
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from config import settings
 from database import get_db
 from models import User, UserRole
-from schemas import AdminUserUpdateRequest, UserProfile
+from schemas import AdminUserCreateRequest, AdminUserUpdateRequest, UserProfile
+from services.email_service import send_notification_email
 
 router = APIRouter(prefix="/auth/admin", tags=["admin"])
 
@@ -49,6 +53,53 @@ async def list_users(
     result = await db.execute(stmt)
     users = result.scalars().all()
     return [_to_profile(user) for user in users]
+
+
+@router.post("/users", response_model=UserProfile)
+async def create_user(
+    payload: AdminUserCreateRequest,
+    db: AsyncSession = Depends(get_db),
+    x_user_role: str | None = Header(default=None, alias="X-User-Role"),
+):
+    _require_admin(x_user_role)
+
+    result = await db.execute(select(User).where(User.email == payload.email))
+    if result.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User already exists")
+
+    temp_password = secrets.token_urlsafe(12)
+    hashed = bcrypt.hashpw(temp_password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+    user = User(
+        email=payload.email,
+        hashed_password=hashed,
+        full_name=payload.full_name,
+        role=UserRole(payload.role),
+        org=payload.org,
+        is_active=True,
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+
+    login_url = f"{settings.frontend_url}/login"
+    subject = "Your FlowForge Account"
+    html_body = f"""
+    <html>
+      <body>
+        <h2>Welcome to FlowForge</h2>
+        <p>An administrator has created an account for you.</p>
+        <p><strong>Username:</strong> {payload.email}</p>
+        <p><strong>Temporary Password:</strong> {temp_password}</p>
+        <p><a href="{login_url}" style="font-size:16px;font-weight:bold;">Log in to FlowForge</a></p>
+        <p>Please log in and change your password immediately.</p>
+      </body>
+    </html>
+    """
+    text_body = f"Welcome to FlowForge. Your username is {payload.email} and temporary password is {temp_password}. Log in at {login_url}"
+    await send_notification_email(str(payload.email), subject, html_body)
+
+    return _to_profile(user)
 
 
 @router.patch("/users/{user_id}", response_model=UserProfile)
