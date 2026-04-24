@@ -17,6 +17,9 @@ export const mockProjects: Project[] = [
 
 const now = new Date();
 export const mockBoard: KanbanBoard = {
+  PENDING_REVIEW: [],
+  PENDING_PROGRESS: [],
+  PENDING_DONE: [],
   TODO: [
     { id: "t1", project_id: "p1", title: "Implement JWT refresh", description: "Add refresh token rotation with replay protection.", status: "TODO", priority: "HIGH", assignee_name: "Marcus Kim", assignee_email: "marcus.kim@flowforge.io", comments_count: 3, created_at: subDays(now, 2).toISOString() },
     { id: "t2", project_id: "p1", title: "Design system audit", description: "Inventory component drift across admin surfaces.", status: "TODO", priority: "MEDIUM", assignee_name: "Sara Okafor", assignee_email: "sara.okafor@flowforge.io", comments_count: 1, created_at: subDays(now, 3).toISOString() },
