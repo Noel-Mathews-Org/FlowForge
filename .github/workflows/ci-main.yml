@@ -1,0 +1,37 @@
+name: 🚀 Stratum Orchestrator
+
+on:
+  push:
+    branches: [ test ]
+  pull_request:
+    branches: [ prod ]
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.filter.outputs.changes }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            auth-service: 'auth-service/**'
+            analysis-service: 'analysis-service/**'
+            gateway: 'gateway/**'
+            frontend: 'frontend/**'
+            project-service: 'project-service/**'
+            task-service: 'task-service/**'
+
+  deploy-services:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.services != '[]' }}
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+    uses: ./.github/workflows/_service-deploy.yml
+    with:
+      service_name: ${{ matrix.service }}
+      branch_target: ${{ github.ref_name }}
+    secrets: inherit

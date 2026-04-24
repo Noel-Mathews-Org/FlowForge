@@ -1,0 +1,203 @@
+name: 🛠️ Reusable Service Pipeline
+
+on:
+  workflow_call:
+    inputs:
+      service_name:
+        required: true
+        type: string
+      branch_target:
+        required: true
+        type: string
+    secrets:
+      SONAR_TOKEN:
+        required: true
+      SNYK_TOKEN:
+        required: true
+      MAIL_USERNAME:
+        required: true
+      MAIL_PASSWORD:
+        required: true
+      DEVELOPMENT_TEAM_EMAIL:
+        required: true
+
+jobs:
+  security-scan:
+    name: 🛡️ SAST & SCA
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Quality Gate requires metadata file path mapping
+      - name: 🔍 SonarQube Scan
+        uses: sonarsource/sonarqube-scan-action@v2
+        with:
+          projectBaseDir: ${{ inputs.service_name }}
+          args: >
+            -Dsonar.scanner.metadataFilePath=/github/workspace/.scannerwork/report-task.txt
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+      - name: 🚦 SonarQube Quality Gate
+        uses: sonarsource/sonarqube-quality-gate-action@v1
+        timeout-minutes: 5
+        with:
+          scanMetadataReportFile: .scannerwork/report-task.txt
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: 📦 Snyk Scan (Python)
+        if: inputs.service_name != 'frontend'
+        uses: snyk/actions/python-3.10@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --file=${{ inputs.service_name }}/requirements.txt
+
+      - name: 📦 Snyk Scan (Frontend/Next.js)
+        if: inputs.service_name == 'frontend'
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --file=${{ inputs.service_name }}/package.json
+
+  build-and-trivy:
+    name: 🐳 Docker & Trivy
+    needs: security-scan
+    runs-on: ubuntu-latest
+    outputs:
+      short_sha: ${{ steps.vars.outputs.short_sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set Vars
+        id: vars
+        run: echo "short_sha=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+
+      - name: 🛠️ Build Image
+        run: |
+          docker build -t ghcr.io/${{ github.repository }}/${{ inputs.service_name }}:${{ steps.vars.outputs.short_sha }} ./${{ inputs.service_name }}
+
+      - name: 🛡️ Trivy Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'ghcr.io/${{ github.repository }}/${{ inputs.service_name }}:${{ steps.vars.outputs.short_sha }}'
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
+
+      - name: 🚀 Push to GHCR
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          docker push ghcr.io/${{ github.repository }}/${{ inputs.service_name }}:${{ steps.vars.outputs.short_sha }}
+
+  gitops-update:
+    name: ⚙️ Update Helm
+    needs: build-and-trivy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch_target }}
+      - name: ✍️ Update values.yaml
+        run: |
+          yq eval ".${{ inputs.service_name }}.image.tag = \"${{ needs.build-and-trivy.outputs.short_sha }}\"" -i Helm/values.yaml
+      - name: 🚀 Push Changes
+        run: |
+          git config user.name "PayCrest CI/CD"
+          git config user.email "devops@paycrest.com"
+          git add Helm/values.yaml
+          git commit -m "chore(gitops): update ${{ inputs.service_name }} to ${{ needs.build-and-trivy.outputs.short_sha }} [skip ci]"
+          git push origin ${{ inputs.branch_target }}
+
+  notify:
+    name: Notify Team
+    needs: [security-scan, build-and-trivy, gitops-update]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Get commit details
+        id: commit
+        run: |
+          echo "AUTHOR_NAME=$(git log -1 --pretty=format:'%an')" >> $GITHUB_OUTPUT
+          echo "AUTHOR_EMAIL=$(git log -1 --pretty=format:'%ae')" >> $GITHUB_OUTPUT
+          echo "COMMIT_MSG=$(git log -1 --pretty=format:'%s')" >> $GITHUB_OUTPUT
+          echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+          echo "COMMIT_URL=https://github.com/${{ github.repository }}/commit/${{ github.sha }}" >> $GITHUB_OUTPUT
+
+      - name: Determine status
+        id: status
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
+            echo "EMOJI=❌" >> $GITHUB_OUTPUT
+            echo "COLOR=#d9534f" >> $GITHUB_OUTPUT
+            echo "STATUS_TEXT=FAILED" >> $GITHUB_OUTPUT
+          elif [[ "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "EMOJI=⚠️" >> $GITHUB_OUTPUT
+            echo "COLOR=#f0ad4e" >> $GITHUB_OUTPUT
+            echo "STATUS_TEXT=CANCELLED" >> $GITHUB_OUTPUT
+          else
+            echo "EMOJI=✅" >> $GITHUB_OUTPUT
+            echo "COLOR=#5cb85c" >> $GITHUB_OUTPUT
+            echo "STATUS_TEXT=PASSED" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Map results to icons
+        id: icons
+        run: |
+          map_icon() {
+            case "$1" in
+              success)   echo "✅ Passed" ;;
+              failure)   echo "❌ Failed" ;;
+              skipped)   echo "⏭️ Skipped" ;;
+              cancelled) echo "⚠️ Cancelled" ;;
+              *)         echo "— Not Run" ;;
+            esac
+          }
+          echo "SCAN_ICON=$(map_icon '${{ needs.security-scan.result }}')" >> $GITHUB_OUTPUT
+          echo "BUILD_ICON=$(map_icon '${{ needs.build-and-trivy.result }}')" >> $GITHUB_OUTPUT
+          echo "GITOPS_ICON=$(map_icon '${{ needs.gitops-update.result }}')" >> $GITHUB_OUTPUT
+
+      - name: Send Summary Email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          to: ${{ secrets.DEVELOPMENT_TEAM_EMAIL }}
+          from: PayCrest DevOps <${{ secrets.MAIL_USERNAME }}>
+          subject: "${{ steps.status.outputs.EMOJI }} ${{ steps.status.outputs.STATUS_TEXT }} | ${{ inputs.service_name }} | ${{ github.event_name }}"
+          html_body: |
+            <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden">
+              <div style="background:${{ steps.status.outputs.COLOR }};color:white;padding:20px">
+                <h2 style="margin:0;font-size:20px">${{ steps.status.outputs.EMOJI }} ${{ inputs.service_name }} Pipeline ${{ steps.status.outputs.STATUS_TEXT }}</h2>
+                <p style="margin:6px 0 0;opacity:0.9;font-size:14px">${{ github.event_name }} on ${{ github.ref_name }}</p>
+              </div>
+              <div style="background:#f8f9fa;padding:16px 20px;border-bottom:1px solid #e9ecef">
+                <h3 style="margin:0 0 12px;font-size:14px;color:#6c757d;text-transform:uppercase">Commit Details</h3>
+                <table style="width:100%;border-collapse:collapse;font-size:14px">
+                  <tr><td style="padding:4px 0;color:#6c757d;width:120px">Author</td><td style="font-weight:bold">${{ steps.commit.outputs.AUTHOR_NAME }}</td></tr>
+                  <tr><td style="padding:4px 0;color:#6c757d">Commit ID</td><td><a href="${{ steps.commit.outputs.COMMIT_URL }}" style="color:#0366d6;font-family:monospace;font-weight:bold">${{ steps.commit.outputs.SHORT_SHA }}</a></td></tr>
+                  <tr><td style="padding:4px 0;color:#6c757d">Message</td><td style="font-style:italic">${{ steps.commit.outputs.COMMIT_MSG }}</td></tr>
+                </table>
+              </div>
+              <div style="padding:20px">
+                <h3 style="margin:0 0 12px;font-size:14px;color:#6c757d;text-transform:uppercase">Pipeline Results</h3>
+                <table style="width:100%;border-collapse:collapse;font-size:14px">
+                  <tr style="background:#f8f9fa"><td style="padding:10px 12px;border:1px solid #dee2e6;font-weight:bold">Quality Gate & Security</td><td style="padding:10px 12px;border:1px solid #dee2e6">${{ steps.icons.outputs.SCAN_ICON }}</td></tr>
+                  <tr><td style="padding:10px 12px;border:1px solid #dee2e6;font-weight:bold">Docker & Trivy</td><td style="padding:10px 12px;border:1px solid #dee2e6">${{ steps.icons.outputs.BUILD_ICON }}</td></tr>
+                  <tr style="background:#f8f9fa"><td style="padding:10px 12px;border:1px solid #dee2e6;font-weight:bold">Helm Update</td><td style="padding:10px 12px;border:1px solid #dee2e6">${{ steps.icons.outputs.GITOPS_ICON }}</td></tr>
+                </table>
+                <div style="text-align:center;margin-top:20px">
+                  <a href="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" style="background:#24292e;color:white;padding:10px 24px;border-radius:6px;text-decoration:none;font-size:14px;display:inline-block">View Logs</a>
+                </div>
+              </div>
+            </div>

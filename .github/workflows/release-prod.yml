@@ -1,0 +1,23 @@
+name: 🚢 Prod Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  validate-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check SemVer
+        run: |
+          if [[ ! ${{ github.event.release.tag_name }} =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "❌ Invalid Tag Format. Use v1.0.0" && exit 1
+          fi
+
+  prod-deploy:
+    needs: validate-tag
+    uses: ./.github/workflows/_service-deploy.yml
+    with:
+      service_name: ${{ github.event.release.target_commitish }} 
+      branch_target: 'prod'
+    secrets: inherit
