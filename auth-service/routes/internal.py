@@ -3,12 +3,12 @@ import secrets
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+import bcrypt
 
+from config import settings
 from database import get_db
 from models import User
 from schemas import UserProfile
-from services.auth_service import hash_password
-from services.email_service import EmailService
 
 router = APIRouter(prefix="/internal", tags=["internal"])
 
@@ -46,7 +46,7 @@ async def create_user_internal(payload: InternalCreateUser, db: AsyncSession = D
     new_user = User(
         email=payload.email,
         full_name=payload.full_name,
-        hashed_password=hash_password(payload.temp_password),
+        hashed_password=bcrypt.hashpw(payload.temp_password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8"),
         role=payload.role,
         org=payload.org,
         is_active=True,

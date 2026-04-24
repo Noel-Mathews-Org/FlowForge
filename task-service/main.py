@@ -24,6 +24,8 @@ async def lifespan(app: FastAPI):
         # on older PG, but asyncpg runs each statement in its own implicit txn
         # when we use raw_connection.  We use the high-level `text()` approach
         # which works fine for PG ≥ 12 with IF NOT EXISTS.
+        await conn.run_sync(Base.metadata.create_all)
+
         for value in _REQUIRED_ENUM_VALUES:
             try:
                 await conn.execute(
@@ -32,8 +34,6 @@ async def lifespan(app: FastAPI):
             except Exception as exc:
                 # Type may not exist yet (first run) – create_all will handle it.
                 logger.debug("ALTER TYPE task_status skipped for %s: %s", value, exc)
-
-        await conn.run_sync(Base.metadata.create_all)
 
     redis_client = Redis.from_url(settings.REDIS_URL, decode_responses=True)
     app.state.redis_client = redis_client
