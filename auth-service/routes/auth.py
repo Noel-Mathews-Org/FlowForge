@@ -17,7 +17,6 @@ from schemas import (
     InviteToProjectResponse,
     LoginRequest,
     LoginResponse,
-    PublicKeyResponse,
     RegisterRequest,
     RegisterResponse,
     UpdateMeRequest,
@@ -228,11 +227,6 @@ async def me(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     return _to_profile(user)
-
-
-@router.get("/public-key", response_model=PublicKeyResponse)
-async def public_key():
-    return PublicKeyResponse(public_key=settings.public_key, algorithm="RS256")
 
 
 @router.put("/me", response_model=UserProfile)

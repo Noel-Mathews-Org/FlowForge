@@ -40,9 +40,7 @@ services:
       - ./gateway/.env
     environment:
       - PUBLIC_IP=${PUBLIC_IP:-localhost}
-      - PUBLIC_KEY_PATH=/app/keys/public.pem
-    volumes:
-      - ./public.pem:/app/keys/public.pem:ro
+      - JWT_SECRET=${JWT_SECRET:-super-secret-default-key}
 
   auth-service:
     build: ./auth-service
@@ -53,9 +51,8 @@ services:
         condition: service_healthy
     env_file:
       - ./auth-service/.env
-    volumes:
-      - ./public.pem:/app/keys/public.pem:ro
-      - ./private.pem:/app/keys/private.pem:ro
+    environment:
+      - JWT_SECRET=${JWT_SECRET:-super-secret-default-key}
 
   project-service:
     build: ./project-service

@@ -1,8 +1,6 @@
 import os
+import secrets
 from dataclasses import dataclass
-
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
 
 
 def _parse_int(name: str, default: int) -> int:
@@ -13,37 +11,11 @@ def _parse_int(name: str, default: int) -> int:
         return default
 
 
-def _generate_rsa_key_pair() -> tuple[str, str]:
-    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-    public_key = private_key.public_key()
-
-    private_pem = private_key.private_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PrivateFormat.PKCS8,
-        encryption_algorithm=serialization.NoEncryption(),
-    ).decode("utf-8")
-
-    public_pem = public_key.public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo,
-    ).decode("utf-8")
-
-    print("\n=== FLOWFORGE AUTH GENERATED RSA KEYS ===")
-    print("PRIVATE_KEY (put in auth-service .env):")
-    print(private_pem)
-    print("PUBLIC_KEY (put in auth-service and gateway .env):")
-    print(public_pem)
-    print("=== END GENERATED RSA KEYS ===\n")
-
-    return private_pem, public_pem
-
-
 @dataclass(frozen=True)
 class Settings:
     database_url: str
     redis_url: str
-    private_key: str
-    public_key: str
+    jwt_secret: str
     jwt_expiry_hours: int
     smtp_host: str
     smtp_port: int
@@ -54,32 +26,22 @@ class Settings:
     frontend_url: str
     app_port: int
 
-def _load_key(env_var: str, file_path_env: str, default_path: str) -> str:
-    # Try file first
-    key_path = os.getenv(file_path_env, default_path)
-    if os.path.exists(key_path):
-        with open(key_path, "r") as f:
-            return f.read().strip()
-    # Fallback to env var
-    return os.getenv(env_var, "").strip().replace("\\n", "\n")
-
 
 def _build_settings() -> Settings:
-    private_key = _load_key("PRIVATE_KEY", "PRIVATE_KEY_PATH", "/app/keys/private.pem")
-    public_key = _load_key("PUBLIC_KEY", "PUBLIC_KEY_PATH", "/app/keys/public.pem")
-
-    if not private_key:
-        private_key, generated_public_key = _generate_rsa_key_pair()
-        if not public_key:
-            public_key = generated_public_key
+    jwt_secret = os.getenv("JWT_SECRET", "").strip()
+    if not jwt_secret:
+        jwt_secret = secrets.token_hex(32)
+        print("\n=== FLOWFORGE AUTH GENERATED JWT SECRET ===")
+        print("JWT_SECRET (put this in auth-service and gateway .env):")
+        print(jwt_secret)
+        print("===========================================\n")
 
     return Settings(
         database_url=os.getenv(
             "DATABASE_URL", "postgresql+asyncpg://user:pass@postgres:5432/auth_db"
         ),
         redis_url=os.getenv("REDIS_URL", "redis://redis:6379"),
-        private_key=private_key,
-        public_key=public_key,
+        jwt_secret=jwt_secret,
         jwt_expiry_hours=_parse_int("JWT_EXPIRY_HOURS", 24),
         smtp_host=os.getenv("SMTP_HOST", "smtp.gmail.com"),
         smtp_port=_parse_int("SMTP_PORT", 587),
