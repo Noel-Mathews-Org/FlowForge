@@ -37,7 +37,7 @@ class InternalCreateUser(BaseModel):
     org: str = "Default"
     temp_password: str
 
-@router.post("/create-user", response_model=UserProfile)
+@router.post("/create-user", response_model=UserProfile, status_code=status.HTTP_201_CREATED)
 async def create_user_internal(payload: InternalCreateUser, db: AsyncSession = Depends(get_db)):
     existing = await db.scalar(select(User).where(User.email == payload.email))
     if existing:

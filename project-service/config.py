@@ -17,6 +17,8 @@ class Settings:
         self.smtp_password: str = os.getenv("SMTP_PASSWORD", "")
         self.smtp_from_email: str = os.getenv("SMTP_FROM_EMAIL", "noreply@flowforge.local")
         self.smtp_from_name: str = os.getenv("SMTP_FROM_NAME", "FlowForge")
+        self.task_service_url: str = os.getenv("TASK_SERVICE_URL", "http://task-service:8003")
+
 
 
 settings = Settings()

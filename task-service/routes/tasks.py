@@ -1,13 +1,13 @@
 from datetime import datetime, timezone
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from database import get_db
-from models import Task, TaskComment, TaskPriority, TaskStatus
+from models import Task, TaskApprovalRequest, TaskComment, TaskPriority, TaskStatus
 from rbac import require_role
 from schemas import (
     CommentCreate,
@@ -44,12 +44,14 @@ async def get_project_tasks(project_id: UUID, assignee_id: UUID | None = None, d
         select(Task)
         .where(Task.project_id == project_id, Task.deleted_at.is_(None))
         .order_by(Task.status.asc(), Task.position.asc(), Task.created_at.asc())
+        .options(selectinload(Task.comments))
     )
     if assignee_id:
         stmt = stmt.where(Task.assignee_id == assignee_id)
     result = await db.execute(stmt)
     tasks = result.scalars().all()
     grouped = {
+        "PENDING_APPROVAL": [],
         "PENDING_REVIEW": [],
         "TODO": [],
         "PENDING_PROGRESS": [],
@@ -72,6 +74,7 @@ async def get_pending_tasks(project_id: UUID, db: AsyncSession = Depends(get_db)
             Task.status.in_([TaskStatus.PENDING_REVIEW, TaskStatus.PENDING_PROGRESS, TaskStatus.PENDING_DONE]),
         )
         .order_by(Task.created_at.asc())
+        .options(selectinload(Task.comments))
     )
     result = await db.execute(stmt)
     tasks = result.scalars().all()
@@ -89,11 +92,14 @@ async def create_task(payload: TaskCreate, request: Request, db: AsyncSession = 
     count_result = await db.execute(count_stmt)
     position = count_result.scalar_one()
 
+    user_role = request.state.user_role or "member"
+    initial_status = TaskStatus.PENDING_APPROVAL if user_role.lower() == "member" else TaskStatus.TODO
+
     task = Task(
         project_id=payload.project_id,
         title=payload.title,
         description=payload.description,
-        status=TaskStatus.PENDING_REVIEW,
+        status=initial_status,
         priority=TaskPriority(payload.priority),
         assignee_id=payload.assignee_id,
         assignee_email=payload.assignee_email,
@@ -119,7 +125,7 @@ async def create_task(payload: TaskCreate, request: Request, db: AsyncSession = 
 
 @router.post("/{task_id}/activate", response_model=TaskResponse, dependencies=[require_role("manager", "admin")])
 async def activate_task(task_id: UUID, payload: TaskAssignActivateRequest, request: Request, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Task).where(Task.id == task_id, Task.deleted_at.is_(None)))
+    result = await db.execute(select(Task).where(Task.id == task_id, Task.deleted_at.is_(None)).options(selectinload(Task.comments)))
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -144,7 +150,7 @@ async def activate_task(task_id: UUID, payload: TaskAssignActivateRequest, reque
 
 @router.post("/{task_id}/propose-move", response_model=TaskResponse)
 async def propose_move(task_id: UUID, payload: TaskProposeMoveRequest, request: Request, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Task).where(Task.id == task_id, Task.deleted_at.is_(None)))
+    result = await db.execute(select(Task).where(Task.id == task_id, Task.deleted_at.is_(None)).options(selectinload(Task.comments)))
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -164,7 +170,7 @@ async def propose_move(task_id: UUID, payload: TaskProposeMoveRequest, request: 
 
 @router.post("/{task_id}/approve-move", response_model=TaskResponse, dependencies=[require_role("manager", "admin")])
 async def approve_move(task_id: UUID, request: Request, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Task).where(Task.id == task_id, Task.deleted_at.is_(None)))
+    result = await db.execute(select(Task).where(Task.id == task_id, Task.deleted_at.is_(None)).options(selectinload(Task.comments)))
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -189,7 +195,7 @@ async def approve_move(task_id: UUID, request: Request, db: AsyncSession = Depen
 
 @router.post("/{task_id}/reject-move", response_model=TaskResponse, dependencies=[require_role("manager", "admin")])
 async def reject_move(task_id: UUID, request: Request, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Task).where(Task.id == task_id, Task.deleted_at.is_(None)))
+    result = await db.execute(select(Task).where(Task.id == task_id, Task.deleted_at.is_(None)).options(selectinload(Task.comments)))
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -223,10 +229,27 @@ async def get_task(task_id: UUID, db: AsyncSession = Depends(get_db)):
 
 @router.put("/{task_id}", response_model=TaskResponse)
 async def update_task(task_id: UUID, payload: TaskUpdate, request: Request, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Task).where(Task.id == task_id, Task.deleted_at.is_(None)))
+    result = await db.execute(select(Task).where(Task.id == task_id, Task.deleted_at.is_(None)).options(selectinload(Task.comments)))
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+
+    user_role = request.state.user_role or "member"
+    
+    if user_role.lower() == "member":
+        # Create an approval request instead of updating directly
+        import json
+        proposal = TaskApprovalRequest(
+            task_id=task.id,
+            proposed_data=json.dumps(payload.model_dump(exclude_unset=True)),
+            requested_by=UUID(request.state.user_id),
+            requested_by_email=request.state.user_email
+        )
+        db.add(proposal)
+        await db.commit()
+        
+        # Optionally mark the task as having a pending update if you add that field
+        return _to_task_response(task)
 
     if payload.status is not None:
         task.status = TaskStatus(payload.status)
@@ -252,7 +275,7 @@ async def update_task(task_id: UUID, payload: TaskUpdate, request: Request, db: 
 
 @router.patch("/{task_id}/position", response_model=TaskResponse)
 async def update_task_position(task_id: UUID, payload: TaskPositionUpdate, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Task).where(Task.id == task_id, Task.deleted_at.is_(None)))
+    result = await db.execute(select(Task).where(Task.id == task_id, Task.deleted_at.is_(None)).options(selectinload(Task.comments)))
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -274,7 +297,7 @@ async def update_task_position(task_id: UUID, payload: TaskPositionUpdate, db: A
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[require_role("manager", "admin")])
 async def delete_task(task_id: UUID, request: Request, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Task).where(Task.id == task_id, Task.deleted_at.is_(None)))
+    result = await db.execute(select(Task).where(Task.id == task_id, Task.deleted_at.is_(None)).options(selectinload(Task.comments)))
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -311,3 +334,40 @@ async def list_comments(task_id: UUID, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(TaskComment).where(TaskComment.task_id == task_id).order_by(TaskComment.created_at.asc()))
     comments = result.scalars().all()
     return [CommentResponse.model_validate(comment) for comment in comments]
+
+
+@router.get("/internal/approvals", response_model=list[TaskResponse])
+async def get_internal_approvals(project_ids: list[UUID] = Query(...), db: AsyncSession = Depends(get_db)):
+    stmt = (
+        select(Task)
+        .where(Task.project_id.in_(project_ids), Task.status == TaskStatus.PENDING_APPROVAL, Task.deleted_at.is_(None))
+        .options(selectinload(Task.comments))
+    )
+    result = await db.execute(stmt)
+    return [_to_task_response(t) for t in result.scalars().all()]
+
+
+@router.post("/internal/{task_id}/approve", response_model=TaskResponse)
+async def approve_task_internal(task_id: UUID, db: AsyncSession = Depends(get_db)):
+    stmt = select(Task).where(Task.id == task_id).options(selectinload(Task.comments))
+    result = await db.execute(stmt)
+    task = result.scalar_one_or_none()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    task.status = TaskStatus.TODO
+    await db.commit()
+    await db.refresh(task)
+    return _to_task_response(task)
+
+
+@router.post("/internal/{task_id}/reject", response_model=TaskResponse)
+async def reject_task_internal(task_id: UUID, db: AsyncSession = Depends(get_db)):
+    stmt = select(Task).where(Task.id == task_id).options(selectinload(Task.comments))
+    result = await db.execute(stmt)
+    task = result.scalar_one_or_none()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    task.status = TaskStatus.REJECTED
+    await db.commit()
+    await db.refresh(task)
+    return _to_task_response(task)

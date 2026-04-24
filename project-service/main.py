@@ -41,8 +41,8 @@ app.add_middleware(
 )
 app.add_middleware(HeaderExtractionMiddleware)
 
-app.include_router(projects_router)
 app.include_router(approvals_router)
+app.include_router(projects_router)
 
 
 @app.get("/health")

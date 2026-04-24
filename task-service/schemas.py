@@ -32,7 +32,7 @@ class TaskCreate(BaseModel):
 class TaskUpdate(BaseModel):
     title: str | None = None
     description: str | None = None
-    status: Literal["PENDING_REVIEW", "TODO", "PENDING_PROGRESS", "IN_PROGRESS", "PENDING_DONE", "DONE"] | None = None
+    status: Literal["PENDING_APPROVAL", "PENDING_REVIEW", "TODO", "PENDING_PROGRESS", "IN_PROGRESS", "PENDING_DONE", "DONE", "REJECTED"] | None = None
     priority: Literal["LOW", "MEDIUM", "HIGH"] | None = None
     assignee_id: UUID | None = None
     assignee_email: str | None = None
@@ -41,7 +41,7 @@ class TaskUpdate(BaseModel):
 
 class TaskPositionUpdate(BaseModel):
     position: int = Field(..., ge=0)
-    status: Literal["PENDING_REVIEW", "TODO", "PENDING_PROGRESS", "IN_PROGRESS", "PENDING_DONE", "DONE"]
+    status: Literal["PENDING_APPROVAL", "PENDING_REVIEW", "TODO", "PENDING_PROGRESS", "IN_PROGRESS", "PENDING_DONE", "DONE", "REJECTED"]
 
 
 class TaskResponse(BaseModel):
@@ -49,7 +49,7 @@ class TaskResponse(BaseModel):
     project_id: UUID
     title: str
     description: str | None
-    status: Literal["PENDING_REVIEW", "TODO", "PENDING_PROGRESS", "IN_PROGRESS", "PENDING_DONE", "DONE"]
+    status: Literal["PENDING_APPROVAL", "PENDING_REVIEW", "TODO", "PENDING_PROGRESS", "IN_PROGRESS", "PENDING_DONE", "DONE", "REJECTED"]
     priority: Literal["LOW", "MEDIUM", "HIGH"]
     assignee_id: UUID | None
     assignee_email: str | None
@@ -60,11 +60,13 @@ class TaskResponse(BaseModel):
     updated_at: datetime
     deleted_at: datetime | None
     comments: list[CommentResponse] | None = None
+    approval_status: str | None = None
 
     model_config = {"from_attributes": True}
 
 
 class KanbanResponse(BaseModel):
+    PENDING_APPROVAL: list[TaskResponse]
     PENDING_REVIEW: list[TaskResponse]
     TODO: list[TaskResponse]
     PENDING_PROGRESS: list[TaskResponse]

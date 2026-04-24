@@ -10,12 +10,14 @@ from database import Base
 
 
 class TaskStatus(str, enum.Enum):
+    PENDING_APPROVAL = "PENDING_APPROVAL"
     PENDING_REVIEW = "PENDING_REVIEW"
     TODO = "TODO"
     PENDING_PROGRESS = "PENDING_PROGRESS"
     IN_PROGRESS = "IN_PROGRESS"
     PENDING_DONE = "PENDING_DONE"
     DONE = "DONE"
+    REJECTED = "REJECTED"
 
 
 class TaskPriority(str, enum.Enum):
@@ -65,3 +67,22 @@ class TaskComment(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     task: Mapped[Task] = relationship("Task", back_populates="comments")
+
+
+class TaskApprovalRequest(Base):
+    __tablename__ = "task_approval_requests"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    task_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    
+    # Proposed changes stored as JSON string
+    proposed_data: Mapped[str] = mapped_column(Text, nullable=False)
+    
+    status: Mapped[str] = mapped_column(String(50), default="PENDING")
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    
+    requested_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    requested_by_email: Mapped[str] = mapped_column(String(320), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    
+    task: Mapped[Task] = relationship("Task")

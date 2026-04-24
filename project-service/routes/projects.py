@@ -1,7 +1,5 @@
-import json
 import secrets
-import urllib.parse
-import urllib.request
+import httpx
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -25,6 +23,8 @@ from schemas import (
     ProjectUpdate,
 )
 from services.redis_service import append_audit_log, publish_manager_notification
+from services.email_service import send_task_notification_email
+from config import settings
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -212,7 +212,7 @@ async def update_project(
     return await _project_response(db, project)
 
 
-@router.post("/{project_id}/members")
+@router.post("/{project_id}/members", response_model=list[MemberResponse])
 async def add_project_member(
     project_id: UUID,
     payload: AddMemberByEmailRequest,
@@ -228,43 +228,34 @@ async def add_project_member(
     if role != "admin" and project.manager_id != user_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only project manager or admin can add members")
 
-    # Internal call to auth-service
     target_user_id = None
     created = False
+    temp_password = None
     
-    import urllib.request
-    import urllib.parse
-    import json
-    
-    lookup_url = f"http://auth-service:8001/auth/internal/user-by-email?email={urllib.parse.quote(payload.email)}"
-    try:
-        req = urllib.request.Request(lookup_url)
-        with urllib.request.urlopen(req) as resp:
-            data = json.loads(resp.read().decode())
-            target_user_id = data["id"]
-    except urllib.error.HTTPError as e:
-        if e.code == 404:
-            # User not found, create via internal API
+    async with httpx.AsyncClient() as client:
+        lookup_url = f"http://auth-service:8001/auth/internal/user-by-email?email={payload.email}"
+        response = await client.get(lookup_url)
+        
+        if response.status_code == 200:
+            target_user_id = response.json().get("id")
+        elif response.status_code == 404:
             create_url = "http://auth-service:8001/auth/internal/create-user"
-            req_data = json.dumps({
+            temp_password = secrets.token_urlsafe(12)
+            req_data = {
                 "email": payload.email,
                 "full_name": payload.email.split("@")[0],
                 "role": "member",
                 "org": "Default",
-                "temp_password": secrets.token_urlsafe(12)
-            }).encode("utf-8")
-            req2 = urllib.request.Request(create_url, data=req_data, headers={"Content-Type": "application/json"})
-            try:
-                with urllib.request.urlopen(req2) as resp2:
-                    data2 = json.loads(resp2.read().decode())
-                    target_user_id = data2["id"]
-                    created = True
-            except Exception as exc:
-                raise HTTPException(status_code=500, detail="Failed to create user via internal API") from exc
+                "temp_password": temp_password
+            }
+            create_response = await client.post(create_url, json=req_data)
+            if create_response.status_code in (200, 201):
+                target_user_id = create_response.json().get("id")
+                created = True
+            else:
+                raise HTTPException(status_code=500, detail="Failed to create user via internal API")
         else:
-            raise HTTPException(status_code=500, detail="Failed to look up user via internal API") from e
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail="Failed to communicate with auth service") from exc
+            raise HTTPException(status_code=500, detail="Failed to look up user via internal API")
             
     if not target_user_id:
         raise HTTPException(status_code=500, detail="Could not determine user ID")
@@ -293,9 +284,27 @@ async def add_project_member(
         project_id=str(project_id),
         metadata={"added_user": payload.email},
     )
+
+    frontend_url = settings.frontend_url
+    name = payload.email.split('@')[0]
     
-    msg = "Account created and member added" if created else "Member added"
-    return {"success": True, "created_account": created, "message": msg, "member": MemberResponse.model_validate(member).model_dump()}
+    if created:
+        subject = f"Welcome to Stratum - You've been added to {project.name}"
+        text_body = f"Hi {name}, an account has been created for you on Stratum.\nEmail: {payload.email}\nTemporary password: {temp_password}\nYou have been assigned to project: {project.name}\nLog in at {frontend_url} and change your password."
+        html_body = text_body.replace("\n", "<br>")
+    else:
+        subject = f"You've been added to project {project.name}"
+        text_body = f"Hi {name}, you have been added to the project '{project.name}' on Stratum. \nLog in at {frontend_url} to view your tasks."
+        html_body = text_body.replace("\n", "<br>")
+
+    await send_task_notification_email(payload.email, subject, html_body, text_body)
+
+    members_result = await db.execute(
+        select(ProjectMember).where(ProjectMember.project_id == project_id).order_by(ProjectMember.joined_at)
+    )
+    all_members = members_result.scalars().all()
+    
+    return [MemberResponse.model_validate(m) for m in all_members]
 
 
 @router.get("/{project_id}/members", response_model=list[MemberResponse])

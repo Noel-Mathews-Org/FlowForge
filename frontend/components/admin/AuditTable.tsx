@@ -20,31 +20,79 @@ export const AuditTable = ({ rows }: { rows: AuditEvent[] }) => {
   const safe = rows ?? [];
   const paged = useMemo(() => safe.slice((page - 1) * 10, page * 10), [page, safe]);
   const maxPage = Math.max(1, Math.ceil(safe.length / 10));
+
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-card dark:border-slate-800 dark:bg-slate-900">
-      <table className="w-full text-left text-sm">
-        <thead className="text-slate-500">
-          <tr><th className="pb-2">Event</th><th className="pb-2">User</th><th className="pb-2">Project</th><th className="pb-2">Time</th></tr>
-        </thead>
-        <tbody>
-          {paged.map((r, idx) => (
-            <tr key={r.id ?? idx} className="border-t border-slate-100 dark:border-slate-800">
-              <td className="py-3"><span className={`rounded-full px-2 py-1 text-xs ${color[r.event_type] ?? "bg-slate-100 text-slate-600"}`}>{r.event_type}</span></td>
-              <td>{r.user_email}</td>
-              <td className="max-w-[120px] truncate">{r.project_id ?? "—"}</td>
-              <td className="text-slate-500">{formatDistanceToNow(new Date(r.occurred_at), { addSuffix: true })}</td>
+    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-sm whitespace-nowrap">
+          <thead className="border-b border-slate-100 bg-slate-50/50 text-slate-500 dark:border-slate-800 dark:bg-slate-800/50">
+            <tr>
+              <th className="px-6 py-4 font-semibold uppercase tracking-wider">Event</th>
+              <th className="px-6 py-4 font-semibold uppercase tracking-wider">User</th>
+              <th className="px-6 py-4 font-semibold uppercase tracking-wider">Project</th>
+              <th className="px-6 py-4 font-semibold uppercase tracking-wider">Time</th>
             </tr>
-          ))}
-          {paged.length === 0 && (
-            <tr><td colSpan={4} className="py-8 text-center text-slate-400">No audit events found</td></tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            {paged.map((r, idx) => (
+              <tr key={r.id ?? idx} className="transition-colors hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                <td className="px-6 py-4">
+                  <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-tight ${color[r.event_type] ?? "bg-slate-100 text-slate-600"}`}>
+                    {r.event_type.replace("_", " ")}
+                  </span>
+                </td>
+                <td className="px-6 py-4 font-medium text-slate-700 dark:text-slate-300">{r.user_email}</td>
+                <td className="px-6 py-4 text-slate-500 dark:text-slate-400">
+                  <code className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] dark:bg-slate-800">
+                    {r.project_id ? r.project_id.slice(0, 8) : "SYSTEM"}
+                  </code>
+                </td>
+                <td className="px-6 py-4 text-slate-500 dark:text-slate-400">
+                  {formatDistanceToNow(new Date(r.occurred_at), { addSuffix: true })}
+                </td>
+              </tr>
+            ))}
+            {paged.length === 0 && (
+              <tr>
+                <td colSpan={4} className="py-12 text-center text-slate-400">
+                  <div className="flex flex-col items-center gap-2">
+                    <svg className="h-8 w-8 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                    <span>No audit events found</span>
+                  </div>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      
       {safe.length > 10 && (
-        <div className="mt-3 flex items-center justify-end gap-2">
-          <Button variant="outline" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-          <span className="text-xs text-slate-500">{page}/{maxPage}</span>
-          <Button variant="outline" disabled={page === maxPage} onClick={() => setPage((p) => p + 1)}>Next</Button>
+        <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/30 px-6 py-4 dark:border-slate-800 dark:bg-slate-800/30">
+          <p className="text-xs text-slate-500">
+            Showing <span className="font-semibold text-slate-900 dark:text-slate-100">{(page - 1) * 10 + 1}</span> to <span className="font-semibold text-slate-900 dark:text-slate-100">{Math.min(page * 10, safe.length)}</span> of <span className="font-semibold text-slate-900 dark:text-slate-100">{safe.length}</span> entries
+          </p>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              disabled={page === 1} 
+              onClick={() => setPage((p) => p - 1)}
+              className="h-8 rounded-lg text-xs"
+            >
+              Previous
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              disabled={page === maxPage} 
+              onClick={() => setPage((p) => p + 1)}
+              className="h-8 rounded-lg text-xs"
+            >
+              Next
+            </Button>
+          </div>
         </div>
       )}
     </div>
