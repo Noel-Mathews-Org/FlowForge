@@ -61,21 +61,35 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
+      - name: Setup Python
+        if: inputs.service_name != 'frontend'
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
       - name: Snyk Scan (Python)
         if: inputs.service_name != 'frontend'
-        uses: snyk/actions/python-3.10@master
+        run: |
+          cd ${{ inputs.service_name }}
+          pip install -r requirements.txt
+          npx snyk test --severity-threshold=high
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Setup Node
+        if: inputs.service_name == 'frontend'
+        uses: actions/setup-node@v3
         with:
-          args: --severity-threshold=high --file=${{ inputs.service_name }}/requirements.txt
+          node-version: '18'
 
       - name: Snyk Scan (Frontend)
         if: inputs.service_name == 'frontend'
-        uses: snyk/actions/node@master
+        run: |
+          cd ${{ inputs.service_name }}
+          npm install
+          npx snyk test --severity-threshold=high
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          args: --severity-threshold=high --file=${{ inputs.service_name }}/package.json
 
       - name: Build Docker Image
         run: docker build -t ghcr.io/${{ github.repository }}/${{ inputs.service_name }}:${{ steps.vars.outputs.short_sha }} ./${{ inputs.service_name }}
