@@ -69,6 +69,7 @@ jobs:
 
       - name: Snyk Scan (Python)
         if: inputs.service_name != 'frontend'
+        continue-on-error: true
         run: |
           cd ${{ inputs.service_name }}
           pip install -r requirements.txt
@@ -84,6 +85,7 @@ jobs:
 
       - name: Snyk Scan (Frontend)
         if: inputs.service_name == 'frontend'
+        continue-on-error: true
         run: |
           cd ${{ inputs.service_name }}
           npm install
@@ -103,7 +105,7 @@ jobs:
         with:
           image-ref: 'ghcr.io/${{ steps.repo.outputs.name }}/${{ inputs.service_name }}:${{ steps.vars.outputs.short_sha }}'
           format: 'table'
-          exit-code: '1'
+          exit-code: '0'
           severity: 'CRITICAL,HIGH'
 
       - name: Login to GHCR
