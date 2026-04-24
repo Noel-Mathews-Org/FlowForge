@@ -3,11 +3,9 @@
 import { useState, useEffect } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
-import { useApprovals } from "@/hooks/useApprovals";
 import { cn } from "@/lib/utils";
 
 export const AppShell = ({ children, title }: { children: React.ReactNode; title: string }) => {
-  const { data } = useApprovals();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
@@ -32,7 +30,6 @@ export const AppShell = ({ children, title }: { children: React.ReactNode; title
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <Sidebar
-        pendingApprovals={data?.length ?? 0}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         collapsed={collapsed}

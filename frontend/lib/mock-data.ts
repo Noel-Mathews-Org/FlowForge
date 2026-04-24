@@ -1,5 +1,5 @@
 import { subDays } from "date-fns";
-import type { AnalyticsOverview, ApprovalRequest, KanbanBoard, Project, ThroughputDataPoint, User, UserActivityStat } from "@/types";
+import type { AnalyticsOverview, KanbanBoard, Project, ThroughputDataPoint, User, UserActivityStat } from "@/types";
 
 export const mockUsers: User[] = [
   { id: "u1", email: "amaya.rivera@flowforge.io", full_name: "Amaya Rivera", role: "admin", org: "FlowForge" },
@@ -17,34 +17,25 @@ export const mockProjects: Project[] = [
 
 const now = new Date();
 export const mockBoard: KanbanBoard = {
-  PENDING_REVIEW: [],
-  PENDING_PROGRESS: [],
-  PENDING_DONE: [],
   TODO: [
-    { id: "t1", project_id: "p1", title: "Implement JWT refresh", description: "Add refresh token rotation with replay protection.", status: "TODO", priority: "HIGH", assignee_name: "Marcus Kim", assignee_email: "marcus.kim@flowforge.io", comments_count: 3, created_at: subDays(now, 2).toISOString() },
-    { id: "t2", project_id: "p1", title: "Design system audit", description: "Inventory component drift across admin surfaces.", status: "TODO", priority: "MEDIUM", assignee_name: "Sara Okafor", assignee_email: "sara.okafor@flowforge.io", comments_count: 1, created_at: subDays(now, 3).toISOString() },
-    { id: "t3", project_id: "p2", title: "Set up Argo Rollouts", description: "Create canary policy and alert gates.", status: "TODO", priority: "HIGH", comments_count: 2, created_at: subDays(now, 4).toISOString() },
-    { id: "t4", project_id: "p2", title: "Write API documentation", description: "Publish migration and troubleshooting guide.", status: "TODO", priority: "LOW", comments_count: 0, created_at: subDays(now, 1).toISOString() }
+    { id: "t1", project_id: "p1", title: "Implement JWT refresh", description: "Add refresh token rotation with replay protection.", status: "TODO", priority: "HIGH", assignee_name: "Marcus Kim", assignee_email: "marcus.kim@flowforge.io", comments_count: 3, needs_approval: false, proposed_status: null, proposed_by: null, created_at: subDays(now, 2).toISOString() },
+    { id: "t2", project_id: "p1", title: "Design system audit", description: "Inventory component drift across admin surfaces.", status: "TODO", priority: "MEDIUM", assignee_name: "Sara Okafor", assignee_email: "sara.okafor@flowforge.io", comments_count: 1, needs_approval: false, proposed_status: null, proposed_by: null, created_at: subDays(now, 3).toISOString() },
+    { id: "t3", project_id: "p2", title: "Set up Argo Rollouts", description: "Create canary policy and alert gates.", status: "TODO", priority: "HIGH", comments_count: 2, needs_approval: false, proposed_status: null, proposed_by: null, created_at: subDays(now, 4).toISOString() },
+    { id: "t4", project_id: "p2", title: "Write API documentation", description: "Publish migration and troubleshooting guide.", status: "TODO", priority: "LOW", comments_count: 0, needs_approval: false, proposed_status: null, proposed_by: null, created_at: subDays(now, 1).toISOString() }
   ],
   IN_PROGRESS: [
-    { id: "t5", project_id: "p1", title: "Build role permission matrix", description: "Map scope by resource and route.", status: "IN_PROGRESS", priority: "MEDIUM", assignee_name: "Marcus Kim", comments_count: 4, created_at: subDays(now, 6).toISOString() },
-    { id: "t6", project_id: "p2", title: "Gateway health dashboard", description: "Surface p95 and error-rate slices.", status: "IN_PROGRESS", priority: "HIGH", comments_count: 5, created_at: subDays(now, 8).toISOString() },
-    { id: "t7", project_id: "p3", title: "Campaign audience review", description: "Validate segments before launch.", status: "IN_PROGRESS", priority: "LOW", comments_count: 1, created_at: subDays(now, 5).toISOString() },
-    { id: "t8", project_id: "p3", title: "Legal content sign-off", description: "Close open legal review comments.", status: "IN_PROGRESS", priority: "MEDIUM", comments_count: 2, created_at: subDays(now, 7).toISOString() }
+    { id: "t5", project_id: "p1", title: "Build role permission matrix", description: "Map scope by resource and route.", status: "IN_PROGRESS", priority: "MEDIUM", assignee_name: "Marcus Kim", comments_count: 4, needs_approval: false, proposed_status: null, proposed_by: null, created_at: subDays(now, 6).toISOString() },
+    { id: "t6", project_id: "p2", title: "Gateway health dashboard", description: "Surface p95 and error-rate slices.", status: "IN_PROGRESS", priority: "HIGH", comments_count: 5, needs_approval: false, proposed_status: null, proposed_by: null, created_at: subDays(now, 8).toISOString() },
+    { id: "t7", project_id: "p3", title: "Campaign audience review", description: "Validate segments before launch.", status: "IN_PROGRESS", priority: "LOW", comments_count: 1, needs_approval: false, proposed_status: null, proposed_by: null, created_at: subDays(now, 5).toISOString() },
+    { id: "t8", project_id: "p3", title: "Legal content sign-off", description: "Close open legal review comments.", status: "IN_PROGRESS", priority: "MEDIUM", comments_count: 2, needs_approval: false, proposed_status: null, proposed_by: null, created_at: subDays(now, 7).toISOString() }
   ],
   DONE: [
-    { id: "t9", project_id: "p1", title: "Token revocation endpoint", description: "Completed endpoint and tests.", status: "DONE", priority: "MEDIUM", comments_count: 1, created_at: subDays(now, 10).toISOString() },
-    { id: "t10", project_id: "p2", title: "Service inventory baseline", description: "Captured ownership and runtimes.", status: "DONE", priority: "LOW", comments_count: 0, created_at: subDays(now, 11).toISOString() },
-    { id: "t11", project_id: "p3", title: "Ad creative QA pass", description: "Fixed spacing issues and export quality.", status: "DONE", priority: "LOW", comments_count: 3, created_at: subDays(now, 9).toISOString() },
-    { id: "t12", project_id: "p1", title: "SSO discovery workshop", description: "Documented provider constraints.", status: "DONE", priority: "MEDIUM", comments_count: 2, created_at: subDays(now, 13).toISOString() }
+    { id: "t9", project_id: "p1", title: "Token revocation endpoint", description: "Completed endpoint and tests.", status: "DONE", priority: "MEDIUM", comments_count: 1, needs_approval: false, proposed_status: null, proposed_by: null, created_at: subDays(now, 10).toISOString() },
+    { id: "t10", project_id: "p2", title: "Service inventory baseline", description: "Captured ownership and runtimes.", status: "DONE", priority: "LOW", comments_count: 0, needs_approval: false, proposed_status: null, proposed_by: null, created_at: subDays(now, 11).toISOString() },
+    { id: "t11", project_id: "p3", title: "Ad creative QA pass", description: "Fixed spacing issues and export quality.", status: "DONE", priority: "LOW", comments_count: 3, needs_approval: false, proposed_status: null, proposed_by: null, created_at: subDays(now, 9).toISOString() },
+    { id: "t12", project_id: "p1", title: "SSO discovery workshop", description: "Documented provider constraints.", status: "DONE", priority: "MEDIUM", comments_count: 2, needs_approval: false, proposed_status: null, proposed_by: null, created_at: subDays(now, 13).toISOString() }
   ]
 };
-
-export const mockApprovals: ApprovalRequest[] = [
-  { id: "a1", requester_id: "u6", requester_email: "ari.singh@flowforge.io", project_id: "p1", status: "PENDING", message: null, requested_at: subDays(now, 1).toISOString(), resolved_at: null, resolved_by: null },
-  { id: "a2", requester_id: "u7", requester_email: "leila.chen@flowforge.io", project_id: "p2", status: "PENDING", message: null, requested_at: subDays(now, 2).toISOString(), resolved_at: null, resolved_by: null },
-  { id: "a3", requester_id: "u8", requester_email: "mateo.alvarez@flowforge.io", project_id: "p3", status: "PENDING", message: null, requested_at: subDays(now, 3).toISOString(), resolved_at: null, resolved_by: null }
-];
 
 export const mockThroughput: ThroughputDataPoint[] = Array.from({ length: 7 }).map((_, i) => ({
   date: subDays(now, 6 - i).toISOString(),
