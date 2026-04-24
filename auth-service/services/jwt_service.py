@@ -17,11 +17,11 @@ def sign_jwt(user: User) -> str:
         "iat": int(now.timestamp()),
         "exp": int((now + timedelta(hours=settings.jwt_expiry_hours)).timestamp()),
     }
-    return jwt.encode(payload, settings.private_key, algorithm="RS256")
+    return jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
 
 
 def verify_jwt(token: str) -> dict:
     try:
-        return jwt.decode(token, settings.public_key, algorithms=["RS256"])
+        return jwt.decode(token, settings.jwt_secret, algorithms=["HS256"])
     except jwt.PyJWTError as exc:
         raise ValueError("Invalid token") from exc

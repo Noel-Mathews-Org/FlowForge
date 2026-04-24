@@ -10,8 +10,8 @@ def validate_jwt(token: str) -> dict:
     try:
         payload = jwt.decode(
             token,
-            settings.public_key,
-            algorithms=["RS256"],
+            settings.jwt_secret,
+            algorithms=["HS256"],
             options={"require": ["exp", "sub", "email", "role", "org"]},
         )
         return payload

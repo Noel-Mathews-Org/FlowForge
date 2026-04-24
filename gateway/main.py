@@ -28,7 +28,6 @@ settings = get_settings()
 PUBLIC_ROUTES = {
     ("POST", "/api/auth/login"),
     ("POST", "/api/auth/register"),
-    ("GET", "/api/auth/public-key"),
     ("GET", "/health"),
 }
 
