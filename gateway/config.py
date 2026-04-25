@@ -40,7 +40,7 @@ class Settings:
 
 def get_settings() -> Settings:
     return Settings(
-        jwt_secret=_get_env("JWT_SECRET", "super-secret-default-key", required=True),
+        jwt_secret=_get_env("JWT_SECRET", required=True),
         redis_url=_get_env("REDIS_URL", "redis://redis:6379"),
         auth_service_url=_get_env("AUTH_SERVICE_URL", "http://auth-service:8001"),
         project_service_url=_get_env("PROJECT_SERVICE_URL", "http://project-service:8002"),
