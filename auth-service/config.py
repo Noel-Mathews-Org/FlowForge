@@ -30,16 +30,10 @@ class Settings:
 def _build_settings() -> Settings:
     jwt_secret = os.getenv("JWT_SECRET", "").strip()
     if not jwt_secret:
-        jwt_secret = secrets.token_hex(32)
-        print("\n=== FLOWFORGE AUTH GENERATED JWT SECRET ===")
-        print("JWT_SECRET (put this in auth-service and gateway .env):")
-        print(jwt_secret)
-        print("===========================================\n")
+        raise RuntimeError("Missing required environment variable: JWT_SECRET")
 
     return Settings(
-        database_url=os.getenv(
-            "DATABASE_URL", "postgresql+asyncpg://user:pass@postgres:5432/auth_db"
-        ),
+        database_url=os.getenv("DATABASE_URL"),
         redis_url=os.getenv("REDIS_URL", "redis://redis:6379"),
         jwt_secret=jwt_secret,
         jwt_expiry_hours=_parse_int("JWT_EXPIRY_HOURS", 24),
