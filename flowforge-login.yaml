@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Config
+clusters:
+- cluster:
+    server: https://32.194.58.58:6443
+    insecure-skip-tls-verify: true
+  name: flowforge-cluster
+contexts:
+- context:
+    cluster: flowforge-cluster
+    user: flowforge-user
+  name: flowforge
+current-context: flowforge
+users:
+- name: flowforge-user
+  user:
+    exec:
+      apiVersion: client.authentication.k8s.io/v1beta1
+      command: kubectl
+      args:
+        - oidc-login
+        - get-token
+        - --oidc-issuer-url=https://keycloak.flowforge.fun/realms/flowforge
+        - --oidc-client-id=kubernetes
+        - --oidc-client-secret=xdUcwi9sjYFiRBkZogvKhVNC2BxTld0H
+        - --grant-type=password

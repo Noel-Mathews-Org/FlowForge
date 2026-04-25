@@ -1,3 +1,4 @@
+import os
 import secrets
 import httpx
 from datetime import datetime, timezone
@@ -375,7 +376,8 @@ async def add_project_member(
     
     async with httpx.AsyncClient() as client:
         # Step 1: Look up user by email
-        lookup_url = f"http://auth-service:8001/auth/internal/user-by-email?email={payload.email}"
+        auth_base = os.getenv("AUTH_SERVICE_URL", "http://auth-service:80")
+        lookup_url = f"{auth_base}/auth/internal/user-by-email?email={payload.email}"
         try:
             response = await client.get(lookup_url)
             
@@ -383,7 +385,7 @@ async def add_project_member(
                 target_user_id = response.json().get("id")
             elif response.status_code == 404:
                 # Step 2: Create user if not found
-                create_url = "http://auth-service:8001/auth/internal/create-user"
+                create_url = f"{auth_base}/auth/internal/create-user"
                 temp_password = secrets.token_urlsafe(9)  # Roughly 12 characters
                 req_data = {
                     "email": payload.email,

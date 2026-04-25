@@ -8,9 +8,7 @@ RUN npm ci
 # Stage 2: Builder
 FROM node:18-alpine AS builder
 WORKDIR /app
-ARG BASE_PUBLIC_URL
-# Pass build-time variables for Next.js client-side injection
-ENV NEXT_PUBLIC_API_URL=http://${BASE_PUBLIC_URL}:8000/api
+ENV NEXT_PUBLIC_API_URL=/api
 ENV NEXT_PUBLIC_MOCK_MODE=false 
 
 COPY --from=deps /app/node_modules ./node_modules
