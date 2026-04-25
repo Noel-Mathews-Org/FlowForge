@@ -36,12 +36,12 @@ jobs:
         id: fetch-sha
         run: |
           git fetch origin test
-          git checkout origin/test -- Helm/values-dev.yaml
+          git show origin/test:Helm/values-dev.yaml > values-dev-temp.yaml
           
-          DEV_SHA=$(yq eval ".${{ steps.parse.outputs.service }}.image.tag" Helm/values-dev.yaml)
+          DEV_SHA=$(yq eval ".${{ steps.parse.outputs.service }}.image.tag" values-dev-temp.yaml)
           echo "Found verified SHA in Dev: $DEV_SHA"
           echo "sha=$DEV_SHA" >> $GITHUB_OUTPUT
-          rm Helm/values-dev.yaml
+          rm values-dev-temp.yaml
 
       - name: Lowercase Repository Name
         id: repo
