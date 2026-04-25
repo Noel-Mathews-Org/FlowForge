@@ -98,7 +98,10 @@ jobs:
         run: echo "name=${GITHUB_REPOSITORY,,}" >> $GITHUB_OUTPUT
 
       - name: Build Docker Image
-        run: docker build -t ghcr.io/${{ steps.repo.outputs.name }}/${{ inputs.service_name }}:${{ steps.vars.outputs.short_sha }} ./${{ inputs.service_name }}
+        run: |
+          docker build \
+            -t ghcr.io/${{ steps.repo.outputs.name }}/${{ inputs.service_name }}:${{ steps.vars.outputs.short_sha }} \
+            ./${{ inputs.service_name }}
 
       - name: Trivy Scan
         uses: aquasecurity/trivy-action@master
