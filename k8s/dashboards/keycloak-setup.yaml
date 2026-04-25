@@ -20,10 +20,10 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: keycloak-pvc
+  name: keycloak-data
   namespace: keycloak
 spec:
-  storageClassName: ""
+  storageClassName: "" # Force use of static PV
   volumeName: keycloak-pv
   accessModes:
     - ReadWriteMany
@@ -77,14 +77,14 @@ spec:
               value: admin
             - name: KC_BOOTSTRAP_ADMIN_PASSWORD
               value: PayCrest@Keycloak2026
-            - name: KC_PROXY
-              value: edge
-            - name: KC_HOSTNAME
-              value: "keycloak.flowforge.fun"
-            - name: KC_HTTP_ENABLED
-              value: "true"
+            - name: KC_PROXY_HEADERS
+              value: xforwarded
             - name: KC_HOSTNAME_STRICT
               value: "false"
+            - name: KC_HTTP_ENABLED
+              value: "true"
+            - name: KC_HOSTNAME
+              value: "https://keycloak.flowforge.fun"
             - name: KC_HTTP_RELATIVE_PATH
               value: "/"
           ports:
@@ -110,7 +110,7 @@ spec:
       volumes:
         - name: keycloak-data
           persistentVolumeClaim:
-            claimName: keycloak-pvc
+            claimName: keycloak-data
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
