@@ -23,7 +23,7 @@ metadata:
   name: keycloak-pvc
   namespace: keycloak
 spec:
-  storageClassName: "" # Forces use of the Static PV above
+  storageClassName: ""
   volumeName: keycloak-pv
   accessModes:
     - ReadWriteMany
@@ -54,6 +54,8 @@ metadata:
     app: keycloak
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: keycloak
@@ -79,10 +81,6 @@ spec:
               value: edge
             - name: KC_HOSTNAME
               value: "keycloak.flowforge.fun"
-            - name: KC_HOSTNAME_URL
-              value: "https://keycloak.flowforge.fun"
-            - name: KC_HOSTNAME_ADMIN_URL
-              value: "https://keycloak.flowforge.fun"
             - name: KC_HTTP_ENABLED
               value: "true"
             - name: KC_HOSTNAME_STRICT
