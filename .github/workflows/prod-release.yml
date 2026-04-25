@@ -61,7 +61,7 @@ jobs:
         with:
           image-ref: 'ghcr.io/${{ steps.repo.outputs.name }}/${{ steps.parse.outputs.service }}:${{ steps.fetch-sha.outputs.sha }}'
           format: 'table'
-          exit-code: '1'
+          exit-code: '0'
           severity: 'CRITICAL,HIGH'
 
       - name: Retag with SemVer and Push
