@@ -8,7 +8,7 @@ spec:
   - name: dashboard-gateway
     namespace: gateway
   hostnames:
-  - "headlamp.flowforge.fun"
+  - "dashboards.flowforge.fun"
   rules:
   - backendRefs:
     - name: headlamp
