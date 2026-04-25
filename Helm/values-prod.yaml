@@ -1,16 +1,25 @@
 global:
   environment: prod
   domain: flowforge.fun
-
 gateway:
   enabled: true
+  image:
+    tag: v1.1.0
 frontend:
   enabled: true
+  image:
+    tag: v1.1.0
 auth-service:
   enabled: true
+  image:
+    tag: v1.1.0
 project-service:
   enabled: true
+  image:
+    tag: v1.1.0
 task-service:
   enabled: true
+  image:
+    tag: v1.1.0
 analysis-service:
   enabled: true
