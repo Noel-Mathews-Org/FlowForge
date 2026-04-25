@@ -165,3 +165,29 @@ subjects:
 - kind: Group
   name: "oidc:test-team"
   apiGroup: rbac.authorization.k8s.io
+---
+# 5. ALLOW TEAMS TO LIST NAMESPACES (Required for Headlamp UI)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: flowforge-namespace-lister
+rules:
+- apiGroups: [""]
+  resources: ["namespaces"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: oidc-teams-namespace-list
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: flowforge-namespace-lister
+subjects:
+- kind: Group
+  name: "oidc:dev-team"
+  apiGroup: rbac.authorization.k8s.io
+- kind: Group
+  name: "oidc:test-team"
+  apiGroup: rbac.authorization.k8s.io
