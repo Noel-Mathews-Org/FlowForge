@@ -23,7 +23,7 @@ metadata:
   name: keycloak-data
   namespace: keycloak
 spec:
-  storageClassName: "" # Force use of static PV
+  storageClassName: ""
   volumeName: keycloak-pv
   accessModes:
     - ReadWriteMany
@@ -112,6 +112,7 @@ spec:
           persistentVolumeClaim:
             claimName: keycloak-data
 ---
+# 1. NOEL MATHEWS (Full Cluster Admin)
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
@@ -125,6 +126,7 @@ subjects:
   name: "oidc:cluster-admins"
   apiGroup: rbac.authorization.k8s.io
 ---
+# 2. READONLY ROLE FOR TEAMS
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -134,10 +136,12 @@ rules:
   resources: ["*"]
   verbs: ["get", "list", "watch"]
 ---
+# 3. DEV TEAM (Restricted to 'dev' namespace only)
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
+kind: RoleBinding
 metadata:
-  name: oidc-dev-team
+  name: oidc-dev-team-binding
+  namespace: dev
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -147,10 +151,12 @@ subjects:
   name: "oidc:dev-team"
   apiGroup: rbac.authorization.k8s.io
 ---
+# 4. TEST TEAM (Restricted to 'dev' namespace only)
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
+kind: RoleBinding
 metadata:
-  name: oidc-test-team
+  name: oidc-test-team-binding
+  namespace: dev
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
