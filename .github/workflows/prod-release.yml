@@ -72,12 +72,13 @@ jobs:
 
       - name: Update values-prod.yaml and Push
         run: |
+          git pull --rebase origin prod
           yq eval ".${{ steps.parse.outputs.service }}.image.tag = \"${{ steps.parse.outputs.version }}\"" -i Helm/values-prod.yaml
           
           git config user.name "FlowForge Release Bot"
           git config user.email "releases@flowforge.com"
           git add Helm/values-prod.yaml
-          git commit -m "chore(release): promote ${{ steps.parse.outputs.service }} to ${{ steps.parse.outputs.version }} in PROD"
+          git commit -m "chore(release): promote ${{ steps.parse.outputs.service }} to ${{ steps.parse.outputs.version }} in PROD" || echo "No changes"
           git push origin prod
 
   notify:
