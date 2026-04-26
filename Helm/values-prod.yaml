@@ -19,7 +19,7 @@ frontend:
 auth-service:
   enabled: true
   image:
-    tag: v1.1.2
+    tag: v1.1.3
 project-service:
   enabled: true
   image:
