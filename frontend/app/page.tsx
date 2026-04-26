@@ -9,15 +9,15 @@ export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+    <div className="min-h-screen bg-black text-white">
       {/* Navigation */}
-      <nav className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/80 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/80">
+      <nav className="sticky top-0 z-50 w-full border-b border-zinc-800 bg-black/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-8 lg:px-16">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 font-bold text-white shadow-lg shadow-indigo-500/30">
               FF
             </div>
-            <span className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">FlowForge</span>
+            <span className="text-xl font-bold tracking-tight text-white">FlowForge</span>
           </div>
 
           {/* Desktop Nav */}
@@ -60,10 +60,10 @@ export default function LandingPage() {
                 <span className="flex h-2 w-2 rounded-full bg-indigo-600 animate-pulse-dot" />
                 Enterprise Workflow Orchestration
               </div>
-              <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl dark:text-white">
+              <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-6xl">
                 Master your <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">workflows.</span>
               </h1>
-              <p className="max-w-xl text-base text-slate-600 sm:text-lg dark:text-slate-400">
+              <p className="max-w-xl text-base text-zinc-400 sm:text-lg">
                 The ultimate orchestration platform for modern teams. Streamline approvals, track tasks, and boost throughput with enterprise-grade security.
               </p>
               <div className="flex w-full flex-col gap-4 sm:w-auto sm:flex-row">
@@ -105,11 +105,11 @@ export default function LandingPage() {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="bg-white px-4 py-20 sm:px-8 sm:py-32 lg:px-16 dark:bg-slate-900 border-y border-slate-200 dark:border-slate-800">
+      <section id="features" className="bg-black px-4 py-20 sm:px-8 sm:py-32 lg:px-16 border-y border-zinc-800">
         <div className="mx-auto max-w-7xl">
           <div className="mb-16 text-center">
-            <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl dark:text-white">Built for scale. Designed for speed.</h2>
-            <p className="mt-4 text-lg text-slate-500 dark:text-slate-400">Everything you need to manage your organization&apos;s workflow from end to end.</p>
+            <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">Built for scale. Designed for speed.</h2>
+            <p className="mt-4 text-lg text-zinc-400">Everything you need to manage your organization&apos;s workflow from end to end.</p>
           </div>
 
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
@@ -141,7 +141,7 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-slate-50 py-12 px-4 sm:px-8 lg:px-16 dark:bg-slate-950">
+      <footer className="bg-zinc-950 py-12 px-4 sm:px-8 lg:px-16 border-t border-zinc-800">
         <div className="mx-auto max-w-7xl flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <div className="flex h-6 w-6 items-center justify-center rounded-md bg-slate-200 font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400 text-xs">FF</div>
