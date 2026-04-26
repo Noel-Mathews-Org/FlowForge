@@ -218,3 +218,50 @@ async def send_project_invite_email(
         text_body += f"\nEmail: {to_email}\nTemporary Password: {temp_password}\nPlease change your password after logging in."
 
     await send_notification_email(to_email, subject, html_body)
+
+async def send_admin_user_created_email(
+    to_email: str, login_url: str, temp_password: str
+) -> None:
+    """Professional email for when an administrator creates a user."""
+    subject = "Your FlowForge Account"
+
+    credentials_block = f"""
+    <div style="background-color:#fef3c7; border: 1px solid #f59e0b; border-radius:8px; padding:16px 20px; margin-bottom:24px;">
+      <p style="margin:0 0 8px 0; font-size:13px; font-weight:600; color:#92400e;">&#128274; Your Login Credentials</p>
+      <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;">
+        <tr>
+          <td style="padding:4px 0; font-size:14px; color:#78350f; width:120px;"><strong>Username:</strong></td>
+          <td style="padding:4px 0; font-size:14px; color:#78350f;">{to_email}</td>
+        </tr>
+        <tr>
+          <td style="padding:4px 0; font-size:14px; color:#78350f;"><strong>Password:</strong></td>
+          <td style="padding:4px 0; font-size:14px; color:#78350f; font-family:monospace;">{temp_password}</td>
+        </tr>
+      </table>
+      <p style="margin:8px 0 0 0; font-size:12px; color:#92400e;">Please log in and change your password immediately.</p>
+    </div>
+    """
+
+    content = f"""
+    <h1 style="margin:0 0 8px 0; font-size:24px; font-weight:700; color:#1a1a2e;">Welcome to FlowForge!</h1>
+    <p style="margin:0 0 24px 0; font-size:15px; color:#8993a4;">An administrator has created an account for you</p>
+    {credentials_block}
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td align="center" style="padding: 8px 0 24px 0;">
+          <a href="{login_url}" style="display:inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:#ffffff; text-decoration:none; padding:14px 36px; border-radius:8px; font-size:15px; font-weight:600; letter-spacing:0.3px;">Log in to FlowForge</a>
+        </td>
+      </tr>
+    </table>
+    """
+    html_body = _base_template(content, preview_text="An administrator has created an account for you")
+    text_body = f"Welcome to FlowForge.\nYour username is {to_email}\nTemporary password: {temp_password}\nLog in at {login_url}"
+
+    loop = asyncio.get_running_loop()
+    try:
+        await loop.run_in_executor(
+            None, _send_email_sync, to_email, subject, html_body, text_body
+        )
+        logger.info("Admin user created email sent to %s", to_email)
+    except Exception as exc:
+        logger.exception("Failed to send admin user created email to %s: %s", to_email, exc)

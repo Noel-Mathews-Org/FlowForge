@@ -246,7 +246,86 @@ These are logical references. No foreign keys exist across databases.
 | `audit_events.task_id` | VARCHAR | `tasks.id` | task_db |
 | `audit_events.user_id` | VARCHAR | `users.id` | auth_db |
 
----
+### 2.6 Entity-Relationship Diagram
+
+```
+  ┌─────────────────────────────────────────────────────────────────────────────────────────────┐
+  │  auth_db                                                                                    │
+  │                                                                                             │
+  │   ┌──────────────────┐          ┌─────────────────────┐          ┌──────────────────────┐   │
+  │   │      users       │          │   refresh_tokens     │          │    invite_tokens      │   │
+  │   ├──────────────────┤          ├─────────────────────┤          ├──────────────────────┤   │
+  │   │ id (PK)          │──1───*──>│ user_id (FK)        │          │ id (PK)              │   │
+  │   │ email (UNIQUE)   │          │ id (PK)             │          │ token (UNIQUE)       │   │
+  │   │ hashed_password  │          │ token (UNIQUE)      │          │ email                │   │
+  │   │ full_name        │          │ expires_at           │          │ role                 │   │
+  │   │ role (ENUM)      │          │ revoked              │          │ created_by (FK)──────│───┘
+  │   │ org              │──1───*──>└─────────────────────┘          │ used                 │
+  │   │ is_active        │                                           │ expires_at           │
+  │   │ created_at       │                                           └──────────────────────┘
+  │   └──────────────────┘
+  └────────────┬────────────────────────────────────────────────────────────────────────────────┘
+               │ (logical reference via user_id / manager_id)
+               │
+  ┌────────────▼────────────────────────────────────────────────────────────────────────────────┐
+  │  project_db                                                                                 │
+  │                                                                                             │
+  │   ┌──────────────────┐          ┌─────────────────────┐          ┌──────────────────────┐   │
+  │   │    projects       │          │  project_members     │          │  approval_requests    │   │
+  │   ├──────────────────┤          ├─────────────────────┤          ├──────────────────────┤   │
+  │   │ id (PK)          │──1───*──>│ project_id (FK)     │          │ project_id (FK)──────│───┐
+  │   │ name             │          │ id (PK)             │          │ id (PK)              │   │
+  │   │ description      │          │ user_id             │          │ requester_id         │   │
+  │   │ manager_id       │          │ user_email           │          │ requester_email      │   │
+  │   │ manager_email    │──1───*──>│ member_role          │          │ status (ENUM)        │   │
+  │   │ is_archived      │          │ joined_at            │          │ message              │   │
+  │   │ created_at       │          └─────────────────────┘          │ requested_at         │   │
+  │   └──────────────────┘◄──1───*───────────────────────────────────│ resolved_at          │   │
+  │                                                                  │ resolved_by          │   │
+  │                                                                  └──────────────────────┘   │
+  └────────────┬────────────────────────────────────────────────────────────────────────────────┘
+               │ (logical reference via project_id)
+               │
+  ┌────────────▼────────────────────────────────────────────────────────────────────────────────┐
+  │  task_db                                                                                    │
+  │                                                                                             │
+  │   ┌──────────────────────┐          ┌─────────────────────┐                                 │
+  │   │       tasks           │          │   task_comments      │                                 │
+  │   ├──────────────────────┤          ├─────────────────────┤                                 │
+  │   │ id (PK)              │──1───*──>│ task_id (FK)        │                                 │
+  │   │ project_id           │          │ id (PK)             │                                 │
+  │   │ title                │          │ author_id            │                                 │
+  │   │ description          │          │ author_email         │                                 │
+  │   │ status (ENUM)        │          │ body                 │                                 │
+  │   │ priority (ENUM)      │          │ created_at           │                                 │
+  │   │ assignee_id          │          └─────────────────────┘                                 │
+  │   │ created_by           │                                                                  │
+  │   │ position             │                                                                  │
+  │   │ needs_approval       │                                                                  │
+  │   │ proposed_status      │                                                                  │
+  │   │ deleted_at (soft)    │                                                                  │
+  │   └──────────────────────┘                                                                  │
+  └────────────┬────────────────────────────────────────────────────────────────────────────────┘
+               │ (logical reference via project_id, task_id, user_id)
+               │
+  ┌────────────▼────────────────────────────────────────────────────────────────────────────────┐
+  │  analytics_db                                                                               │
+  │                                                                                             │
+  │   ┌──────────────────────┐  ┌─────────────────────┐  ┌───────────────────────┐              │
+  │   │    audit_events       │  │  daily_task_stats    │  │  user_activity_stats   │              │
+  │   ├──────────────────────┤  ├─────────────────────┤  ├───────────────────────┤              │
+  │   │ id (PK)              │  │ id (PK)             │  │ id (PK)               │              │
+  │   │ event_type           │  │ date                │  │ user_id               │              │
+  │   │ user_id              │  │ project_id          │  │ user_email            │              │
+  │   │ user_email           │  │ tasks_created       │  │ date                  │              │
+  │   │ project_id           │  │ tasks_completed     │  │ events_count          │              │
+  │   │ task_id              │  │ tasks_in_progress   │  │ tasks_created         │              │
+  │   │ metadata (JSON)      │  └─────────────────────┘  │ tasks_completed       │              │
+  │   │ occurred_at          │                            └───────────────────────┘              │
+  │   │ ingested_at          │                                                                  │
+  │   └──────────────────────┘                                                                  │
+  └─────────────────────────────────────────────────────────────────────────────────────────────┘
+```
 
 ## 3. Event-Driven Communication
 
