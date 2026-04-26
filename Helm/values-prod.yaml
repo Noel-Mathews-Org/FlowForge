@@ -27,7 +27,7 @@ project-service:
 task-service:
   enabled: true
   image:
-    tag: v1.1.1
+    tag: v1.1.2
 analysis-service:
   enabled: true
   image:
