@@ -391,7 +391,7 @@ async def add_project_member(
                     "email": payload.email,
                     "full_name": payload.email.split("@")[0],
                     "role": "member",
-                    "org": "stratum",
+                    "org": "flowforge",
                     "temp_password": temp_password
                 }
                 create_response = await client.post(create_url, json=req_data)
@@ -436,19 +436,18 @@ async def add_project_member(
         metadata={"added_user": payload.email, "was_created": created},
     )
 
-    # Notify user
+    # Notify user with branded email
     frontend_url = settings.frontend_url
-    name = payload.email.split('@')[0]
-    
-    if created:
-        subject = f"Welcome to FlowForge - You've been added to {project.name}"
-        text_body = f"Hi {name},\n\nAn account has been created for you on FlowForge.\nEmail: {payload.email}\nTemporary password: {temp_password}\n\nYou have been assigned to project: {project.name}\n\nLog in at {frontend_url} and change your password."
-    else:
-        subject = f"You've been added to project {project.name}"
-        text_body = f"Hi {name},\n\nYou have been added to the project '{project.name}' on FlowForge. \n\nLog in at {frontend_url} to view your tasks."
-    
-    html_body = text_body.replace("\n", "<br>")
-    await send_task_notification_email(payload.email, subject, html_body, text_body)
+    inviter_email = _require_email(request)
+    from services.email_service import send_member_added_email
+    await send_member_added_email(
+        to_email=payload.email,
+        project_name=project.name,
+        inviter_name=inviter_email,
+        login_url=frontend_url,
+        temp_password=temp_password if created else None,
+        is_new_user=created,
+    )
 
     # Return updated list
     members_result = await db.execute(
