@@ -11,7 +11,7 @@ spec:
       port: 80
       allowedRoutes:
         namespaces:
-          from: All # CRITICAL: Allow routes from ALL namespaces
+          from: All
 ---
 apiVersion: gateway.networking.k8s.io/v1beta1
 kind: ReferenceGrant

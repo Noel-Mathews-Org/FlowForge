@@ -14,7 +14,7 @@ FlowForge is an enterprise-grade, event-driven project and task management platf
                          HTTP (80)
                              |
                       +--------------+
-                      | API Gateway  |        <-- JWT Auth, Rate Limiting, Routing
+                      | API Gateway  | <-----> [ Redis (Rate Limit) ]
                       |  (FastAPI)   |
                       +--------------+
                              |
@@ -30,17 +30,11 @@ FlowForge is an enterprise-grade, event-driven project and task management platf
        auth_db          project_db          task_db          analytics_db
           |                  |                  |                  |
           +------------------+------------------+------------------+
-                             |
-                     [ PostgreSQL 16 ]
-                     (Single Instance)
-
-
-   Event Flow (Redis Streams):
-
-   Task Service ---[XADD]--> audit_log ---[XREADGROUP]--> Analysis Service
-                                      \--[XREADGROUP]--> Project Service
-
-   API Gateway ---[GET/SET]--> Redis (Rate Limiting)
+                             |                  |
+                     [ PostgreSQL 16 ]  [ Redis (Event Bus) ]
+                                                ^
+                                                |
+                      (All services Publish & Subscribe via Redis)
 ```
 
 ### Infrastructure Components
