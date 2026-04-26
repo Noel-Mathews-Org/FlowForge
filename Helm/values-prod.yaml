@@ -11,7 +11,7 @@ global:
 gateway:
   enabled: true
   image:
-    tag: v1.1.1
+    tag: v1.1.2
 frontend:
   enabled: true
   image:
