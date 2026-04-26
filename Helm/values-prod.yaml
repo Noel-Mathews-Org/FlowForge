@@ -23,7 +23,7 @@ auth-service:
 project-service:
   enabled: true
   image:
-    tag: v1.1.2
+    tag: v1.1.3
 task-service:
   enabled: true
   image:
