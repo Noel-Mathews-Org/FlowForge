@@ -144,21 +144,13 @@ async def invite_to_project(
     await db.refresh(user)
 
     login_url = f"{settings.frontend_url}/login"
-    subject = "You've been added to a FlowForge project"
-    html_body = f"""
-    <html>
-      <body>
-        <h2>Welcome to FlowForge</h2>
-        <p>{x_user_name} has invited you to collaborate on a project.</p>
-        <p>An account has been automatically created for you.</p>
-        <p><strong>Email:</strong> {payload.email}</p>
-        <p><strong>Temporary Password:</strong> {temp_password}</p>
-        <p><a href="{login_url}" style="font-size:16px;font-weight:bold;">Log in to FlowForge</a></p>
-        <p>Please change your password after logging in.</p>
-      </body>
-    </html>
-    """
-    await email_service.send_notification_email(str(payload.email), subject, html_body)
+    await email_service.send_project_invite_email(
+        to_email=str(payload.email),
+        inviter_name=x_user_name or "FlowForge Team",
+        login_url=login_url,
+        temp_password=temp_password,
+        is_new_user=True,
+    )
 
     return InviteToProjectResponse(
         user_id=user.id,
