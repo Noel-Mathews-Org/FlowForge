@@ -84,21 +84,12 @@ async def create_user(
     await db.refresh(user)
 
     login_url = f"{settings.frontend_url}/login"
-    subject = "Your FlowForge Account"
-    html_body = f"""
-    <html>
-      <body>
-        <h2>Welcome to FlowForge</h2>
-        <p>An administrator has created an account for you.</p>
-        <p><strong>Username:</strong> {payload.email}</p>
-        <p><strong>Temporary Password:</strong> {temp_password}</p>
-        <p><a href="{login_url}" style="font-size:16px;font-weight:bold;">Log in to FlowForge</a></p>
-        <p>Please log in and change your password immediately.</p>
-      </body>
-    </html>
-    """
-    text_body = f"Welcome to FlowForge. Your username is {payload.email} and temporary password is {temp_password}. Log in at {login_url}"
-    await send_notification_email(str(payload.email), subject, html_body)
+    from services.email_service import send_admin_user_created_email
+    await send_admin_user_created_email(
+        to_email=str(payload.email),
+        login_url=login_url,
+        temp_password=temp_password
+    )
 
     return _to_profile(user)
 

@@ -20,8 +20,7 @@ async def _notify_members(session_factory: async_sessionmaker, project_id: str, 
             result = await session.execute(select(ProjectMember).where(ProjectMember.project_id == project_uuid))
             members = result.scalars().all()
             for member in members:
-                html_body = f"<html><body><p>{message}</p></body></html>"
-                await send_task_notification_email(member.user_email, subject, html_body, message)
+                await send_task_notification_email(member.user_email, subject, message, message)
     except Exception as exc:
         logger.exception("Failed to notify members for project %s: %s", project_id, exc)
 
