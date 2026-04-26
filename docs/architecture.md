@@ -57,6 +57,7 @@ FlowForge is an enterprise-grade, event-driven project and task management platf
 
 ## 2. Database Architecture
 
+
 FlowForge uses a single PostgreSQL 16 instance with **four logical databases**, one per service. Each service owns its schema exclusively.
 
 ### 2.1 auth_db
