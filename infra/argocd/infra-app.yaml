@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: 'https://github.com/Noel-Mathews-Org/FlowForge.git'
     targetRevision: test
-    path: k8s/dashboards
+    path: infra/infrastructure
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: gateway
