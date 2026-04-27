@@ -11,6 +11,7 @@ FlowForge is an enterprise-grade, event-driven project and task management platf
 
 ## Quick Navigation
 - [Section 1 — FlowForge](#section-1--flowforge)
+- [Verification (Important)](#verification-important)
 - [Section 2 — Architecture Overview](#section-2--architecture-overview)
 - [Section 3 — DevOps Architecture](#section-3--devops-architecture)
 - [Section 4 — Project Setup](#section-4--project-setup)
@@ -25,6 +26,28 @@ FlowForge is an enterprise-grade, event-driven project and task management platf
 - [Section 13 — Code Quality](#section-13--code-quality)
 - [Section 14 — Storage](#section-14--storage)
 - [Section 15 — Service Reference](#section-15--service-reference)
+
+---
+
+## Verification (Important)
+
+This is an important step to ensure our services are correctly deployed and running across different namespaces.
+
+### Dev Environment
+Verification of our services running in the `dev` namespace (`kubectl get all -n dev`):
+
+![Dev Output 1](snap/dev-ot-1.png)
+![Dev Output 2](snap/dev-ot-2.png)
+![Dev Output 3](snap/dev-ot-3.png)
+![Dev Output 4](snap/dev-ot-4.png)
+
+### Prod Environment
+Verification of our services running in the `prod` namespace (`kubectl get all -n prod`):
+
+![Prod Output 1](snap/prod-output-1.png)
+![Prod Output 2](snap/prod-output-2.png)
+![Prod Output 3](snap/prod-output-3.png)
+![Prod Output 4](snap/prod-output-4.png)
 
 ---
 
@@ -56,7 +79,7 @@ The system uses a single PostgreSQL instance logically partitioned into four dis
 - `task_db`: Owned by Task Service (`tasks`, `task_comments`).
 - `analytics_db`: Owned by Analysis Service (`audit_events`, `daily_task_stats`, `user_activity_stats`).
 
-![alt text](image.png)
+![alt text](snap/image.png)
 
 ### Service Reference
 
@@ -192,7 +215,7 @@ The project uses a Helm Umbrella Chart located in the `Helm/` directory.
   - `network-policies.yaml`: Enforces namespace and tier-level isolation.
   - `postgres.yaml` & `redis.yaml`: StatefulSets for core databases.
 
-![alt text](image-1.png)
+![alt text](snap/image-1.png)
 
 ---
 
@@ -216,7 +239,7 @@ The cluster utilizes a `disallow-latest-tag` Kyverno policy in `Enforce` mode. T
 #### Dynamic Analysis (DAST) — OWASP ZAP
 DAST scanning via OWASP ZAP is performed manually.
 
-![alt text](image-6.png)
+![alt text](snap/image-6.png)
 
 ### 5b — Reusable Workflow (`_ci-reusable.yml`)
 The reusable CI workflow centralizes the build and deploy logic for all services.
@@ -233,9 +256,9 @@ The reusable CI workflow centralizes the build and deploy logic for all services
   - `notify`: Sends an HTML email summary of the pipeline result.
 - **Secrets Expected:** `SONAR_TOKEN`, `SONAR_HOST_URL`, `SNYK_TOKEN`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `DEVELOPMENT_TEAM_EMAIL`, `GH_PAT`.
 
-![alt text](image-3.png)
+![alt text](snap/image-3.png)
 
-![alt text](image-4.png)
+![alt text](snap/image-4.png)
 
 ### 5c — Per-Service Workflows
 - `ci-auth-service.yml`, `ci-analysis-service.yml`, `ci-frontend.yml`, `ci-gateway.yml`, `ci-project-service.yml`, `ci-task-service.yml`
@@ -251,7 +274,7 @@ The reusable CI workflow centralizes the build and deploy logic for all services
   4. Pushes the SemVer-tagged image to GHCR.
   5. Updates `Helm/values-prod.yaml` and commits it to the `prod` branch, triggering Argo CD to sync production.
 
-![alt text](image-5.png)
+![alt text](snap/image-5.png)
 
 ### 5f — GitHub Actions Secrets Reference
 
@@ -266,7 +289,7 @@ The reusable CI workflow centralizes the build and deploy logic for all services
 | `GH_PAT` | `_ci-reusable.yml`, `prod-release.yml` | Personal Access Token to commit back to Git | Repo Secrets |
 | `GITHUB_TOKEN` | `_ci-reusable.yml`, `prod-release.yml` | Default built-in token to push to GHCR | Automatically provided |
 
-![alt text](<secret managment github.png>)
+![alt text](<snap/secret managment github.png>)
 
 ---
 
@@ -274,87 +297,87 @@ The reusable CI workflow centralizes the build and deploy logic for all services
 
 When developers push code changes to the `test` branch, the CI pipeline for the corresponding service is activated via path-based triggers, executing our reusable workflow.
 
-![alt text](image-7.png)
+![alt text](snap/image-7.png)
 
-![alt text](image-9.png)
+![alt text](snap/image-9.png)
 
 Upon successful completion, the CI pipeline builds a new Docker image, uploads it to the GitHub Container Registry (GHCR) using the commit SHA as the tag, and updates the `values-dev.yaml` file.
 
-![alt text](GHCR.png)
+![alt text](snap/GHCR.png)
 
 The commit SHA tag uniquely identifies the origin of the image, helping us maintain strict deployment governance and traceability.
 
-![alt text](<git commit dev test.png>)
+![alt text](<snap/git commit dev test.png>)
 
 Argo CD detects this change in `values-dev.yaml` for the `flowforge-dev` application. The rollout status is initially marked as `suspended` because auto-promotion is disabled in our Argo Rollouts configuration.
 
-![alt text](<dev suspended in argocd.png>)
+![alt text](<snap/dev suspended in argocd.png>)
 
 From here, we use the Argo Rollouts dashboard to manually promote the application.
 
-![alt text](<Argo rollouts frontedn dev.png>)
+![alt text](<snap/Argo rollouts frontedn dev.png>)
 
 After promoting:
 
-![alt text](<dev frontend promote argo rollout.png>)
+![alt text](<snap/dev frontend promote argo rollout.png>)
 
 Once promoted, Argo CD synchronizes the application, pulling and applying the new image.
 
-![alt text](<argocd dev app synced.png>)
+![alt text](<snap/argocd dev app synced.png>)
 
 After synchronization, the new frontend becomes active.
 
 Here is the old frontend for dev (`dev.flowforge.fun`):
 
-![alt text](<old dev frontend.png>)
+![alt text](<snap/old dev frontend.png>)
 
 And here is the new frontend for `dev.flowforge.fun`:
 
-![alt text](<new dev frontend.png>)
+![alt text](<snap/new dev frontend.png>)
 
 To deploy to production, we first create a Pull Request (PR) against the `prod` branch. This PR is required due to our strict branch protection rules.
 
-![alt text](<creating PR to prod.png>)
+![alt text](<snap/creating PR to prod.png>)
 
 Once accepted, the new code is merged into the `prod` branch. Next, we draft a new GitHub Release. We use releases as a manual deployment gate for production to ensure no accidental automated deployments occur.
 
-![alt text](<Draft a new release.png>)
+![alt text](<snap/Draft a new release.png>)
 
 We select "Draft a new release" because the production deployment triggers on a published release. The release tag must strictly follow case-sensitive naming conventions matching the exact service name matrix. If the naming is incorrect, the pipeline will fail. A release engineer typically manages this to ensure accuracy.
 
-![alt text](<frontend release.png>)
+![alt text](<snap/frontend release.png>)
 
 Publishing the release automatically triggers the production release pipeline.
 
-![alt text](<frontedn release piepline.png>)
+![alt text](<snap/frontedn release piepline.png>)
 
 Once the pipeline completes successfully, it updates `values-prod.yaml`. Argo CD detects this change for the `flowforge-prod` app and suspends the rollout since auto-promotion is disabled.
 
-![alt text](<prod argocd before suspend.png>)
+![alt text](<snap/prod argocd before suspend.png>)
 
 We then navigate to the Argo Rollouts dashboard:
 
-![alt text](<rollouts prod bfore promote.png>)
+![alt text](<snap/rollouts prod bfore promote.png>)
 
 Before promoting the production rollout, we can verify the changes via a preview URL (`preview.flowforge.fun`). This allows QA and stakeholders to test the entire suite safely before live traffic is routed to the new version.
 
-![alt text](<preview befpre promoting.png>)
+![alt text](<snap/preview befpre promoting.png>)
 
 Once verification is complete, we promote the rollout. After promoting everything:
 
-![alt text](<prod rollouts.png>)
+![alt text](<snap/prod rollouts.png>)
 
 We can then observe the status change in Argo CD.
 
-![alt text](<prod argocd after.png>)
+![alt text](<snap/prod argocd after.png>)
 
-![alt text](<prod frontend argocd before.png>)
+![alt text](<snap/prod frontend argocd before.png>)
 
-![alt text](<after promoting frontend prod.png>)
+![alt text](<snap/after promoting frontend prod.png>)
 
 After the release, the final production UI is live.
 
-![alt text](<after release  new frontend prod.png>)
+![alt text](<snap/after release  new frontend prod.png>)
 
 ---
 
@@ -397,15 +420,17 @@ Autoscaling is configured for services based on CPU and memory thresholds define
 
 ## Section 8 — Secret Management
 
+*Note: This is an important topic to ensure our cluster and application remain secure.*
+
 ### 8a — The Golden Rules (non-negotiable)
 1. **NO secret, password, token, or credential may ever exist in any file committed to the repository.**
-2. **`.env` files are always in `.gitignore` and must never be committed.**
+2. **`.env` files are always in `.gitignore` and must never be committed.** We explicitly untrack `.env` files from GitHub to ensure no accidental leaks occur.
 3. All secrets in-cluster are managed exclusively via **Bitnami Sealed Secrets**.
 4. All secrets in CI/CD are stored exclusively in **GitHub Actions Secrets**.
 5. If a secret is accidentally committed, treat it as compromised immediately — rotate it before removing it from git history.
 
 ### 8b — Bitnami Sealed Secrets (in-cluster)
-Sealed Secrets allows us to securely store encrypted configuration in Git. The `kubeseal` CLI encrypts the raw YAML using the controller's public key. Once pushed to the cluster, only the Sealed Secrets controller has the private key to decrypt it into a standard `Secret`.
+Sealed Secrets allows us to securely store encrypted configuration in Git. The `kubeseal` CLI encrypts the raw YAML using the controller's public key. Once pushed to the cluster, only the Sealed Secrets controller has the private key to decrypt it into a standard `Secret`. This is critical for adopting a true GitOps model without compromising security.
 
 **Creating a Secret:**
 ```bash
@@ -423,6 +448,8 @@ CI/CD secrets are injected at runtime by GitHub Actions into environment variabl
 ### 8d — Environment Variable Discipline
 All backend services use Pydantic `BaseSettings` (e.g., `config.py`) or standard `os.getenv` to load configuration. 
 In Kubernetes, these are mounted directly from the decrypted `Secret` utilizing `envFrom` or specific `valueFrom` blocks in the pod definition. No `.env` files are used in production.
+
+We also dynamically recreate the DB URL at runtime. By avoiding monolithic secrets (like storing the entire connection string) and instead assembling it from granular parts (e.g., `DB_HOST`, `DB_USER`, `DB_PASSWORD`), we improve security and make rotation simpler.
 
 ### 8e — What Is and Is Not Tracked by Git
 **TRACKED (Safe to commit):** 
@@ -449,8 +476,9 @@ FlowForge uses the modern Kubernetes Gateway API (`kgateway`) replacing traditio
   - Path `/api` routes directly to the `gateway` pod.
   - Path `/` routes to the `frontend-active` service.
 - **Network Policies:** 
-  - `allow-kgateway-to-gateway`: Opens traffic from the external Gateway edge.
-  - `allow-gateway-to-backend`: Allows the internal gateway to reach the application tier.
+  - `default-deny-all`: A catch-all Zero-Trust policy that blocks all ingress and egress traffic by default for any pod in the namespace. This prevents lateral movement from rogue or unlabelled pods.
+  - `allow-kgateway-to-gateway`: Explicitly opens traffic from the external Gateway edge.
+  - `allow-gateway-to-backend`: Explicitly allows the internal gateway to reach the application tier.
   - `allow-backend-to-data`: Restricts database access strictly to backend pods. Postgres and Redis cannot be reached externally.
 - **External Observability Routes:** Dedicated routes are configured in `infra/infrastructure/*-route.yaml` for administrative access to Grafana, Prometheus, Loki, Headlamp, and ArgoCD.
 
@@ -535,7 +563,7 @@ curl -H "Authorization: Bearer <JWT>" https://dev.flowforge.fun/api/projects/
 
 Code quality is enforced via `sonar-project.properties` defined in each service's root directory. Developers are encouraged to run local Sonar scanners before pushing to avoid CI pipeline failures at the Quality Gate stage.
 
-![alt text](<task service sonar-1.png>) ![alt text](<project sonar-1.png>) ![alt text](<gateway sonar-1.png>) ![alt text](<analysis sonar repor-1.png>) ![alt text](<frontend report sonar-1.png>) ![alt text](<auth servive sonarqube report-1.png>)
+![alt text](<snap/task service sonar-1.png>) ![alt text](<snap/project sonar-1.png>) ![alt text](<snap/gateway sonar-1.png>) ![alt text](<snap/analysis sonar repor-1.png>) ![alt text](<snap/frontend report sonar-1.png>) ![alt text](<snap/auth servive sonarqube report-1.png>)
 
 > 📖 Full reference: [Code Quality](docs/runbook/11-code-quality.md)
 
@@ -547,6 +575,6 @@ Stateful storage is managed by dynamically provisioned PersistentVolumes.
 - **Postgres:** Mounted via the `postgres_data` PersistentVolumeClaim. Handled by a StatefulSet ensuring data persists across pod restarts.
 - **Redis:** Configured with Append-Only File (`AOF`) persistence mounted to `redis_data`, securing event streams and rate-limiting keys against abrupt crashes.
 
-![alt text](<pvc used grafana -2 dev.png>)
+![alt text](<snap/pvc used grafana -2 dev.png>)
 
 > 📖 Full reference: [Storage](docs/runbook/09-storage.md)
