@@ -55,7 +55,6 @@ jobs:
 
       - name: SonarQube Quality Gate
         uses: sonarsource/sonarqube-quality-gate-action@v1
-        continue-on-error: true
         timeout-minutes: 5
         with:
           scanMetadataReportFile: .scannerwork/report-task.txt
@@ -70,7 +69,6 @@ jobs:
 
       - name: Snyk Scan (Python)
         if: inputs.service_name != 'frontend'
-        continue-on-error: true
         run: |
           cd ${{ inputs.service_name }}
           pip install -r requirements.txt
@@ -86,7 +84,6 @@ jobs:
 
       - name: Snyk Scan (Frontend)
         if: inputs.service_name == 'frontend'
-        continue-on-error: true
         run: |
           cd ${{ inputs.service_name }}
           npm install
@@ -109,7 +106,7 @@ jobs:
         with:
           image-ref: 'ghcr.io/${{ steps.repo.outputs.name }}/${{ inputs.service_name }}:${{ steps.vars.outputs.short_sha }}'
           format: 'table'
-          exit-code: '0'
+          exit-code: '1'
           severity: 'CRITICAL,HIGH'
 
       - name: Login to GHCR
