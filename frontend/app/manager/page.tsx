@@ -9,14 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProjectGrid } from "@/components/manager/ProjectGrid";
 import { CreateProjectModal } from "@/components/manager/CreateProjectModal";
-import { useProjects } from "@/hooks/useProjects";
+import { useAllProjects } from "@/hooks/useProjects";
 import { analyticsApi } from "@/lib/api";
 import { getUser } from "@/lib/auth";
 
 export default function ManagerPage() {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<"ALL" | "ACTIVE" | "ARCHIVED">("ALL");
-  const projects = useProjects();
+  const { data: allProjectsData, isLoading, isError, refetch } = useAllProjects();
   const user = getUser();
 
   const velocity = useQuery({
@@ -28,19 +28,23 @@ export default function ManagerPage() {
   });
 
   const filtered = useMemo(() => {
-    const list = projects.data ?? [];
-    if (tab === "ALL") return list;
-    if (tab === "ACTIVE") return list.filter((p) => !p.is_archived);
-    return list.filter((p) => p.is_archived);
-  }, [projects.data, tab]);
+    const active = allProjectsData?.active ?? [];
+    const archived = allProjectsData?.archived ?? [];
+    const all = [...active, ...archived];
+    
+    if (tab === "ALL") return all;
+    if (tab === "ACTIVE") return active;
+    return archived;
+  }, [allProjectsData, tab]);
 
   const velocityData = velocity.data?.team_velocity_weekly ?? [];
+  const totalProjectsCount = (allProjectsData?.active?.length ?? 0) + (allProjectsData?.archived?.length ?? 0);
 
   return (
     <div className="space-y-8">
       <section>
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Projects <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-sm text-slate-500 dark:bg-slate-800">{projects.data?.length ?? 0}</span></h2>
+          <h2 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Projects <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-sm text-slate-500 dark:bg-slate-800">{totalProjectsCount}</span></h2>
           <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> New Project</Button>
         </div>
         <div className="mb-4 flex gap-6 border-b border-slate-200 dark:border-slate-800">
@@ -48,7 +52,7 @@ export default function ManagerPage() {
             <button key={t} onClick={() => setTab(t)} className={`pb-2 text-sm ${tab === t ? "border-b-2 border-indigo-500 text-indigo-600" : "text-slate-500"}`}>{t[0] + t.slice(1).toLowerCase()}</button>
           ))}
         </div>
-        {projects.isLoading ? <Skeleton className="h-64" /> : projects.isError ? <div className="rounded-xl bg-rose-50 p-4 text-rose-700">Unable to load projects. <button className="underline" onClick={() => projects.refetch()}>Retry</button></div> : <ProjectGrid projects={filtered} />}
+        {isLoading ? <Skeleton className="h-64" /> : isError ? <div className="rounded-xl bg-rose-50 p-4 text-rose-700">Unable to load projects. <button className="underline" onClick={() => refetch()}>Retry</button></div> : <ProjectGrid projects={filtered} />}
       </section>
 
       {/* Charts Row */}

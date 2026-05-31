@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Users, Briefcase, CheckCircle, TrendingUp, Loader2, Zap } from "lucide-react";
 import { analyticsApi, aiApi, authApi } from "@/lib/api";
 import { getUser, logout } from "@/lib/auth";
-import { useProjects } from "@/hooks/useProjects";
+import { useAllProjects } from "@/hooks/useProjects";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 const COLORS = ["#7c3aed", "#a78bfa", "#e879f9", "#f472b6"];
@@ -15,7 +15,8 @@ export default function OrgOwnerPage() {
   const [genLoading, setGenLoading] = useState(false);
   const [loading, setLoading]     = useState(true);
   const user = getUser();
-  const { data: projectsData } = useProjects();
+  const { data: allProjectsData } = useAllProjects();
+  const projectsData = [...(allProjectsData?.active ?? []), ...(allProjectsData?.archived ?? [])];
 
   useEffect(() => {
     if (user?.role !== "org_owner" && user?.role !== "platform_admin") {

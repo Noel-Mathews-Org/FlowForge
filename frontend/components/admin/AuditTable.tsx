@@ -4,7 +4,7 @@ import { formatDistanceToNow } from "date-fns";
 import { useMemo, useState } from "react";
 import type { AuditEvent } from "@/types";
 import { Button } from "@/components/ui/button";
-import { useProjects } from "@/hooks/useProjects";
+import { useAllProjects } from "@/hooks/useProjects";
 
 const color: Record<string, string> = {
   task_created: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-300",
@@ -18,7 +18,9 @@ const color: Record<string, string> = {
 
 export const AuditTable = ({ rows }: { rows: AuditEvent[] }) => {
   const [page, setPage] = useState(1);
-  const projectsQuery = useProjects();
+  const { data: allProjectsData } = useAllProjects();
+  const allProjects = [...(allProjectsData?.active ?? []), ...(allProjectsData?.archived ?? [])];
+  
   const safe = rows ?? [];
   const paged = useMemo(() => safe.slice((page - 1) * 10, page * 10), [page, safe]);
   const maxPage = Math.max(1, Math.ceil(safe.length / 10));
@@ -47,7 +49,7 @@ export const AuditTable = ({ rows }: { rows: AuditEvent[] }) => {
                 <td className="px-6 py-4 text-slate-500 dark:text-slate-400">
                   <code className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] dark:bg-slate-800">
                     {r.project_id 
-                      ? (projectsQuery.data?.find(p => p.id === r.project_id)?.name || r.project_id.slice(0, 8))
+                      ? (allProjects.find(p => p.id === r.project_id)?.name || r.project_id.slice(0, 8))
                       : "SYSTEM"}
                   </code>
                 </td>
