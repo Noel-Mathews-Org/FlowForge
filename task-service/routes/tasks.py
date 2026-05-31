@@ -218,7 +218,13 @@ async def update_task(task_id: UUID, payload: TaskUpdate, request: Request, db: 
                 project_url = os.getenv("PROJECT_SERVICE_URL", "http://project-service:8002")
                 try:
                     async with httpx.AsyncClient(timeout=5.0) as client:
-                        resp = await client.get(f"{project_url}/projects/{task.project_id}")
+                        resp = await client.get(
+                            f"{project_url}/projects/{task.project_id}",
+                            headers={
+                                "X-User-ID": request.state.user_id,
+                                "X-User-Role": getattr(request.state, "user_role", "")
+                            }
+                        )
                         if resp.status_code == 200:
                             project = resp.json()
                             manager_id = project.get("manager_id")
@@ -286,11 +292,11 @@ async def approve_task(task_id: UUID, request: Request, db: AsyncSession = Depen
     task.proposed_by = None
     task.updated_at = datetime.now(timezone.utc)
 
-    # Update ApprovalRequest record
-    pending_ar = (await db.execute(
+    # Update ApprovalRequest records
+    pending_ars = (await db.execute(
         select(ApprovalRequest).where(ApprovalRequest.task_id == task_id, ApprovalRequest.status == "PENDING")
-    )).scalar_one_or_none()
-    if pending_ar:
+    )).scalars().all()
+    for pending_ar in pending_ars:
         pending_ar.status = "APPROVED"
         pending_ar.reviewed_by = reviewer_id
         pending_ar.resolved_at = datetime.now(timezone.utc)
@@ -331,10 +337,10 @@ async def reject_task(task_id: UUID, payload: ApprovalRejectRequest, request: Re
     task.proposed_by = None
     task.updated_at = datetime.now(timezone.utc)
 
-    pending_ar = (await db.execute(
+    pending_ars = (await db.execute(
         select(ApprovalRequest).where(ApprovalRequest.task_id == task_id, ApprovalRequest.status == "PENDING")
-    )).scalar_one_or_none()
-    if pending_ar:
+    )).scalars().all()
+    for pending_ar in pending_ars:
         pending_ar.status = "REJECTED"
         pending_ar.reviewed_by = reviewer_id
         pending_ar.review_comment = payload.comment

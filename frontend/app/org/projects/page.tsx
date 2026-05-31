@@ -13,7 +13,10 @@ export default function OrgProjectsPage() {
   const [query, setQuery]       = useState("");
 
   useEffect(() => {
-    projectApi.get("").then(({ data }) => setProjects(data.projects ?? data)).catch(() => {}).finally(() => setLoading(false));
+    projectApi.get("").then(({ data }) => {
+      const list = Array.isArray(data) ? data : (Array.isArray(data?.projects) ? data.projects : []);
+      setProjects(list);
+    }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   const filtered = projects.filter(p =>

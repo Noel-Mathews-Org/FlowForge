@@ -1,24 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Plus, FolderKanban, Archive, Loader2 } from "lucide-react";
-import { projectApi } from "@/lib/api";
 import { getUser } from "@/lib/auth";
 import Link from "next/link";
-
-type Project = { id: string; name: string; description: string; is_archived: boolean; member_count?: number };
+import { useAllProjects } from "@/hooks/useProjects";
 
 export default function ProjectsPage() {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading]   = useState(true);
+  const { data, isLoading: loading } = useAllProjects();
   const user = getUser();
 
-  useEffect(() => {
-    projectApi.get("").then(({ data }) => setProjects(data)).catch(() => {}).finally(() => setLoading(false));
-  }, []);
-
-  const active   = projects.filter(p => !p.is_archived);
-  const archived = projects.filter(p => p.is_archived);
+  const active   = data?.active ?? [];
+  const archived = data?.archived ?? [];
 
   return (
     <div className="space-y-6">
@@ -87,3 +79,4 @@ export default function ProjectsPage() {
     </div>
   );
 }
+
