@@ -19,7 +19,7 @@ async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    redis_client = Redis.from_url(settings.redis_url, decode_responses=True)
+    redis_client = Redis.from_url(settings.REDIS_URL, decode_responses=True)
     app.state.redis_client = redis_client
 
     consumer_task   = None
