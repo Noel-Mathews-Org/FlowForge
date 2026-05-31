@@ -86,7 +86,7 @@ export default function ManagerPage() {
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-card dark:border-slate-800 dark:bg-slate-900">
           <h3 className="mb-4 text-sm font-medium text-slate-700 dark:text-slate-200">Project Status Overview</h3>
           {(() => {
-            const projectList = projects.data ?? [];
+            const projectList = [...(allProjectsData?.active ?? []), ...(allProjectsData?.archived ?? [])];
             const barData = projectList.slice(0, 8).map(p => ({
               name: p.name.length > 12 ? p.name.slice(0, 12) + "…" : p.name,
               members: p.member_count ?? 0,
