@@ -62,19 +62,8 @@ export default function OrgOwnerPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
-      <header className="flex items-center justify-between border-b bg-white px-8 py-4 dark:border-slate-800 dark:bg-slate-900">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white">Organization Dashboard</h1>
-          <p className="text-sm text-slate-500">{user?.email}</p>
-        </div>
-        <button onClick={() => logout()} className="rounded-lg border px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800">
-          Sign out
-        </button>
-      </header>
-
-      <main className="mx-auto max-w-7xl p-8">
-        {/* Stats */}
+    <div className="space-y-6">
+      {/* Stats */}
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {[
             { label: "Total Tasks", value: overview?.total_tasks ?? 0, icon: Briefcase, color: "text-violet-600" },
@@ -141,7 +130,6 @@ export default function OrgOwnerPage() {
             <p className="mt-4 text-sm text-slate-400">Click &ldquo;Generate Summary&rdquo; to get an AI analysis of your organization.</p>
           )}
         </div>
-      </main>
     </div>
   );
 }

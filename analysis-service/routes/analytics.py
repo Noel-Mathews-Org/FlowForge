@@ -262,6 +262,39 @@ async def audit_log(
                             page=page, page_size=page_size, db=db)
 
 
+# ─── Task Throughput (per-day, used by frontend chart) ────────────────────────
+
+@router.get("/task-throughput")
+async def task_throughput(
+    request: Request,
+    days: int = Query(default=7, ge=1, le=90),
+    db: AsyncSession = Depends(get_db),
+):
+    """Returns daily task throughput for the last N days. Used by admin dashboard chart."""
+    start = date.today() - timedelta(days=days - 1)
+    result = await db.execute(
+        select(
+            DailyTaskStats.date,
+            DailyTaskStats.project_id,
+            DailyTaskStats.tasks_created,
+            DailyTaskStats.tasks_completed,
+            DailyTaskStats.tasks_in_progress,
+        )
+        .where(DailyTaskStats.date >= start)
+        .order_by(DailyTaskStats.date.asc())
+    )
+    rows = result.all()
+    return [
+        {
+            "date": str(r.date),
+            "project_id": r.project_id,
+            "tasks_created": int(r.tasks_created),
+            "tasks_completed": int(r.tasks_completed),
+            "tasks_in_progress": int(r.tasks_in_progress),
+        }
+        for r in rows
+    ]
+
 
 # ─── Manual Aggregation Trigger ───────────────────────────────────────────────
 

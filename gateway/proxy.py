@@ -12,6 +12,7 @@ def get_upstream_url(path: str) -> str:
         "/api/projects/": settings.project_service_url,
         "/api/tasks/": settings.task_service_url,
         "/api/analytics/": settings.analytics_service_url,
+        "/api/ai/": settings.analytics_service_url,       # AI routes live in analysis-service
     }
 
     for prefix, base_url in routes.items():

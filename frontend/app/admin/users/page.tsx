@@ -22,12 +22,12 @@ export default function AdminUsersPage() {
 
   const { data: users, isLoading, isError } = useQuery({
     queryKey: ["admin-users"],
-    queryFn: async () => (await authApi.get("/admin/users")).data,
+    queryFn: async () => (await authApi.get("/users/")).data,
   });
 
   const toggleActive = useMutation({
     mutationFn: (user: any) =>
-      authApi.patch(`/admin/users/${user.id}`, { is_active: !user.is_active }),
+      user.is_active ? authApi.patch(`/users/${user.id}/revoke`) : authApi.patch(`/users/${user.id}/activate`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
       toast.success("User status updated");
@@ -37,7 +37,7 @@ export default function AdminUsersPage() {
 
   const changeRole = useMutation({
     mutationFn: ({ userId, newRole }: { userId: string; newRole: string }) =>
-      authApi.patch(`/admin/users/${userId}`, { role: newRole }),
+      authApi.patch(`/users/${userId}/role`, { role: newRole }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
       toast.success("User role updated");
@@ -46,7 +46,7 @@ export default function AdminUsersPage() {
   });
 
   const deleteUser = useMutation({
-    mutationFn: (userId: string) => authApi.delete(`/admin/users/${userId}`),
+    mutationFn: (userId: string) => authApi.patch(`/users/${userId}/revoke`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
       toast.success("User deactivated");
@@ -56,19 +56,19 @@ export default function AdminUsersPage() {
   });
 
   const handleCreate = async () => {
-    if (!newUser.email.trim() || !newUser.full_name.trim()) {
-      toast.error("Email and Name are required");
+    if (!newUser.email.trim()) {
+      toast.error("Email is required");
       return;
     }
     setIsSubmitting(true);
     try {
-      await authApi.post("/admin/users", newUser);
-      toast.success("User created and email sent");
+      await authApi.post("/invite", { email: newUser.email.trim(), role: newUser.role });
+      toast.success("User invite sent successfully");
       setModalOpen(false);
       setNewUser({ email: "", full_name: "", role: "member", org: "Default" });
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
     } catch (err: any) {
-      toast.error(err?.response?.data?.detail || "Failed to create user");
+      toast.error(err?.response?.data?.detail || "Failed to invite user");
     } finally {
       setIsSubmitting(false);
     }
@@ -164,7 +164,8 @@ export default function AdminUsersPage() {
                             options={[
                               { value: "member", label: "Team Member" },
                               { value: "manager", label: "Manager" },
-                              { value: "admin", label: "Admin" }
+                              { value: "org_owner", label: "Org Owner" },
+                              { value: "platform_admin", label: "Platform Admin" }
                             ]}
                           />
                         </div>
@@ -225,7 +226,7 @@ export default function AdminUsersPage() {
                     options={[
                       { value: "member", label: "Team Member" },
                       { value: "manager", label: "Project Manager" },
-                      { value: "admin", label: "System Administrator" }
+                      { value: "org_owner", label: "Organization Owner" },
                     ]}
                   />
                 </div>

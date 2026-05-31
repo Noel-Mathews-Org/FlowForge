@@ -23,7 +23,7 @@ from database import get_db
 from models import Notification, User
 from schemas import NotificationResponse, TransferMemberRequest, TransferMemberResponse, UserProfile
 
-router = APIRouter(prefix="/users", tags=["users"])
+router = APIRouter(prefix="/auth/users", tags=["users"])
 
 PROJECT_SERVICE_URL = "http://project-service:8002"
 
@@ -123,6 +123,41 @@ async def activate_user(
     target.is_active = True
     await db.commit()
     return {"success": True, "message": "User activated"}
+
+
+@router.patch("/{user_id}/role")
+async def update_user_role(
+    user_id: str,
+    payload: dict,
+    db: AsyncSession = Depends(get_db),
+    x_user_role: str | None = Header(default=None, alias="X-User-Role"),
+    x_user_id: str | None = Header(default=None, alias="X-User-ID"),
+):
+    _require(x_user_role or "", {"platform_admin", "org_owner"})
+    target = await db.get(User, uuid.UUID(user_id))
+    if not target:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+    if str(target.id) == x_user_id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Cannot update your own role")
+
+    new_role = payload.get("role")
+    if not new_role or new_role not in {"member", "manager", "org_owner", "platform_admin"}:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid role")
+
+    # If demoting a manager, ensure they have no active members
+    if target.role == "manager" and new_role != "manager":
+        members = await db.execute(
+            select(User).where(User.manager_id == target.id, User.is_active == True).limit(1)
+        )
+        if members.scalar_one_or_none():
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "Cannot change role of a manager who still has active members. Transfer members first.",
+            )
+
+    target.role = new_role
+    await db.commit()
+    return {"success": True, "message": "User role updated"}
 
 
 # ─── Transfer ─────────────────────────────────────────────────────────────────
