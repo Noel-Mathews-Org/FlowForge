@@ -149,6 +149,8 @@ services:
         - BASE_PUBLIC_URL=${PUBLIC_IP:-localhost}
     ports:
       - "3000:3000"
+    environment:
+      - GATEWAY_URL=http://gateway:8000
     depends_on:
       - gateway
 
