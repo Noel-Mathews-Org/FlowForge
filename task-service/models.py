@@ -4,6 +4,7 @@ from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, Integer, String, Text, func, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import ENUM as pgEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database import Base
@@ -35,8 +36,14 @@ class Task(Base):
     project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    status: Mapped[str] = mapped_column(String(20), nullable=False, default="TODO", server_default="TODO")
-    priority: Mapped[str] = mapped_column(String(10), nullable=False, default="MEDIUM", server_default="MEDIUM")
+    status: Mapped[str] = mapped_column(
+        pgEnum("TODO", "IN_PROGRESS", "DONE", "BLOCKED", name="task_status", create_type=False),
+        nullable=False, default="TODO", server_default="TODO"
+    )
+    priority: Mapped[str] = mapped_column(
+        pgEnum("LOW", "MEDIUM", "HIGH", name="task_priority", create_type=False),
+        nullable=False, default="MEDIUM", server_default="MEDIUM"
+    )
     assignee_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     assignee_email: Mapped[str | None] = mapped_column(String(320), nullable=True)
     created_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
@@ -67,7 +74,10 @@ class ApprovalRequest(Base):
     )
     requested_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     requested_status: Mapped[str] = mapped_column(String(20), nullable=False)
-    status: Mapped[str] = mapped_column(String(20), nullable=False, default="PENDING")
+    status: Mapped[str] = mapped_column(
+        pgEnum("PENDING", "APPROVED", "REJECTED", name="approval_status", create_type=False),
+        nullable=False, default="PENDING"
+    )
     reviewed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     review_comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
