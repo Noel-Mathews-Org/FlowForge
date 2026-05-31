@@ -10,7 +10,7 @@ export const useTaskApprovals = (projectId?: string) =>
     queryKey: ["task-approvals", projectId],
     enabled: !!projectId,
     queryFn: async () => {
-      const res = await taskApi.get(`/project/${projectId}/pending`);
+      const res = await taskApi.get(`/pending-approvals`, { params: { project_id: projectId } });
       return Array.isArray(res.data) ? res.data : [];
     },
   });

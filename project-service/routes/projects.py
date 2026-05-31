@@ -37,7 +37,8 @@ INTERNAL_TOKEN = os.getenv("INTERNAL_API_KEY", "")
 
 
 class AddMemberRequest(BaseModel):
-    user_id: str
+    user_id: str | None = None
+    email: str | None = None
 
 
 class ArchiveRequest(BaseModel):
@@ -310,7 +311,40 @@ async def add_member(project_id: UUID, payload: AddMemberRequest, request: Reque
     if project.is_archived:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Cannot add members to archived project")
 
-    target_id = uuid.UUID(payload.user_id)
+    target_id_str = payload.user_id
+    target_email = payload.email
+
+    if not target_id_str and not target_email:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Must provide user_id or email")
+
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            if target_email and not target_id_str:
+                resp = await client.get(
+                    f"{AUTH_SERVICE_URL}/internal/users/by-email",
+                    params={"email": target_email},
+                    headers={"X-Internal-Token": INTERNAL_TOKEN},
+                )
+                if resp.status_code != 200:
+                    raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found with this email. Make sure they have accepted their invite.")
+                data = resp.json()
+                target_id_str = data["id"]
+                target_email = data["email"]
+            else:
+                resp = await client.get(
+                    f"{AUTH_SERVICE_URL}/internal/users/{target_id_str}",
+                    headers={"X-Internal-Token": INTERNAL_TOKEN},
+                )
+                target_email = resp.json().get("email", target_id_str) if resp.status_code == 200 else target_id_str
+    except HTTPException:
+        raise
+    except Exception:
+        if not target_id_str:
+            raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Auth service unreachable")
+        target_email = target_email or target_id_str
+
+    target_id = uuid.UUID(target_id_str)
+
     existing = await db.scalar(
         select(ProjectMember.id).where(
             and_(ProjectMember.project_id == project_id, ProjectMember.user_id == target_id)
@@ -319,27 +353,16 @@ async def add_member(project_id: UUID, payload: AddMemberRequest, request: Reque
     if existing:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "User already a member")
 
-    # Fetch email from auth-service
-    try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            resp = await client.get(
-                f"{AUTH_SERVICE_URL}/internal/users/{payload.user_id}",
-                headers={"X-Internal-Token": INTERNAL_TOKEN},
-            )
-            email = resp.json().get("email", payload.user_id) if resp.status_code == 200 else payload.user_id
-    except Exception:
-        email = payload.user_id
-
-    db.add(ProjectMember(project_id=project_id, user_id=target_id, user_email=email))
+    db.add(ProjectMember(project_id=project_id, user_id=target_id, user_email=target_email))
     await db.commit()
 
     await _notify_user(
-        payload.user_id, "added_to_project",
+        target_id_str, "added_to_project",
         f"Added to Project: {project.name}",
         f"You have been added to project '{project.name}'.",
         {"project_id": str(project_id)},
     )
-    await append_audit_log("member_added", str(user_id), str(project_id), {"added_user_id": payload.user_id})
+    await append_audit_log("member_added", str(user_id), str(project_id), {"added_user_id": target_id_str})
 
     members = (await db.execute(
         select(ProjectMember).where(ProjectMember.project_id == project_id).order_by(ProjectMember.joined_at)

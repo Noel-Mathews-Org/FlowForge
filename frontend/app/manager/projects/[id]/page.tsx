@@ -35,7 +35,9 @@ export default function ManagerProjectDetailPage() {
       setAddModalOpen(false);
       project.refetch();
     } catch (err: any) {
-      toast.error(err?.response?.data?.detail || "Failed to add member");
+      const detail = err?.response?.data?.detail;
+      const errorMsg = Array.isArray(detail) ? detail[0]?.msg : detail;
+      toast.error(errorMsg || "Failed to add member");
     } finally {
       setIsAdding(false);
     }
