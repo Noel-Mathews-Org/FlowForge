@@ -1,25 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { FolderKanban, Loader2, Search } from "lucide-react";
-import { projectApi } from "@/lib/api";
 import Link from "next/link";
-
-type Project = { id: string; name: string; description: string; is_archived: boolean; manager_email: string; member_count: number };
+import { useAllProjects } from "@/hooks/useProjects";
 
 export default function OrgProjectsPage() {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading]   = useState(true);
-  const [query, setQuery]       = useState("");
+  const { data, isLoading: loading } = useAllProjects();
+  const [query, setQuery] = useState("");
 
-  useEffect(() => {
-    projectApi.get("").then(({ data }) => {
-      const list = Array.isArray(data) ? data : (Array.isArray(data?.projects) ? data.projects : []);
-      setProjects(list);
-    }).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+  const active = data?.active ?? [];
+  const archived = data?.archived ?? [];
+  const allProjects = [...active, ...archived];
 
-  const filtered = projects.filter(p =>
+  const filtered = allProjects.filter(p =>
     !query || p.name.toLowerCase().includes(query.toLowerCase()) || p.manager_email.toLowerCase().includes(query.toLowerCase())
   );
 
@@ -28,7 +22,7 @@ export default function OrgProjectsPage() {
       <div className="flex items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">All Projects</h2>
-          <p className="text-sm text-slate-500 mt-1">{projects.filter(p => !p.is_archived).length} active · {projects.filter(p => p.is_archived).length} archived</p>
+          <p className="text-sm text-slate-500 mt-1">{active.length} active · {archived.length} archived</p>
         </div>
         <div className="relative">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
@@ -62,7 +56,7 @@ export default function OrgProjectsPage() {
                     <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">{p.description}</p>
                   </td>
                   <td className="px-5 py-3 text-slate-600 dark:text-slate-300 text-xs">{p.manager_email}</td>
-                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{p.member_count}</td>
+                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{p.member_count ?? 0}</td>
                   <td className="px-5 py-3">
                     <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${p.is_archived ? "bg-slate-100 text-slate-500" : "bg-emerald-100 text-emerald-700"}`}>
                       {p.is_archived ? "Archived" : "Active"}
