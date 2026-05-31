@@ -4,68 +4,75 @@ from datetime import UTC, datetime, timedelta
 
 import bcrypt
 from fastapi import APIRouter, Depends, Header, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import settings
 from database import get_db
-from models import InviteRole, InviteToken, User, UserRole
+from models import Invitation, User
 from schemas import (
+    ChangePasswordRequest,
+    ForceResetRequest,
+    InviteAcceptRequest,
+    InviteAcceptResponse,
     InviteRequest,
-    InviteResponse,
-    InviteToProjectRequest,
-    InviteToProjectResponse,
+    InviteVerifyResponse,
     LoginRequest,
     LoginResponse,
-    RegisterRequest,
-    RegisterResponse,
     UpdateMeRequest,
     UserProfile,
 )
-from services import email_service, jwt_service, redis_service
+from services import email_service, jwt_service
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+ADMIN_ROLES = {"platform_admin", "org_owner"}
+INVITE_ALLOWED = {"platform_admin", "org_owner", "manager"}
 
-def _to_profile(user: User) -> UserProfile:
+
+def _to_profile(u: User) -> UserProfile:
     return UserProfile(
-        id=str(user.id),
-        email=user.email,
-        full_name=user.full_name,
-        role=user.role.value,
-        org=user.org,
-        is_active=user.is_active,
-        created_at=user.created_at,
+        id=str(u.id),
+        org_id=str(u.org_id),
+        email=u.email,
+        full_name=u.full_name,
+        role=u.role,
+        manager_id=str(u.manager_id) if u.manager_id else None,
+        notification_email=u.notification_email,
+        must_reset_password=u.must_reset_password,
+        is_active=u.is_active,
+        created_at=u.created_at,
     )
 
+
+# ─── Login ───────────────────────────────────────────────────────────────────
 
 @router.post("/login", response_model=LoginResponse)
 async def login(payload: LoginRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == payload.email))
     user = result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
-
+    if not user or not bcrypt.checkpw(payload.password.encode(), user.hashed_password.encode()):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
     if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account is deactivated. Contact your administrator.",
-        )
-
-    if not bcrypt.checkpw(payload.password.encode("utf-8"), user.hashed_password.encode("utf-8")):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Account is deactivated")
 
     token = jwt_service.sign_jwt(user)
     return LoginResponse(
         access_token=token,
-        token_type="bearer",
-        role=user.role.value,
+        role=user.role,
         user_id=str(user.id),
         full_name=user.full_name,
+        must_reset_password=user.must_reset_password,
     )
 
 
-@router.post("/invite", response_model=InviteResponse)
+# Simple in-memory rate limiter: 10 invites per user per hour
+_invite_rl: dict[str, list[float]] = {}
+
+# ─── Invite ──────────────────────────────────────────────────────────────────
+
+@router.post("/invite")
 async def invite_user(
     payload: InviteRequest,
     db: AsyncSession = Depends(get_db),
@@ -73,133 +80,146 @@ async def invite_user(
     x_user_id: str | None = Header(default=None, alias="X-User-ID"),
     x_user_name: str | None = Header(default="FlowForge Team", alias="X-User-Name"),
 ):
-    if x_user_role not in {"manager", "admin"}:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
-    if not x_user_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing X-User-ID header")
+    # Rate limit: max 10 invites per hour per inviter
+    import time as _time
+    now = _time.time()
+    window = _invite_rl.setdefault(x_user_id or "anon", [])
+    _invite_rl[x_user_id or "anon"] = [t for t in window if now - t < 3600]
+    if len(_invite_rl[x_user_id or "anon"]) >= 10:
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "Rate limit exceeded: max 10 invitations per hour")
+    _invite_rl[x_user_id or "anon"].append(now)
+    if not x_user_role or x_user_role not in INVITE_ALLOWED:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Insufficient permissions")
 
-    try:
-        created_by = uuid.UUID(x_user_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid X-User-ID header") from exc
+    # Managers can only invite members
+    if x_user_role == "manager" and payload.role != "member":
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Managers can only invite members")
 
-    token = secrets.token_urlsafe(24)
-    expires_at = datetime.now(UTC) + timedelta(hours=72)
-    invite = InviteToken(
-        token=token,
+    # member invites require a manager_id
+    if payload.role == "member" and not payload.manager_id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "manager_id required when inviting a member")
+
+    # Validate target manager exists and is active
+    manager_uuid: uuid.UUID | None = None
+    if payload.manager_id:
+        try:
+            manager_uuid = uuid.UUID(payload.manager_id)
+        except ValueError:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid manager_id")
+        mgr = await db.get(User, manager_uuid)
+        if not mgr or not mgr.is_active or mgr.role != "manager":
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Specified manager not found or inactive")
+
+    token = secrets.token_urlsafe(32)
+    expires_at = datetime.now(UTC) + timedelta(days=7)
+    invite = Invitation(
         email=str(payload.email),
-        role=InviteRole(payload.role),
-        created_by=created_by,
-        used=False,
+        role=payload.role,
+        manager_id=manager_uuid,
+        token=token,
         expires_at=expires_at,
+        status="PENDING",
+        created_by=uuid.UUID(x_user_id),
     )
     db.add(invite)
     await db.commit()
 
-    invite_url = f"{settings.frontend_url}/register?token={token}"
+    invite_url = f"{settings.frontend_url}/invite/accept?token={token}"
+    await email_service.send_invite_email(str(payload.email), invite_url, x_user_name or "FlowForge Team", payload.role)
+    return {"success": True, "message": "Invitation sent", "invite_url": invite_url}
 
-    await redis_service.publish_event(
-        "email.invite",
-        {
-            "to_email": str(payload.email),
-            "invite_url": invite_url,
-            "inviter_name": x_user_name or "FlowForge Team",
-        },
-    )
-    await email_service.send_invite_email(str(payload.email), invite_url, x_user_name or "FlowForge Team")
 
-    return InviteResponse(
-        invite_url=invite_url,
-        token=token,
-        message="Invite token created and email dispatched",
-    )
-
-@router.post("/invite-to-project", response_model=InviteToProjectResponse)
-async def invite_to_project(
-    payload: InviteToProjectRequest,
-    db: AsyncSession = Depends(get_db),
-    x_user_role: str | None = Header(default=None, alias="X-User-Role"),
-    x_user_name: str | None = Header(default="FlowForge Team", alias="X-User-Name"),
-):
-    if x_user_role not in {"manager", "admin"}:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
-
-    result = await db.execute(select(User).where(User.email == payload.email))
-    existing = result.scalar_one_or_none()
-    if existing:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User already exists")
-
-    temp_password = secrets.token_urlsafe(12)
-    hashed = bcrypt.hashpw(temp_password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
-    
-    user = User(
-        email=payload.email,
-        hashed_password=hashed,
-        full_name=payload.full_name or payload.email.split("@")[0],
-        role=UserRole.MEMBER,
-        is_active=True,
-    )
-    db.add(user)
-    await db.commit()
-    await db.refresh(user)
-
-    login_url = f"{settings.frontend_url}/login"
-    await email_service.send_project_invite_email(
-        to_email=str(payload.email),
-        inviter_name=x_user_name or "FlowForge Team",
-        login_url=login_url,
-        temp_password=temp_password,
-        is_new_user=True,
+@router.get("/invite/verify", response_model=InviteVerifyResponse)
+async def verify_invite(token: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Invitation).where(Invitation.token == token))
+    invite = result.scalar_one_or_none()
+    if not invite or invite.status != "PENDING" or invite.expires_at < datetime.now(UTC):
+        return InviteVerifyResponse(valid=False, email="", role="")
+    return InviteVerifyResponse(
+        valid=True,
+        email=invite.email,
+        role=invite.role,
+        manager_id=str(invite.manager_id) if invite.manager_id else None,
     )
 
-    return InviteToProjectResponse(
-        user_id=user.id,
-        email=user.email,
-        message="User created and email dispatched",
-    )
 
-@router.post("/register", response_model=RegisterResponse)
-async def register(payload: RegisterRequest, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(InviteToken).where(InviteToken.token == payload.token))
+@router.post("/invite/accept", response_model=InviteAcceptResponse)
+async def accept_invite(payload: InviteAcceptRequest, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Invitation).where(Invitation.token == payload.token))
     invite = result.scalar_one_or_none()
     if not invite:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid invite token")
-    if invite.used:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invite token already used")
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid token")
+    if invite.status != "PENDING":
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invitation already used or cancelled")
     if invite.expires_at < datetime.now(UTC):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invite token has expired")
+        invite.status = "EXPIRED"
+        await db.commit()
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invitation has expired")
 
     existing = await db.execute(select(User).where(User.email == invite.email))
     if existing.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User already exists for this email")
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "User already exists")
 
-    hashed = bcrypt.hashpw(payload.password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    hashed = bcrypt.hashpw(payload.password.encode(), bcrypt.gensalt(rounds=12)).decode()
     user = User(
+        org_id=uuid.UUID(settings.default_org_id),
         email=invite.email,
         hashed_password=hashed,
         full_name=payload.full_name,
-        role=UserRole(invite.role.value),
+        role=invite.role,
+        manager_id=invite.manager_id,
+        is_active=True,
+        must_reset_password=False,
     )
     db.add(user)
-    invite.used = True
+    invite.status = "ACCEPTED"
     await db.commit()
-    await db.refresh(user)
+    return InviteAcceptResponse(success=True, message="Registration successful. Please log in.")
 
-    return RegisterResponse(message="Registration successful", user_id=str(user.id))
 
-@router.get("/lookup", response_model=UserProfile)
-async def lookup_user(
-    email: str,
+# ─── Password ────────────────────────────────────────────────────────────────
+
+@router.post("/change-password")
+async def change_password(
+    payload: ChangePasswordRequest,
     db: AsyncSession = Depends(get_db),
-    x_user_role: str | None = Header(default=None, alias="X-User-Role"),
+    x_user_id: str | None = Header(default=None, alias="X-User-ID"),
 ):
-    if x_user_role not in {"manager", "admin"}:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
-    result = await db.execute(select(User).where(User.email == email))
-    user = result.scalar_one_or_none()
+    if not x_user_id:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Unauthenticated")
+    user = await db.get(User, uuid.UUID(x_user_id))
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    return _to_profile(user)
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+    if not bcrypt.checkpw(payload.old_password.encode(), user.hashed_password.encode()):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Current password is incorrect")
+    if bcrypt.checkpw(payload.new_password.encode(), user.hashed_password.encode()):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "New password must be different from current password")
+    user.hashed_password = bcrypt.hashpw(payload.new_password.encode(), bcrypt.gensalt(rounds=12)).decode()
+    await db.commit()
+    return {"success": True}
+
+
+@router.post("/force-reset")
+async def force_reset(
+    payload: ForceResetRequest,
+    db: AsyncSession = Depends(get_db),
+    x_user_id: str | None = Header(default=None, alias="X-User-ID"),
+    x_must_reset: str | None = Header(default=None, alias="X-Must-Reset"),
+):
+    if not x_user_id:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Unauthenticated")
+    user = await db.get(User, uuid.UUID(x_user_id))
+    if not user:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+    if bcrypt.checkpw(payload.new_password.encode(), user.hashed_password.encode()):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "New password must be different from the default password")
+    user.hashed_password = bcrypt.hashpw(payload.new_password.encode(), bcrypt.gensalt(rounds=12)).decode()
+    user.must_reset_password = False
+    await db.commit()
+    return {"success": True, "must_reset_password": False}
+
+
+# ─── Me ──────────────────────────────────────────────────────────────────────
 
 @router.get("/me", response_model=UserProfile)
 async def me(
@@ -207,17 +227,10 @@ async def me(
     x_user_id: str | None = Header(default=None, alias="X-User-ID"),
 ):
     if not x_user_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing X-User-ID header")
-    try:
-        user_id = uuid.UUID(x_user_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid X-User-ID header") from exc
-
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Unauthenticated")
+    user = await db.get(User, uuid.UUID(x_user_id))
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
     return _to_profile(user)
 
 
@@ -228,34 +241,86 @@ async def update_me(
     x_user_id: str | None = Header(default=None, alias="X-User-ID"),
 ):
     if not x_user_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing X-User-ID header")
-    try:
-        user_id = uuid.UUID(x_user_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid X-User-ID header") from exc
-
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Unauthenticated")
+    user = await db.get(User, uuid.UUID(x_user_id))
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-
-    if payload.full_name:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+    if payload.full_name is not None:
         user.full_name = payload.full_name
-
-    if payload.new_password is not None:
-        if not payload.current_password:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="current_password is required when changing password",
-            )
-        if not bcrypt.checkpw(
-            payload.current_password.encode("utf-8"), user.hashed_password.encode("utf-8")
-        ):
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Current password is incorrect")
-        user.hashed_password = bcrypt.hashpw(
-            payload.new_password.encode("utf-8"), bcrypt.gensalt()
-        ).decode("utf-8")
-
+    if payload.notification_email is not None:
+        user.notification_email = payload.notification_email
     await db.commit()
     await db.refresh(user)
     return _to_profile(user)
+
+
+
+# ─── Refresh Token ────────────────────────────────────────────────────────────
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+class RefreshResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
+@router.post("/refresh", response_model=RefreshResponse)
+async def refresh_token(payload: RefreshRequest, db: AsyncSession = Depends(get_db)):
+    from models import RefreshToken  # avoid top-level circular if models loaded after
+    result = await db.execute(
+        select(RefreshToken).where(
+            RefreshToken.token == payload.refresh_token,
+            RefreshToken.revoked == False,  # noqa: E712
+        )
+    )
+    rt = result.scalar_one_or_none()
+    if not rt:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid refresh token")
+    if rt.expires_at < datetime.now(UTC):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Refresh token expired")
+
+    user = await db.get(User, rt.user_id)
+    if not user or not user.is_active:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User not found or inactive")
+
+    access_token = jwt_service.sign_jwt(user)
+    return RefreshResponse(access_token=access_token)
+
+
+@router.post("/logout")
+async def logout(payload: RefreshRequest, db: AsyncSession = Depends(get_db)):
+    from models import RefreshToken
+    result = await db.execute(
+        select(RefreshToken).where(RefreshToken.token == payload.refresh_token)
+    )
+    rt = result.scalar_one_or_none()
+    if rt:
+        rt.revoked = True
+        await db.commit()
+    return {"success": True}
+
+
+@router.post("/token/issue")
+async def issue_refresh_token(
+    db: AsyncSession = Depends(get_db),
+    x_user_id: str | None = Header(default=None, alias="X-User-ID"),
+):
+    """Called after login to issue a refresh token. Returns refresh token string."""
+    if not x_user_id:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Unauthenticated")
+    from models import RefreshToken
+    user = await db.get(User, uuid.UUID(x_user_id))
+    if not user or not user.is_active:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User not found")
+
+    token_str = secrets.token_urlsafe(48)
+    rt = RefreshToken(
+        user_id=user.id,
+        token=token_str,
+        expires_at=datetime.now(UTC) + timedelta(days=settings.refresh_token_days),
+    )
+    db.add(rt)
+    await db.commit()
+    return {"refresh_token": token_str, "expires_in_days": settings.refresh_token_days}
+

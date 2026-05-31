@@ -3,7 +3,6 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from redis.asyncio import Redis
-from sqlalchemy import text
 
 from config import settings
 from database import Base, engine
@@ -19,9 +18,13 @@ async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    redis_client = Redis.from_url(settings.REDIS_URL, decode_responses=True)
+    redis_client = Redis.from_url(settings.redis_url, decode_responses=True)
     app.state.redis_client = redis_client
     app.state.audit_service = RedisAuditService(redis_client)
+    try:
+        await redis_client.ping()
+    except Exception:
+        logger.warning("Redis unavailable at startup — audit events disabled")
     yield
     await redis_client.close()
     await engine.dispose()
@@ -34,4 +37,4 @@ app.include_router(tasks_router)
 
 @app.get("/health")
 async def healthcheck():
-    return {"status": "ok", "service": "task-service"}
+    return {"status": "healthy", "service": "task-service"}

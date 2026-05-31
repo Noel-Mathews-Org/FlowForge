@@ -12,8 +12,9 @@ def sign_jwt(user: User) -> str:
         "sub": str(user.id),
         "email": user.email,
         "full_name": user.full_name,
-        "role": user.role.value,
-        "org": user.org,
+        "role": user.role,
+        "org_id": str(user.org_id),
+        "must_reset_password": user.must_reset_password,
         "iat": int(now.timestamp()),
         "exp": int((now + timedelta(hours=settings.jwt_expiry_hours)).timestamp()),
     }

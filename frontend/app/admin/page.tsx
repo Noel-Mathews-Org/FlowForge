@@ -3,6 +3,8 @@
 import { format } from "date-fns";
 import { OverviewCards } from "@/components/admin/OverviewCards";
 import { ThroughputChart } from "@/components/admin/ThroughputChart";
+import { RolePieChart } from "@/components/admin/RolePieChart";
+import { AiCostCard } from "@/components/admin/AiCostCard";
 import { AuditTable } from "@/components/admin/AuditTable";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAnalyticsOverview, useAudit, useThroughput } from "@/hooks/useAnalytics";
@@ -55,8 +57,8 @@ export default function AdminPage() {
       </section>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-        {/* Charts */}
-        <section className="lg:col-span-12">
+        {/* Throughput Chart */}
+        <section className="lg:col-span-8">
           {throughput.isLoading ? (
             <Skeleton className="h-[400px] rounded-2xl" />
           ) : throughput.isError || !throughput.data ? (
@@ -69,26 +71,40 @@ export default function AdminPage() {
           )}
         </section>
 
-        {/* Audit Table */}
-        <section className="lg:col-span-12">
-          <div className="mb-4 flex items-center justify-between px-2">
-            <h3 className="text-sm font-bold uppercase tracking-widest text-slate-400">Security Audit Log</h3>
-            <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-          </div>
-          {audit.isLoading ? (
-            <div className="space-y-4">
-              <Skeleton className="h-64 rounded-2xl" />
-            </div>
-          ) : audit.isError || !audit.data ? (
-            <div className="rounded-2xl border border-rose-200 bg-rose-50 p-8 text-center text-rose-700 dark:border-rose-900/30 dark:bg-rose-900/10">
-              <p className="text-sm font-semibold">Audit stream interrupted.</p>
-              <Button variant="outline" size="sm" className="mt-4 border-rose-200" onClick={() => audit.refetch()}>Re-connect</Button>
-            </div>
+        {/* Task Status Pie Chart */}
+        <section className="lg:col-span-4">
+          {overview.data?.tasks_by_status ? (
+            <RolePieChart tasksByStatus={overview.data.tasks_by_status} />
           ) : (
-            <AuditTable rows={audit.data} />
+            <Skeleton className="h-64 rounded-2xl" />
           )}
         </section>
       </div>
+
+      {/* AI Cost Monitoring */}
+      <section>
+        <AiCostCard />
+      </section>
+
+      {/* Audit Table */}
+      <section>
+        <div className="mb-4 flex items-center justify-between px-2">
+          <h3 className="text-sm font-bold uppercase tracking-widest text-slate-400">Security Audit Log</h3>
+          <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+        </div>
+        {audit.isLoading ? (
+          <div className="space-y-4">
+            <Skeleton className="h-64 rounded-2xl" />
+          </div>
+        ) : audit.isError || !audit.data ? (
+          <div className="rounded-2xl border border-rose-200 bg-rose-50 p-8 text-center text-rose-700 dark:border-rose-900/30 dark:bg-rose-900/10">
+            <p className="text-sm font-semibold">Audit stream interrupted.</p>
+            <Button variant="outline" size="sm" className="mt-4 border-rose-200" onClick={() => audit.refetch()}>Re-connect</Button>
+          </div>
+        ) : (
+          <AuditTable rows={audit.data} />
+        )}
+      </section>
     </div>
   );
 }

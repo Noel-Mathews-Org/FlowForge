@@ -1,92 +1,114 @@
 from datetime import datetime
-from typing import Literal
+from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
 
 
+# ─── Auth ────────────────────────────────────────────────────────────────────
+
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
 
-
 class LoginResponse(BaseModel):
     access_token: str
-    token_type: Literal["bearer"] = "bearer"
+    token_type: str = "bearer"
     role: str
     user_id: str
     full_name: str
+    must_reset_password: bool = False
 
+
+# ─── Invite ──────────────────────────────────────────────────────────────────
 
 class InviteRequest(BaseModel):
     email: EmailStr
-    role: Literal["manager", "member"]
+    role: str  # "manager" | "member"
+    manager_id: Optional[str] = None  # Required when role=member
 
-
-class InviteResponse(BaseModel):
-    invite_url: str
-    token: str
-    message: str
-
-
-class InviteToProjectRequest(BaseModel):
-    email: EmailStr
-    full_name: str | None = None
-
-
-class InviteToProjectResponse(BaseModel):
-    user_id: UUID
+class InviteVerifyResponse(BaseModel):
+    valid: bool
     email: str
-    message: str
+    role: str
+    manager_id: Optional[str] = None
 
-
-class RegisterRequest(BaseModel):
+class InviteAcceptRequest(BaseModel):
     token: str
     full_name: str
     password: str = Field(min_length=8)
 
-
-class RegisterResponse(BaseModel):
+class InviteAcceptResponse(BaseModel):
+    success: bool
     message: str
-    user_id: str
 
+
+# ─── Password ────────────────────────────────────────────────────────────────
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str = Field(min_length=8)
+
+class ForceResetRequest(BaseModel):
+    new_password: str = Field(min_length=8)
+
+
+# ─── User Profile ────────────────────────────────────────────────────────────
 
 class UserProfile(BaseModel):
     id: str
+    org_id: str
     email: str
     full_name: str
     role: str
-    org: str
+    manager_id: Optional[str] = None
+    notification_email: Optional[str] = None
+    must_reset_password: bool = False
     is_active: bool = True
     created_at: datetime
 
-
-class PublicKeyResponse(BaseModel):
-    public_key: str
-    algorithm: str = "RS256"
-
-
 class UpdateMeRequest(BaseModel):
-    full_name: str | None = None
-    current_password: str | None = None
-    new_password: str | None = Field(default=None, min_length=8)
+    full_name: Optional[str] = None
+    notification_email: Optional[str] = None
 
 
-class AdminUserCreateRequest(BaseModel):
-    email: EmailStr
+# ─── User Management ─────────────────────────────────────────────────────────
+
+class TransferMemberRequest(BaseModel):
+    new_manager_id: str
+
+class TransferMemberResponse(BaseModel):
+    success: bool
+    message: str
+    removed_projects: list[str] = []
+
+
+# ─── Notifications ───────────────────────────────────────────────────────────
+
+class NotificationResponse(BaseModel):
+    id: str
+    type: str
+    title: str
+    content: str
+    metadata: Optional[dict] = None
+    is_read: bool
+    created_at: datetime
+
+
+# ─── Internal ────────────────────────────────────────────────────────────────
+
+class InternalUserResponse(BaseModel):
+    id: str
+    org_id: str
+    email: str
     full_name: str
-    role: Literal["admin", "manager", "member"]
-    org: str
+    role: str
+    manager_id: Optional[str] = None
+    is_active: bool
 
-
-class AdminUserUpdateRequest(BaseModel):
-    role: Literal["admin", "manager", "member"] | None = None
-    is_active: bool | None = None
-
-
-class InternalCreateUser(BaseModel):
-    email: EmailStr
-    full_name: str
-    role: str = "member"
-    org: str = "flowforge"
-    temp_password: str
+class CreateNotificationRequest(BaseModel):
+    user_id: str
+    type: str
+    title: str
+    content: str
+    metadata: Optional[dict] = None

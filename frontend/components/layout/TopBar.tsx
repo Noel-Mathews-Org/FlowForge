@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, Menu, Moon, Sun } from "lucide-react";
+import { Menu, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { getUser, DecodedUser } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
+import { NotificationBell } from "@/components/ui/notification-bell";
 
 export const TopBar = ({ title, onMenuClick }: { title: string; onMenuClick?: () => void }) => {
   const { theme, setTheme } = useTheme();
@@ -40,12 +41,7 @@ export const TopBar = ({ title, onMenuClick }: { title: string; onMenuClick?: ()
           {mounted && (theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />)}
         </Button>
         
-        <div className="relative">
-          <Button variant="ghost" className="h-10 w-10 rounded-xl p-0">
-            <Bell className="h-5 w-5" />
-          </Button>
-          <span className="absolute right-2.5 top-2.5 flex h-2 w-2 rounded-full bg-indigo-500 ring-2 ring-white dark:ring-slate-950" />
-        </div>
+        <NotificationBell />
         
         {mounted && user && (
           <div className="ml-2 hidden flex-col items-end sm:flex">

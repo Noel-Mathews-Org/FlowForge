@@ -12,16 +12,10 @@ def validate_jwt(token: str) -> dict:
             token,
             settings.jwt_secret,
             algorithms=["HS256"],
-            options={"require": ["exp", "sub", "email", "role", "org"]},
+            options={"require": ["exp", "sub", "email", "role"]},
         )
         return payload
     except ExpiredSignatureError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token expired",
-        ) from exc
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Token expired") from exc
     except InvalidTokenError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
-        ) from exc
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid token") from exc

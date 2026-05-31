@@ -22,7 +22,7 @@ async def _upsert_daily_stats(session: AsyncSession, *, event_type: str, event_d
         session.add(stats)
     if event_type == "task_created":
         stats.tasks_created = (stats.tasks_created or 0) + 1
-    elif event_type == "task_moved":
+    elif event_type in ("task_moved", "approval_resolved"):
         new_status = metadata.get("new_status")
         if new_status == "DONE":
             stats.tasks_completed = (stats.tasks_completed or 0) + 1

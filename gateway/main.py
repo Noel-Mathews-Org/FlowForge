@@ -3,12 +3,12 @@ import time
 import uuid
 from typing import Any
 
-from redis.asyncio import Redis
 import httpx
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
+from redis.asyncio import Redis
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from auth import validate_jwt
@@ -16,28 +16,26 @@ from config import get_settings
 from proxy import forward_request, get_upstream_url
 from rate_limit import check_rate_limit, get_rate_limit_headers
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s [gateway] %(message)s",
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s [gateway] %(message)s")
 logger = logging.getLogger("gateway")
 
-app = FastAPI(title="FlowForge API Gateway", version="1.0.0")
+app = FastAPI(title="FlowForge API Gateway", version="2.0.0")
 settings = get_settings()
 
+# ─── Public routes that skip JWT validation ───────────────────────────────────
 PUBLIC_ROUTES = {
     ("POST", "/api/auth/login"),
-    ("POST", "/api/auth/register"),
-    ("GET", "/health"),
+    ("GET",  "/api/auth/invite/verify"),
+    ("POST", "/api/auth/invite/accept"),
+    ("POST", "/api/auth/refresh"),
+    ("POST", "/api/auth/logout"),
+    ("GET",  "/health"),
 }
 
-ERROR_CODE_MAP = {
-    status.HTTP_401_UNAUTHORIZED: "UNAUTHORIZED",
-    status.HTTP_403_FORBIDDEN: "FORBIDDEN",
-    status.HTTP_404_NOT_FOUND: "NOT_FOUND",
-    status.HTTP_429_TOO_MANY_REQUESTS: "RATE_LIMITED",
-    status.HTTP_502_BAD_GATEWAY: "BAD_GATEWAY",
-    status.HTTP_504_GATEWAY_TIMEOUT: "GATEWAY_TIMEOUT",
+# Routes that a must_reset_password user can access (besides public routes)
+FORCE_RESET_ALLOWED = {
+    ("POST", "/api/auth/force-reset"),
+    ("GET",  "/api/auth/me"),
 }
 
 app.add_middleware(
@@ -50,53 +48,41 @@ app.add_middleware(
 )
 
 
-def _error_payload(code: str, message: str, request_id: str) -> dict[str, Any]:
-    return {
-        "error": {
-            "code": code,
-            "message": message,
-            "request_id": request_id,
-        }
-    }
+def _error(code: str, message: str, request_id: str) -> dict[str, Any]:
+    return {"error": {"code": code, "message": message, "request_id": request_id}}
 
 
-def _is_public_route(request: Request) -> bool:
-    path = request.url.path
-    return (request.method.upper(), path) in PUBLIC_ROUTES
+def _is_public(request: Request) -> bool:
+    return (request.method.upper(), request.url.path) in PUBLIC_ROUTES
 
 
-def _extract_bearer_token(request: Request) -> str:
-    auth_header = request.headers.get("Authorization", "")
-    if not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
-    token = auth_header.replace("Bearer ", "", 1).strip()
+def _is_force_reset_allowed(request: Request) -> bool:
+    return (request.method.upper(), request.url.path) in FORCE_RESET_ALLOWED | PUBLIC_ROUTES
+
+
+def _extract_token(request: Request) -> str:
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid token")
+    token = auth[7:].strip()
     if not token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid token")
     return token
 
 
 def _client_ip(request: Request) -> str:
-    # In a real production setup, only trust X-Forwarded-For if it comes from a known trusted proxy (e.g. AWS ALB).
-    # For now, default to the actual socket IP to prevent trivial spoofing.
     if request.client and request.client.host:
         return request.client.host
-    
-    forwarded_for = request.headers.get("X-Forwarded-For")
-    if forwarded_for:
-        return forwarded_for.split(",")[0].strip()
-        
-    return "unknown"
+    fwd = request.headers.get("X-Forwarded-For")
+    return fwd.split(",")[0].strip() if fwd else "unknown"
 
 
 @app.middleware("http")
 async def request_context_middleware(request: Request, call_next):
-    request_id = str(uuid.uuid4())
-    request.state.request_id = request_id
+    request.state.request_id = str(uuid.uuid4())
     request.state.user_id = "anonymous"
-    request.state.rate_limit_headers = {}
-
     response = await call_next(request)
-    response.headers["X-Request-ID"] = request_id
+    response.headers["X-Request-ID"] = request.state.request_id
     return response
 
 
@@ -104,101 +90,79 @@ async def request_context_middleware(request: Request, call_next):
 async def logging_middleware(request: Request, call_next):
     start = time.perf_counter()
     response = await call_next(request)
-    duration_ms = round((time.perf_counter() - start) * 1000, 2)
-    user_id = getattr(request.state, "user_id", "anonymous")
-    logger.info(
-        "%s %s status=%s duration_ms=%s user_id=%s",
-        request.method,
-        request.url.path,
-        response.status_code,
-        duration_ms,
-        user_id,
-    )
+    logger.info("%s %s %s %.1fms user=%s",
+        request.method, request.url.path, response.status_code,
+        (time.perf_counter() - start) * 1000,
+        getattr(request.state, "user_id", "anonymous"))
     return response
 
 
 @app.exception_handler(HTTPException)
 @app.exception_handler(StarletteHTTPException)
-async def http_exception_handler(request: Request, exc: HTTPException):
-    request_id = getattr(request.state, "request_id", str(uuid.uuid4()))
-    code = ERROR_CODE_MAP.get(exc.status_code, "BAD_GATEWAY")
-    payload = _error_payload(code, str(exc.detail), request_id)
-    headers = getattr(exc, "headers", None) or {}
-    response = JSONResponse(status_code=exc.status_code, content=payload, headers=headers)
-    response.headers["X-Request-ID"] = request_id
-    return response
-
-
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    request_id = getattr(request.state, "request_id", str(uuid.uuid4()))
-    payload = _error_payload("NOT_FOUND", "Invalid request", request_id)
-    response = JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content=payload)
-    response.headers["X-Request-ID"] = request_id
-    return response
+async def http_exc_handler(request: Request, exc: HTTPException):
+    rid = getattr(request.state, "request_id", str(uuid.uuid4()))
+    codes = {401: "UNAUTHORIZED", 403: "FORBIDDEN", 404: "NOT_FOUND", 429: "RATE_LIMITED", 502: "BAD_GATEWAY", 504: "GATEWAY_TIMEOUT"}
+    return JSONResponse(status_code=exc.status_code, content=_error(codes.get(exc.status_code, "ERROR"), str(exc.detail), rid))
 
 
 @app.exception_handler(Exception)
-async def unhandled_exception_handler(request: Request, exc: Exception):
+async def unhandled_exc_handler(request: Request, exc: Exception):
     logger.exception("Unhandled gateway error: %s", exc)
-    request_id = getattr(request.state, "request_id", str(uuid.uuid4()))
-    payload = _error_payload("BAD_GATEWAY", "Internal gateway error", request_id)
-    response = JSONResponse(status_code=status.HTTP_502_BAD_GATEWAY, content=payload)
-    response.headers["X-Request-ID"] = request_id
-    return response
+    rid = getattr(request.state, "request_id", str(uuid.uuid4()))
+    return JSONResponse(status_code=502, content=_error("BAD_GATEWAY", "Internal gateway error", rid))
 
 
 @app.on_event("startup")
-async def on_startup() -> None:
-    from redis.asyncio import Redis
+async def on_startup():
     app.state.redis = Redis.from_url(settings.redis_url, decode_responses=True)
     await app.state.redis.ping()
     app.state.http_client = httpx.AsyncClient()
-    logger.info("Gateway ready")
+    logger.info("Gateway ready — v2.0 (4-role system)")
 
 
 @app.on_event("shutdown")
-async def on_shutdown() -> None:
-    redis_client = getattr(app.state, "redis", None)
-    if redis_client is not None:
-        await redis_client.aclose()
-
-    http_client = getattr(app.state, "http_client", None)
-    if http_client is not None:
-        await http_client.aclose()
+async def on_shutdown():
+    if r := getattr(app.state, "redis", None):
+        await r.aclose()
+    if c := getattr(app.state, "http_client", None):
+        await c.aclose()
 
 
 @app.get("/health")
-async def health() -> dict[str, str]:
-    return {"status": "ok", "service": "gateway", "version": "1.0.0"}
+async def health():
+    return {"status": "healthy", "service": "gateway"}
 
 
 @app.api_route("/{full_path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"])
 async def gateway_handler(full_path: str, request: Request) -> Response:
     _ = full_path
-    is_public = _is_public_route(request)
-    payload = {}
+    payload: dict = {}
 
-    if not is_public:
-        token = _extract_bearer_token(request)
+    if not _is_public(request):
+        token = _extract_token(request)
         payload = validate_jwt(token)
         request.state.user_id = payload["sub"]
 
-    identifier = payload["sub"] if payload else _client_ip(request)
+        # Force password reset: block all routes except allowed ones
+        if payload.get("must_reset_password"):
+            if not _is_force_reset_allowed(request):
+                raise HTTPException(
+                    status.HTTP_403_FORBIDDEN,
+                    "Password reset required. Please reset your password at /force-reset."
+                )
+
+    identifier = payload.get("sub") or _client_ip(request)
     await check_rate_limit(identifier=identifier, redis_client=app.state.redis)
-    request.state.rate_limit_headers = get_rate_limit_headers()
 
     upstream_url = get_upstream_url(request.url.path)
-    injected_headers = {}
+    injected: dict[str, str] = {}
     if payload:
-        injected_headers = {
-            "X-User-ID": str(payload.get("sub", "")),
-            "X-User-Role": str(payload.get("role", "")),
+        injected = {
+            "X-User-ID":    str(payload.get("sub", "")),
+            "X-User-Role":  str(payload.get("role", "")),
             "X-User-Email": str(payload.get("email", "")),
-            "X-User-Org": str(payload.get("org", "")),
+            "X-Org-ID":     str(payload.get("org_id", "")),
+            "X-Must-Reset": str(payload.get("must_reset_password", False)),
         }
 
-    response = await forward_request(request, upstream_url, injected_headers)
-    for key, value in request.state.rate_limit_headers.items():
-        response.headers[key] = value
-    return response
+    return await forward_request(request, upstream_url, injected)

@@ -9,9 +9,9 @@ services:
       POSTGRES_DB: flowforge
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./k8s/initdb.sql:/docker-entrypoint-initdb.d/initdb.sql:ro
+      - ./infra/initdb.sql:/docker-entrypoint-initdb.d/initdb.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d flowforge"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -40,7 +40,7 @@ services:
       - ./gateway/.env
     environment:
       - PUBLIC_IP=${PUBLIC_IP:-localhost}
-      - JWT_SECRET=${JWT_SECRET:-super-secret-default-key}
+      - JWT_SECRET=${JWT_SECRET:-super-secret-jwt-key-for-flowforge-12345}
 
   auth-service:
     build: ./auth-service
@@ -52,7 +52,8 @@ services:
     env_file:
       - ./auth-service/.env
     environment:
-      - JWT_SECRET=${JWT_SECRET:-super-secret-default-key}
+      - JWT_SECRET=${JWT_SECRET:-super-secret-jwt-key-for-flowforge-12345}
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-flowforge-internal-secret-key-change-in-prod}
 
   project-service:
     build: ./project-service
@@ -61,8 +62,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      auth-service:
+        condition: service_started
     env_file:
       - ./project-service/.env
+    environment:
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-flowforge-internal-secret-key-change-in-prod}
 
   task-service:
     build: ./task-service
@@ -71,8 +76,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      project-service:
+        condition: service_started
     env_file:
       - ./task-service/.env
+    environment:
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-flowforge-internal-secret-key-change-in-prod}
 
   analysis-service:
     build: ./analysis-service
@@ -83,6 +92,22 @@ services:
         condition: service_healthy
     env_file:
       - ./analysis-service/.env
+    environment:
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-flowforge-internal-secret-key-change-in-prod}
+      - AZURE_FOUNDRY_ENDPOINT=${AZURE_FOUNDRY_ENDPOINT:-}
+      - AZURE_FOUNDRY_KEY=${AZURE_FOUNDRY_KEY:-}
+      - AZURE_FOUNDRY_DEPLOYMENT=${AZURE_FOUNDRY_DEPLOYMENT:-gpt-35-turbo}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-3.5-turbo}
+
+  notification-worker:
+    build: ./notification-worker
+    depends_on:
+      redis:
+        condition: service_healthy
+    env_file:
+      - ./notification-worker/.env
+    restart: unless-stopped
 
   frontend:
     build:

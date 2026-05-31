@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Boolean, DateTime, Integer, String, Text, func, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -13,12 +13,19 @@ class TaskStatus(str, enum.Enum):
     TODO = "TODO"
     IN_PROGRESS = "IN_PROGRESS"
     DONE = "DONE"
+    BLOCKED = "BLOCKED"
 
 
 class TaskPriority(str, enum.Enum):
     LOW = "LOW"
     MEDIUM = "MEDIUM"
     HIGH = "HIGH"
+
+
+class ApprovalStatus(str, enum.Enum):
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
 
 
 class Task(Base):
@@ -28,42 +35,57 @@ class Task(Base):
     project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    status: Mapped[TaskStatus] = mapped_column(
-        Enum(TaskStatus, name="task_status"), nullable=False, default=TaskStatus.TODO, server_default=TaskStatus.TODO.value
-    )
-    priority: Mapped[TaskPriority] = mapped_column(
-        Enum(TaskPriority, name="task_priority"),
-        nullable=False,
-        default=TaskPriority.MEDIUM,
-        server_default=TaskPriority.MEDIUM.value,
-    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="TODO", server_default="TODO")
+    priority: Mapped[str] = mapped_column(String(10), nullable=False, default="MEDIUM", server_default="MEDIUM")
     assignee_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     assignee_email: Mapped[str | None] = mapped_column(String(320), nullable=True)
     created_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     created_by_email: Mapped[str] = mapped_column(String(320), nullable=False)
     position: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    needs_approval: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    proposed_status: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    proposed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    # Approval workflow columns (added via ALTER TABLE, not enum changes)
-    needs_approval: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
-    proposed_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    proposed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
-
     comments: Mapped[list["TaskComment"]] = relationship(
         "TaskComment", back_populates="task", cascade="all, delete-orphan", passive_deletes=True
     )
+    approval_requests: Mapped[list["ApprovalRequest"]] = relationship(
+        "ApprovalRequest", back_populates="task", cascade="all, delete-orphan"
+    )
+
+
+class ApprovalRequest(Base):
+    """Created when a member marks a task as DONE — requires manager review."""
+    __tablename__ = "approval_requests"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    task_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    requested_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    requested_status: Mapped[str] = mapped_column(String(20), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="PENDING")
+    reviewed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    review_comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    task: Mapped["Task"] = relationship("Task", back_populates="approval_requests")
 
 
 class TaskComment(Base):
     __tablename__ = "task_comments"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    task_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    task_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False
+    )
     author_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     author_email: Mapped[str] = mapped_column(String(320), nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
-    task: Mapped[Task] = relationship("Task", back_populates="comments")
+    task: Mapped["Task"] = relationship("Task", back_populates="comments")

@@ -7,6 +7,7 @@ class HeaderExtractionMiddleware(BaseHTTPMiddleware):
         request.state.user_id = request.headers.get("X-User-ID")
         request.state.user_role = request.headers.get("X-User-Role")
         request.state.user_email = request.headers.get("X-User-Email")
+        request.state.org_id = request.headers.get("X-Org-ID")
         return await call_next(request)
 
 

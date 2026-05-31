@@ -15,6 +15,13 @@ export const AuthGuard = ({ children, role }: { children: React.ReactNode; role?
       router.replace("/login");
       return;
     }
+    // Force-reset enforcement: block all pages except /force-reset
+    if (user.must_reset_password && typeof window !== "undefined") {
+      if (!window.location.pathname.startsWith("/force-reset")) {
+        router.replace("/force-reset");
+        return;
+      }
+    }
     if (role) {
       const accepted = Array.isArray(role) ? role : [role];
       if (!accepted.includes(user.role)) {

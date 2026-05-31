@@ -11,16 +11,17 @@ class Base(DeclarativeBase):
 
 
 engine = create_async_engine(settings.database_url, echo=False, future=True)
-SessionLocal = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
+# Both names exported for compatibility
+AsyncSessionLocal = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
+SessionLocal = AsyncSessionLocal  # alias
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    async with SessionLocal() as session:
+    async with AsyncSessionLocal() as session:
         yield session
 
 
 async def init_db() -> None:
-    from models import ApprovalRequest, Project, ProjectMember  # noqa: F401
-
+    from models import Project, ProjectMember  # noqa: F401 — registers models with metadata
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

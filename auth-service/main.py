@@ -5,15 +5,20 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from config import settings
 from database import init_db
-from routes import admin, auth, internal
+from routes import auth, internal
+from routes.users import router as users_router
 from services.redis_service import get_redis
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    # init tables + bootstrap default accounts
     await init_db()
     redis = get_redis()
-    await redis.ping()
+    try:
+        await redis.ping()
+    except Exception:
+        pass  # Redis optional for startup
     try:
         yield
     finally:
@@ -24,29 +29,27 @@ app = FastAPI(title="FlowForge Auth Service", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_url, "*"],
+    allow_origins=[settings.frontend_url, "http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Public Auth Routes (/auth/login, /auth/register, etc.)
+# Public + authenticated auth routes
 app.include_router(auth.router)
 
-# Admin Routes (/auth/admin/users, etc.)
-app.include_router(admin.router)
+# User management routes (/users/...)
+app.include_router(users_router)
 
-# Internal Service-to-Service Routes (/auth/internal/user-by-email, etc.)
-# These routes are called by other microservices and do not require JWT.
-app.include_router(internal.router, prefix="/auth/internal")
+# Internal service-to-service routes (/internal/...)
+app.include_router(internal.router, prefix="/internal")
 
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "service": "auth-service"}
+    return {"status": "healthy", "timestamp": __import__("datetime").datetime.utcnow().isoformat() + "Z"}
 
 
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run("main:app", host="0.0.0.0", port=settings.app_port, reload=False)

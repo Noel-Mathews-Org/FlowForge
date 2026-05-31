@@ -1,86 +1,69 @@
+"""Internal service-to-service endpoints. All require X-Internal-Token header."""
+import uuid
+
 import bcrypt
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from config import settings
 from database import get_db
-from models import User, UserRole
-from schemas import InternalCreateUser, UserProfile
+from models import Notification, User
+from schemas import CreateNotificationRequest, InternalUserResponse
 
-# Router without prefix - prefix will be set during app.include_router in main.py
 router = APIRouter(tags=["internal"])
 
 
-@router.get("/user-by-email", response_model=UserProfile)
+def _check_internal_token(x_internal_token: str | None = Header(default=None, alias="X-Internal-Token")):
+    if not x_internal_token or x_internal_token != settings.internal_api_key:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid internal token")
+
+
+@router.get("/users/by-email", response_model=InternalUserResponse, dependencies=[Depends(_check_internal_token)])
 async def get_user_by_email(email: str, db: AsyncSession = Depends(get_db)):
-    """
-    Service-to-service route to look up a user by email.
-    No JWT required.
-    """
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
-    
-    return UserProfile(
-        id=str(user.id),
-        email=user.email,
-        full_name=user.full_name,
-        role=user.role.value,
-        org=user.org,
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+    return InternalUserResponse(
+        id=str(user.id), org_id=str(user.org_id), email=user.email,
+        full_name=user.full_name, role=user.role,
+        manager_id=str(user.manager_id) if user.manager_id else None,
         is_active=user.is_active,
-        created_at=user.created_at,
     )
 
 
-@router.post("/create-user", response_model=UserProfile, status_code=status.HTTP_201_CREATED)
-async def create_user_internal(payload: InternalCreateUser, db: AsyncSession = Depends(get_db)):
-    """
-    Service-to-service route to create a new user (e.g. when added to a project).
-    No JWT required. No email sent from here.
-    """
-    # 1. Check if user already exists
-    existing_result = await db.execute(select(User).where(User.email == payload.email))
-    if existing_result.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="User already exists"
-        )
+@router.get("/users/{user_id}/validate-manager", dependencies=[Depends(_check_internal_token)])
+async def validate_manager(user_id: str, db: AsyncSession = Depends(get_db)):
+    user = await db.get(User, uuid.UUID(user_id))
+    if not user or not user.is_active or user.role != "manager":
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Manager not found or inactive")
+    return {"valid": True, "user_id": str(user.id), "email": user.email}
 
-    # 2. Hash password using bcrypt (same as auth.py)
-    hashed_password = bcrypt.hashpw(
-        payload.temp_password.encode("utf-8"), 
-        bcrypt.gensalt()
-    ).decode("utf-8")
 
-    # 3. Determine role
-    try:
-        user_role = UserRole(payload.role)
-    except ValueError:
-        user_role = UserRole.member
-
-    # 4. Create user
-    new_user = User(
-        email=payload.email,
-        full_name=payload.full_name,
-        hashed_password=hashed_password,
-        role=user_role,
-        org=payload.org,
-        is_active=True,
+@router.get("/users/{user_id}", response_model=InternalUserResponse, dependencies=[Depends(_check_internal_token)])
+async def get_user_by_id(user_id: str, db: AsyncSession = Depends(get_db)):
+    user = await db.get(User, uuid.UUID(user_id))
+    if not user:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+    return InternalUserResponse(
+        id=str(user.id), org_id=str(user.org_id), email=user.email,
+        full_name=user.full_name, role=user.role,
+        manager_id=str(user.manager_id) if user.manager_id else None,
+        is_active=user.is_active,
     )
-    db.add(new_user)
+
+
+@router.post("/notifications", dependencies=[Depends(_check_internal_token)])
+async def create_notification(payload: CreateNotificationRequest, db: AsyncSession = Depends(get_db)):
+    """Called by other services to create in-app notifications."""
+    n = Notification(
+        user_id=uuid.UUID(payload.user_id),
+        type=payload.type,
+        title=payload.title,
+        content=payload.content,
+        metadata=payload.metadata,
+    )
+    db.add(n)
     await db.commit()
-    await db.refresh(new_user)
-
-    return UserProfile(
-        id=str(new_user.id),
-        email=new_user.email,
-        full_name=new_user.full_name,
-        role=new_user.role.value,
-        org=new_user.org,
-        is_active=new_user.is_active,
-        created_at=new_user.created_at,
-    )
+    return {"success": True, "id": str(n.id)}

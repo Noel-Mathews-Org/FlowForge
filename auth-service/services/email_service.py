@@ -97,7 +97,16 @@ async def send_notification_email(to_email: str, subject: str, html_body: str) -
         logger.exception("Failed to send notification email to %s: %s", to_email, exc)
 
 
-async def send_invite_email(to_email: str, invite_url: str, inviter_name: str) -> None:
+async def send_member_added_email(
+    to_email: str, project_name: str, inviter_name: str,
+    login_url: str, temp_password: str | None = None, is_new_user: bool = False
+) -> None:
+    """Notify a user they've been added to a project."""
+    await send_project_invite_email(to_email, inviter_name, login_url, temp_password, is_new_user)
+
+
+async def send_invite_email(to_email: str, invite_url: str, inviter_name: str, role: str = "member") -> None:
+    role_display = role.replace("_", " ").title()
     subject = "You've been invited to FlowForge"
     content = f"""
     <h1 style="margin:0 0 8px 0; font-size:24px; font-weight:700; color:#1a1a2e;">You're Invited!</h1>

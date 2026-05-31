@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Eye, EyeOff } from "lucide-react";
 import { FormEvent, useState, ChangeEvent } from "react";
 import { authApi } from "@/lib/api";
-import { getUser, routeForRole, setToken } from "@/lib/auth";
+import { getUser, routeForRole, setToken, setRefreshToken } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -36,6 +36,19 @@ export default function LoginPage() {
     try {
       const { data } = await authApi.post("/login", { email, password });
       setToken(data.access_token);
+
+      // Obtain refresh token (non-blocking)
+      try {
+        const rt = await authApi.post("/token/issue");
+        setRefreshToken(rt.data.refresh_token);
+      } catch { /* ignore — access token still works */ }
+
+      // Force-reset check
+      if (data.must_reset_password) {
+        window.location.href = "/force-reset";
+        return;
+      }
+
       const user = getUser();
       if (user) window.location.href = routeForRole(user.role);
     } catch {

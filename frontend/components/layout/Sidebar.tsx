@@ -21,20 +21,31 @@ import { getUser, logout } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 const navByRole = {
-  admin: [
+  platform_admin: [
     { href: "/admin", label: "Overview", icon: LayoutDashboard },
     { href: "/admin/users", label: "Users", icon: Users },
     { href: "/admin/audit", label: "Audit Log", icon: ScrollText },
+    { href: "/profile", label: "Profile", icon: Settings },
+  ],
+  org_owner: [
+    { href: "/org", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/org/users", label: "Users", icon: Users },
+    { href: "/org/projects", label: "Projects", icon: FolderKanban },
+    { href: "/profile", label: "Profile", icon: Settings },
   ],
   manager: [
     { href: "/manager", label: "Projects", icon: FolderKanban },
     { href: "/manager/approvals", label: "Approvals", icon: CheckCircle },
     { href: "/manager/team", label: "Team", icon: Users },
+    { href: "/profile", label: "Profile", icon: Settings },
   ],
   member: [
     { href: "/dashboard", label: "My Board", icon: Kanban },
+    { href: "/profile", label: "Profile", icon: Settings },
   ],
 } as const;
+
+type Role = keyof typeof navByRole;
 
 interface SidebarProps {
   pendingApprovals?: number;
@@ -53,7 +64,7 @@ export const Sidebar = ({
 }: SidebarProps) => {
   const pathname = usePathname();
   const user = getUser();
-  const nav = user ? navByRole[user.role] : [];
+  const nav = user ? (navByRole[user.role as Role] ?? []) : [];
 
   return (
     <>
