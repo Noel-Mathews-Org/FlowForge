@@ -12,7 +12,7 @@ Analytics endpoints — role-scoped per FAD Section 6.
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
-from sqlalchemy import and_, desc, distinct, func, select
+from sqlalchemy import and_, desc, distinct, func, select, DateTime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
@@ -137,7 +137,7 @@ async def manager_dashboard(
     start = date.today() - timedelta(weeks=8)
     stmt = (
         select(
-            func.date_trunc("week", func.cast(DailyTaskStats.date, type_=None)).label("week"),
+            func.date_trunc("week", func.cast(DailyTaskStats.date, DateTime)).label("week"),
             func.sum(DailyTaskStats.tasks_completed).label("completed"),
         )
         .where(DailyTaskStats.date >= start)
@@ -184,7 +184,7 @@ async def member_dashboard(request: Request, db: AsyncSession = Depends(get_db))
 
     weekly = (await db.execute(
         select(
-            func.date_trunc("week", func.cast(UserActivityStats.date, type_=None)).label("week"),
+            func.date_trunc("week", func.cast(UserActivityStats.date, DateTime)).label("week"),
             func.sum(UserActivityStats.tasks_completed).label("completed"),
         )
         .where(UserActivityStats.user_id == user_id, UserActivityStats.date >= start)
