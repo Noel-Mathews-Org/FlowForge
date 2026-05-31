@@ -21,7 +21,7 @@ export default function OrgUsersPage() {
   };
 
   const load = () => {
-    authApi.get("/users/").then(({ data }) => setUsers(data.users ?? data))
+    authApi.get("/users").then(({ data }) => setUsers(data.users ?? data))
       .catch(() => {}).finally(() => setLoading(false));
   };
 

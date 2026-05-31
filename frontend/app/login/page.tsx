@@ -34,7 +34,7 @@ export default function LoginPage() {
     }
 
     try {
-      const { data } = await authApi.post("/login", { email, password });
+      const { data } = await authApi.post("/login", { email: email.trim(), password });
       setToken(data.access_token);
 
       // Obtain refresh token (non-blocking)

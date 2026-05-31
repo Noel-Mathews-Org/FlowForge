@@ -22,7 +22,7 @@ export default function AdminUsersPage() {
 
   const { data: users, isLoading, isError } = useQuery({
     queryKey: ["admin-users"],
-    queryFn: async () => (await authApi.get("/users/")).data,
+    queryFn: async () => (await authApi.get("/users")).data,
   });
 
   const toggleActive = useMutation({

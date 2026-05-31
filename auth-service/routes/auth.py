@@ -50,7 +50,7 @@ def _to_profile(u: User) -> UserProfile:
 
 @router.post("/login", response_model=LoginResponse)
 async def login(payload: LoginRequest, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).where(User.email == payload.email))
+    result = await db.execute(select(User).where(User.email == payload.email.lower()))
     user = result.scalar_one_or_none()
     if not user or not bcrypt.checkpw(payload.password.encode(), user.hashed_password.encode()):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
@@ -174,7 +174,8 @@ async def accept_invite(payload: InviteAcceptRequest, db: AsyncSession = Depends
     db.add(user)
     invite.status = "ACCEPTED"
     await db.commit()
-    return InviteAcceptResponse(success=True, message="Registration successful. Please log in.")
+    token = jwt_service.sign_jwt(user)
+    return InviteAcceptResponse(success=True, message="Registration successful. Please log in.", access_token=token)
 
 
 # ─── Password ────────────────────────────────────────────────────────────────

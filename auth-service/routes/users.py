@@ -50,7 +50,7 @@ def _require(role: str, allowed: set[str]) -> None:
 
 # ─── User Lists ──────────────────────────────────────────────────────────────
 
-@router.get("/", response_model=list[UserProfile])
+@router.get("", response_model=list[UserProfile])
 async def list_users(
     db: AsyncSession = Depends(get_db),
     x_user_role: str | None = Header(default=None, alias="X-User-Role"),

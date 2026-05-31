@@ -14,7 +14,7 @@ export default function ProjectsPage() {
   const user = getUser();
 
   useEffect(() => {
-    projectApi.get("/").then(({ data }) => setProjects(data)).catch(() => {}).finally(() => setLoading(false));
+    projectApi.get("").then(({ data }) => setProjects(data)).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   const active   = projects.filter(p => !p.is_archived);

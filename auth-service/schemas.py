@@ -41,6 +41,7 @@ class InviteAcceptRequest(BaseModel):
 class InviteAcceptResponse(BaseModel):
     success: bool
     message: str
+    access_token: Optional[str] = None
 
 
 # ─── Password ────────────────────────────────────────────────────────────────

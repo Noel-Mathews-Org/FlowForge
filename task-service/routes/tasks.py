@@ -116,7 +116,7 @@ async def internal_approvals(
 
 # ─── Create ──────────────────────────────────────────────────────────────────
 
-@router.post("/", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
 async def create_task(payload: TaskCreate, request: Request, db: AsyncSession = Depends(get_db)):
     user_id = request.state.user_id
     user_email = request.state.user_email

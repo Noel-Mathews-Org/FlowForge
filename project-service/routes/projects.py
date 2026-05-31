@@ -107,7 +107,7 @@ async def _notify_user(user_id: str, notif_type: str, title: str, content: str, 
 
 # ─── List / Create ───────────────────────────────────────────────────────────
 
-@router.get("/", response_model=ProjectListResponse)
+@router.get("", response_model=ProjectListResponse)
 async def list_projects(
     request: Request,
     archived: bool = Query(default=False),
@@ -134,7 +134,7 @@ async def list_projects(
     return ProjectListResponse(projects=[await _project_response(db, p) for p in projects], total=total or 0)
 
 
-@router.post("/", response_model=ProjectResponse, dependencies=[require_role("manager", "platform_admin")])
+@router.post("", response_model=ProjectResponse, dependencies=[require_role("manager", "platform_admin")])
 async def create_project(payload: ProjectCreate, request: Request, db: AsyncSession = Depends(get_db)):
     manager_id_raw = get_current_user_id(request)
     manager_email = _require_email(request)
