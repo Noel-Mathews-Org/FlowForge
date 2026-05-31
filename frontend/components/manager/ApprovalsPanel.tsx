@@ -51,8 +51,10 @@ export const ApprovalsPanel = ({ projectId }: { projectId: string }) => {
   };
 
   const handleReject = async (task: Task) => {
+    const reason = window.prompt("Reason for rejection:");
+    if (reason === null) return; // cancelled
     try {
-      await rejectTask.mutateAsync(task.id);
+      await rejectTask.mutateAsync({ taskId: task.id, comment: reason });
       toast.success(`Rejected: ${task.title}`);
     } catch {
       toast.error("Failed to reject task");

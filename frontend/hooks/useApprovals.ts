@@ -29,7 +29,7 @@ export const useApproveTask = () => {
 export const useRejectTask = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (taskId: string) => taskApi.post(`/${taskId}/reject`),
+    mutationFn: ({ taskId, comment }: { taskId: string; comment?: string }) => taskApi.post(`/${taskId}/reject`, { comment: comment || "" }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["task-approvals"] });
       qc.invalidateQueries({ queryKey: ["tasks"] });

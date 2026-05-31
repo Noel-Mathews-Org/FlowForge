@@ -97,6 +97,21 @@ async def get_pending_approvals(
     return [_to_response(t) for t in tasks]
 
 
+@router.get("/project/{project_id}/pending", response_model=list[TaskResponse], dependencies=[require_role("manager", "platform_admin")])
+async def get_pending_approvals_by_project(
+    project_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = (
+        select(Task)
+        .where(Task.project_id == project_id, Task.deleted_at.is_(None), Task.needs_approval == True)
+        .options(selectinload(Task.comments))
+    )
+    tasks = (await db.execute(stmt)).scalars().all()
+    return [_to_response(t) for t in tasks]
+
+
 # ─── Internal: list approvals by project_ids ─────────────────────────────────
 
 @router.get("/internal/approvals")
@@ -196,6 +211,26 @@ async def update_task(task_id: UUID, payload: TaskUpdate, request: Request, db: 
                     status="PENDING",
                 )
                 db.add(ar)
+                
+                # Fetch project from project-service to get manager_id
+                import httpx
+                import os
+                project_url = os.getenv("PROJECT_SERVICE_URL", "http://project-service:8002")
+                try:
+                    async with httpx.AsyncClient(timeout=5.0) as client:
+                        resp = await client.get(f"{project_url}/projects/{task.project_id}")
+                        if resp.status_code == 200:
+                            project = resp.json()
+                            manager_id = project.get("manager_id")
+                            if manager_id:
+                                await _notify(
+                                    str(manager_id), "approval_needed",
+                                    f"Approval Needed: {task.title}",
+                                    f"Task '{task.title}' has been marked as DONE and requires your approval.",
+                                    {"task_id": str(task.id), "project_id": str(task.project_id)},
+                                )
+                except Exception as e:
+                    pass  # Silent fail on notification if project service is down
             else:
                 # Non-DONE status changes (IN_PROGRESS, BLOCKED) are allowed directly for members
                 task.status = payload.status

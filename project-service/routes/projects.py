@@ -330,12 +330,23 @@ async def add_member(project_id: UUID, payload: AddMemberRequest, request: Reque
                 data = resp.json()
                 target_id_str = data["id"]
                 target_email = data["email"]
+                target_manager_id = data.get("manager_id")
             else:
                 resp = await client.get(
                     f"{AUTH_SERVICE_URL}/internal/users/{target_id_str}",
                     headers={"X-Internal-Token": INTERNAL_TOKEN},
                 )
-                target_email = resp.json().get("email", target_id_str) if resp.status_code == 200 else target_id_str
+                if resp.status_code == 200:
+                    data = resp.json()
+                    target_email = data.get("email", target_id_str)
+                    target_manager_id = data.get("manager_id")
+                else:
+                    target_email = target_id_str
+                    target_manager_id = None
+            
+            # Check if user belongs to the same manager as the project
+            if target_manager_id and str(target_manager_id) != str(project.manager_id):
+                raise HTTPException(status.HTTP_400_BAD_REQUEST, "Cannot add user: This user is managed by another manager.")
     except HTTPException:
         raise
     except Exception:

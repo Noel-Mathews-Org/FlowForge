@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { mockProjects } from "@/lib/mock-data";
 import { projectApi } from "@/lib/api";
 import type { Project, ProjectDetail } from "@/types";
@@ -27,3 +27,19 @@ export const useProjectDetail = (id: string) =>
     },
     enabled: Boolean(id)
   });
+
+export const useArchiveProject = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => projectApi.patch(`/${id}/archive`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["projects"] }),
+  });
+};
+
+export const useUnarchiveProject = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => projectApi.patch(`/${id}/unarchive`, { member_ids: [] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["projects"] }),
+  });
+};

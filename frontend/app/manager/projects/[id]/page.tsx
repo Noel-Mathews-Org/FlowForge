@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { useState } from "react";
-import { useProjectDetail } from "@/hooks/useProjects";
+import { useProjectDetail, useArchiveProject, useUnarchiveProject } from "@/hooks/useProjects";
 import { useTasks } from "@/hooks/useTasks";
 import { KanbanBoard } from "@/components/kanban/KanbanBoard";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -10,8 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { projectApi } from "@/lib/api";
 import { toast } from "sonner";
-import { Trash2 } from "lucide-react";
+import { Trash2, Archive, ArchiveRestore } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation";
 
 export default function ManagerProjectDetailPage() {
   const params = useParams<{ id: string }>();
@@ -21,6 +22,9 @@ export default function ManagerProjectDetailPage() {
 
   const project = useProjectDetail(params.id);
   const tasks = useTasks(params.id);
+  const archiveProject = useArchiveProject();
+  const unarchiveProject = useUnarchiveProject();
+  const router = useRouter();
 
   if (project.isLoading) return <Skeleton className="h-[400px] w-full" />;
   if (project.isError || !project.data) return <div className="p-8 text-rose-500">Failed to load project details</div>;
@@ -47,8 +51,53 @@ export default function ManagerProjectDetailPage() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{project.data.name}</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{project.data.name}</h2>
+            {project.data.is_archived && (
+              <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                Archived
+              </span>
+            )}
+          </div>
           <p className="text-sm text-slate-500">{project.data.description}</p>
+        </div>
+        <div className="flex gap-2">
+          {project.data.is_archived ? (
+            <Button
+              variant="outline"
+              onClick={async () => {
+                try {
+                  await unarchiveProject.mutateAsync(params.id);
+                  toast.success("Project unarchived");
+                  project.refetch();
+                } catch {
+                  toast.error("Failed to unarchive project");
+                }
+              }}
+              disabled={unarchiveProject.isPending}
+            >
+              <ArchiveRestore className="mr-2 h-4 w-4" /> Unarchive
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              className="border-rose-200 text-rose-600 hover:bg-rose-50 dark:border-rose-800 dark:text-rose-400"
+              onClick={async () => {
+                if (confirm("Are you sure you want to archive this project?")) {
+                  try {
+                    await archiveProject.mutateAsync(params.id);
+                    toast.success("Project archived");
+                    router.push("/manager/projects");
+                  } catch {
+                    toast.error("Failed to archive project");
+                  }
+                }
+              }}
+              disabled={archiveProject.isPending}
+            >
+              <Archive className="mr-2 h-4 w-4" /> Archive
+            </Button>
+          )}
         </div>
       </div>
 

@@ -189,7 +189,7 @@ async def transfer_member(
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 resp = await client.post(
-                    f"{PROJECT_SERVICE_URL}/internal/member-transferred",
+                    f"{PROJECT_SERVICE_URL}/projects/internal/member-transferred",
                     json={"member_id": user_id, "old_manager_id": old_manager_id, "new_manager_id": payload.new_manager_id},
                     headers={"X-Internal-Token": settings.internal_api_key},
                 )
