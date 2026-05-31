@@ -169,7 +169,7 @@ async def transfer_member(
         type="member_transferred",
         title="You have been transferred",
         content=f"You have been transferred to manager {new_mgr.full_name}.",
-        metadata={"new_manager_id": str(new_mgr.id), "new_manager_email": new_mgr.email},
+        payload={"new_manager_id": str(new_mgr.id), "new_manager_email": new_mgr.email},
     )
     db.add(notif)
     await db.commit()
@@ -224,7 +224,7 @@ async def list_notifications(
     return [
         NotificationResponse(
             id=str(n.id), type=n.type, title=n.title, content=n.content,
-            metadata=n.metadata, is_read=n.is_read, created_at=n.created_at
+            metadata=n.payload, is_read=n.is_read, created_at=n.created_at
         )
         for n in result.scalars().all()
     ]

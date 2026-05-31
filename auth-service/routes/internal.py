@@ -62,7 +62,7 @@ async def create_notification(payload: CreateNotificationRequest, db: AsyncSessi
         type=payload.type,
         title=payload.title,
         content=payload.content,
-        metadata=payload.metadata,
+        payload=payload.metadata,
     )
     db.add(n)
     await db.commit()
