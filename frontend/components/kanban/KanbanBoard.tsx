@@ -26,7 +26,7 @@ export const KanbanBoard = ({
   const [board, setBoard] = useState(initialBoard);
   const [openTask, setOpenTask] = useState<Task | null>(null);
 
-  const isManager = user?.role === "manager" || user?.role === "admin";
+  const isManager = user?.role === "manager" || user?.role === "platform_admin" || user?.role === "org_owner";
 
   const onDragEnd = async (result: DropResult) => {
     if (!result.destination) return;

@@ -38,7 +38,7 @@ export const TaskDetailModal = ({
       const res = await projectApi.get(`/${task.project_id}/members`);
       return res.data;
     },
-    enabled: !!task?.project_id && (user?.role === "manager" || user?.role === "admin")
+    enabled: !!task?.project_id && (user?.role === "manager" || user?.role === "platform_admin" || user?.role === "org_owner")
   });
 
   if (!task) return null;
@@ -157,7 +157,7 @@ export const TaskDetailModal = ({
                     </div>
                   )}
 
-                  {(user?.role === "manager" || user?.role === "admin") && (
+                  {(user?.role === "manager" || user?.role === "platform_admin" || user?.role === "org_owner") && (
                     <div>
                       <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">Assign To</label>
                       <SelectField

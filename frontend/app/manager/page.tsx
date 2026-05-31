@@ -22,7 +22,7 @@ export default function ManagerPage() {
   const velocity = useQuery({
     queryKey: ["manager-velocity"],
     queryFn: async () => {
-      const res = await analyticsApi.get(`/manager/dashboard?manager_id=${user?.id ?? ""}`);
+      const res = await analyticsApi.get(`/manager/dashboard?manager_id=${user?.sub ?? ""}`);
       return res.data;
     },
   });

@@ -41,9 +41,16 @@ services:
     environment:
       - PUBLIC_IP=${PUBLIC_IP:-localhost}
       - JWT_SECRET=${JWT_SECRET:-super-secret-jwt-key-for-flowforge-12345}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
 
   auth-service:
     build: ./auth-service
+    ports:
+      - "8001:8001"
     depends_on:
       postgres:
         condition: service_healthy
@@ -54,9 +61,16 @@ services:
     environment:
       - JWT_SECRET=${JWT_SECRET:-super-secret-jwt-key-for-flowforge-12345}
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-flowforge-internal-secret-key-change-in-prod}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
 
   project-service:
     build: ./project-service
+    ports:
+      - "8002:8002"
     depends_on:
       postgres:
         condition: service_healthy
@@ -68,9 +82,16 @@ services:
       - ./project-service/.env
     environment:
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-flowforge-internal-secret-key-change-in-prod}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
 
   task-service:
     build: ./task-service
+    ports:
+      - "8003:8003"
     depends_on:
       postgres:
         condition: service_healthy
@@ -82,9 +103,16 @@ services:
       - ./task-service/.env
     environment:
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-flowforge-internal-secret-key-change-in-prod}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8003/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
 
   analysis-service:
     build: ./analysis-service
+    ports:
+      - "8004:8004"
     depends_on:
       postgres:
         condition: service_healthy
@@ -99,6 +127,11 @@ services:
       - AZURE_FOUNDRY_DEPLOYMENT=${AZURE_FOUNDRY_DEPLOYMENT:-gpt-35-turbo}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - OPENAI_MODEL=${OPENAI_MODEL:-gpt-3.5-turbo}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8004/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
 
   notification-worker:
     build: ./notification-worker

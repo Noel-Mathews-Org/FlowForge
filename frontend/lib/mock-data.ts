@@ -2,7 +2,7 @@ import { subDays } from "date-fns";
 import type { AnalyticsOverview, KanbanBoard, Project, ThroughputDataPoint, User, UserActivityStat } from "@/types";
 
 export const mockUsers: User[] = [
-  { id: "u1", email: "amaya.rivera@flowforge.io", full_name: "Amaya Rivera", role: "admin", org: "FlowForge" },
+  { id: "u1", email: "amaya.rivera@flowforge.io", full_name: "Amaya Rivera", role: "platform_admin", org: "FlowForge" },
   { id: "u2", email: "theo.bennett@flowforge.io", full_name: "Theo Bennett", role: "manager", org: "FlowForge" },
   { id: "u3", email: "nina.patel@flowforge.io", full_name: "Nina Patel", role: "manager", org: "FlowForge" },
   { id: "u4", email: "marcus.kim@flowforge.io", full_name: "Marcus Kim", role: "member", org: "FlowForge" },
