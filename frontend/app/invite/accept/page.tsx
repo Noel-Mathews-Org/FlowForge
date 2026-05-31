@@ -1,12 +1,12 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { authApi } from "@/lib/api";
 import { setToken, setRefreshToken, routeForRole, getUser } from "@/lib/auth";
 
-export default function InviteAcceptPage() {
+function InviteAcceptContent() {
   const params = useSearchParams();
   const token  = params.get("token") ?? "";
 
@@ -101,5 +101,13 @@ export default function InviteAcceptPage() {
         )}
       </motion.div>
     </div>
+  );
+}
+
+export default function InviteAcceptPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#1e1b4b] to-[#4c1d95] p-4 text-white">Loading...</div>}>
+      <InviteAcceptContent />
+    </Suspense>
   );
 }
