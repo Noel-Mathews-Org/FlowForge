@@ -20,7 +20,7 @@ export default function ManagerTeamPage() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await projectApi.get("/");
+        const res = await projectApi.get("");
         const projects: Project[] = Array.isArray(res.data)
           ? res.data
           : res.data.projects ?? [];

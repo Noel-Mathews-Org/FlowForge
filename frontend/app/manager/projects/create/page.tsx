@@ -18,7 +18,7 @@ export default function CreateProjectPage() {
     if (!name.trim()) { setError("Project name is required."); return; }
     setLoading(true);
     try {
-      const { data } = await projectApi.post("/", { name: name.trim(), description: desc.trim() });
+      const { data } = await projectApi.post("", { name: name.trim(), description: desc.trim() });
       router.push(`/manager/projects/${data.id}`);
     } catch (err: any) {
       const detail = err?.response?.data?.detail;

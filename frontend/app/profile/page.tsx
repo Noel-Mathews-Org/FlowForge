@@ -56,64 +56,106 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-3xl space-y-8 pb-12">
       {toast && (
         <div className={`fixed right-6 top-6 z-50 rounded-xl px-5 py-3 text-sm font-medium text-white shadow-lg ${toast.ok ? "bg-emerald-600" : "bg-rose-600"}`}>
           {toast.msg}
         </div>
       )}
 
-      {/* Profile info */}
-      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl border bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex items-center gap-3 mb-5">
-          <User className="h-5 w-5 text-violet-600" />
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Profile</h2>
+      {/* Header */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-violet-600 to-indigo-600 p-8 text-white shadow-lg">
+        <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-3xl"></div>
+        <div className="absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-white/10 blur-3xl"></div>
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Your Profile</h1>
+            <p className="mt-2 text-indigo-100">Manage your personal information and security settings.</p>
+          </div>
           {user?.role && (
-            <span className={`ml-auto rounded-full px-2.5 py-0.5 text-xs font-bold ${roleColors[user.role] ?? ""}`}>
-              {user.role.replace("_", " ")}
-            </span>
+            <div className="mt-4 sm:mt-0">
+              <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider ${
+                user.role === "platform_admin" ? "bg-fuchsia-500/20 text-fuchsia-100" :
+                user.role === "org_owner" ? "bg-blue-500/20 text-blue-100" :
+                user.role === "manager" ? "bg-amber-500/20 text-amber-100" :
+                "bg-slate-500/20 text-slate-100"
+              }`}>
+                {user.role.replace("_", " ")}
+              </span>
+            </div>
           )}
         </div>
-        <p className="text-sm text-slate-500 mb-4">Email: <span className="font-medium text-slate-700 dark:text-slate-300">{user?.email}</span></p>
-        <form onSubmit={saveProfile} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Full Name</label>
-            <input value={fullName} onChange={e => setName(e.target.value)} required
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
-              <Bell className="inline h-3.5 w-3.5 mr-1" />Notification Email (optional)
-            </label>
-            <input value={notifEmail} onChange={e => setNotif(e.target.value)} type="email" placeholder="Defaults to login email"
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
-          </div>
-          <button type="submit" disabled={saving}
-            className="rounded-xl bg-violet-600 px-6 py-2 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-60">
-            {saving ? "Saving…" : "Save Changes"}
-          </button>
-        </form>
-      </motion.div>
+      </div>
 
-      {/* Change password */}
-      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
-        className="rounded-2xl border bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex items-center gap-3 mb-5">
-          <Key className="h-5 w-5 text-violet-600" />
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Change Password</h2>
-        </div>
-        <form onSubmit={changePassword} className="space-y-4">
-          <input value={oldPw} onChange={e => setOld(e.target.value)} required type="password" placeholder="Current password"
-            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-violet-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
-          <input value={newPw} onChange={e => setNew(e.target.value)} required type="password" placeholder="New password (min 8 chars)" minLength={8}
-            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-violet-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
-          <button type="submit" disabled={changingPw}
-            className="rounded-xl bg-violet-600 px-6 py-2 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-60">
-            {changingPw ? "Updating…" : "Update Password"}
-          </button>
-        </form>
-      </motion.div>
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+        {/* Profile info */}
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+          className="group rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
+          <div className="mb-6 flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400">
+              <User className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Personal Details</h2>
+              <p className="text-xs text-slate-500">{user?.email}</p>
+            </div>
+          </div>
+          
+          <form onSubmit={saveProfile} className="space-y-4">
+            <div>
+              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">Full Name</label>
+              <input value={fullName} onChange={e => setName(e.target.value)} required placeholder="Your full name"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:bg-white focus:ring-2 focus:ring-violet-200 dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
+            </div>
+            <div>
+              <label className="mb-1.5 flex items-center text-xs font-bold uppercase tracking-wider text-slate-500">
+                <Bell className="mr-1 h-3.5 w-3.5" /> Notification Email
+              </label>
+              <input value={notifEmail} onChange={e => setNotif(e.target.value)} type="email" placeholder="Defaults to login email"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:bg-white focus:ring-2 focus:ring-violet-200 dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
+            </div>
+            <div className="pt-2">
+              <button type="submit" disabled={saving}
+                className="w-full rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-violet-600 dark:hover:bg-violet-700">
+                {saving ? "Saving…" : "Save Profile"}
+              </button>
+            </div>
+          </form>
+        </motion.div>
+
+        {/* Change password */}
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+          className="group rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
+          <div className="mb-6 flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400">
+              <Key className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Security</h2>
+              <p className="text-xs text-slate-500">Update your password</p>
+            </div>
+          </div>
+          
+          <form onSubmit={changePassword} className="space-y-4">
+            <div>
+              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">Current Password</label>
+              <input value={oldPw} onChange={e => setOld(e.target.value)} required type="password" placeholder="••••••••"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:bg-white focus:ring-2 focus:ring-violet-200 dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">New Password</label>
+              <input value={newPw} onChange={e => setNew(e.target.value)} required type="password" placeholder="Min 8 characters" minLength={8}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:bg-white focus:ring-2 focus:ring-violet-200 dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
+            </div>
+            <div className="pt-2">
+              <button type="submit" disabled={changingPw}
+                className="w-full rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-violet-600 dark:hover:bg-violet-700">
+                {changingPw ? "Updating…" : "Update Password"}
+              </button>
+            </div>
+          </form>
+        </motion.div>
+      </div>
     </div>
   );
 }

@@ -12,7 +12,10 @@ export default function OrgUsersPage() {
   const [loading, setLoading]   = useState(true);
   const [inviteEmail, setEmail] = useState("");
   const [inviteRole, setRole]   = useState("manager");
+  const [inviteManager, setInviteManager] = useState("");
   const [inviting, setInviting] = useState(false);
+  const [transferUser, setTransferUser] = useState<OrgUser | null>(null);
+  const [newManagerId, setNewManagerId] = useState("");
   const [toast, setToast]       = useState<{ msg: string; ok: boolean } | null>(null);
   const user = getUser();
 
@@ -34,11 +37,16 @@ export default function OrgUsersPage() {
 
   const invite = async () => {
     if (!inviteEmail.trim()) return;
+    if (inviteRole === "member" && !inviteManager) {
+      showToast("Please select a manager for the member", false);
+      return;
+    }
     setInviting(true);
     try {
-      await authApi.post("/invite", { email: inviteEmail.trim(), role: inviteRole });
+      await authApi.post("/invite", { email: inviteEmail.trim(), role: inviteRole, manager_id: inviteRole === "member" ? inviteManager : undefined });
       showToast(`Invite sent to ${inviteEmail}`, true);
       setEmail("");
+      setInviteManager("");
     } catch (err: any) {
       showToast(err?.response?.data?.detail ?? "Failed to send invite", false);
     } finally { setInviting(false); }
@@ -60,6 +68,19 @@ export default function OrgUsersPage() {
       setUsers(prev => prev.map(u => u.id === id ? { ...u, is_active: true } : u));
       showToast("User activated", true);
     } catch { showToast("Failed to activate", false); }
+  };
+
+  const transfer = async () => {
+    if (!transferUser || !newManagerId) return;
+    try {
+      await authApi.patch(`/users/${transferUser.id}/transfer`, { new_manager_id: newManagerId });
+      setUsers(prev => prev.map(u => u.id === transferUser.id ? { ...u, manager_id: newManagerId } : u));
+      showToast("User transferred successfully", true);
+      setTransferUser(null);
+      setNewManagerId("");
+    } catch (err: any) {
+      showToast(err?.response?.data?.detail ?? "Failed to transfer user", false);
+    }
   };
 
   const roleColors: Record<string, string> = {
@@ -89,14 +110,23 @@ export default function OrgUsersPage() {
         <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
           <Mail className="h-4 w-4 text-violet-600" /> Invite New User
         </h3>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <input value={inviteEmail} onChange={e => setEmail(e.target.value)} type="email" placeholder="Email address"
-            className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-violet-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
+            className="flex-1 min-w-[200px] rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-violet-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
           <select value={inviteRole} onChange={e => setRole(e.target.value)}
             className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-violet-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
             <option value="manager">Manager</option>
             <option value="member">Member</option>
           </select>
+          {inviteRole === "member" && (
+            <select value={inviteManager} onChange={e => setInviteManager(e.target.value)}
+              className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-violet-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+              <option value="">Select Manager</option>
+              {users.filter(u => u.role === "manager").map(m => (
+                <option key={m.id} value={m.id}>{m.full_name} ({m.email})</option>
+              ))}
+            </select>
+          )}
           <button onClick={invite} disabled={inviting || !inviteEmail.trim()}
             className="flex items-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-60">
             {inviting ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
@@ -141,24 +171,55 @@ export default function OrgUsersPage() {
                     </span>
                   </td>
                   <td className="px-5 py-3">
-                    {u.role !== "platform_admin" && u.role !== "org_owner" && (
-                      u.is_active ? (
-                        <button onClick={() => revoke(u.id)}
-                          className="flex items-center gap-1 rounded-lg border border-rose-200 px-3 py-1 text-xs font-medium text-rose-600 hover:bg-rose-50">
-                          <UserMinus className="h-3.5 w-3.5" /> Revoke
+                    <div className="flex gap-2">
+                      {u.role !== "platform_admin" && u.role !== "org_owner" && (
+                        u.is_active ? (
+                          <button onClick={() => revoke(u.id)}
+                            className="flex items-center gap-1 rounded-lg border border-rose-200 px-3 py-1 text-xs font-medium text-rose-600 hover:bg-rose-50">
+                            <UserMinus className="h-3.5 w-3.5" /> Revoke
+                          </button>
+                        ) : (
+                          <button onClick={() => activate(u.id)}
+                            className="flex items-center gap-1 rounded-lg border border-emerald-200 px-3 py-1 text-xs font-medium text-emerald-600 hover:bg-emerald-50">
+                            <UserPlus className="h-3.5 w-3.5" /> Activate
+                          </button>
+                        )
+                      )}
+                      {u.role === "member" && u.is_active && (
+                        <button onClick={() => setTransferUser(u)}
+                          className="flex items-center gap-1 rounded-lg border border-blue-200 px-3 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50">
+                          Transfer
                         </button>
-                      ) : (
-                        <button onClick={() => activate(u.id)}
-                          className="flex items-center gap-1 rounded-lg border border-emerald-200 px-3 py-1 text-xs font-medium text-emerald-600 hover:bg-emerald-50">
-                          <UserPlus className="h-3.5 w-3.5" /> Activate
-                        </button>
-                      )
-                    )}
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Transfer Modal */}
+      {transferUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-slate-900">
+            <h3 className="mb-4 text-lg font-bold text-slate-900 dark:text-white">Transfer Member</h3>
+            <p className="mb-4 text-sm text-slate-600 dark:text-slate-400">
+              Select a new manager for {transferUser.full_name}. This will reassign all their projects.
+            </p>
+            <select value={newManagerId} onChange={e => setNewManagerId(e.target.value)}
+              className="mb-6 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-violet-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+              <option value="">Select New Manager</option>
+              {users.filter(u => u.role === "manager" && u.id !== transferUser.manager_id).map(m => (
+                <option key={m.id} value={m.id}>{m.full_name}</option>
+              ))}
+            </select>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setTransferUser(null)} className="rounded-xl px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">Cancel</button>
+              <button onClick={transfer} disabled={!newManagerId} className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-60">Confirm Transfer</button>
+            </div>
+          </div>
         </div>
       )}
     </div>

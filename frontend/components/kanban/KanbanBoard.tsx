@@ -105,7 +105,7 @@ export const KanbanBoard = ({
                     }
 
                     try {
-                      await taskApi.post("/", {
+                      await taskApi.post("", {
                         title,
                         priority,
                         project_id: projectId,

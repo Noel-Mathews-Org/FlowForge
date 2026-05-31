@@ -12,7 +12,7 @@ export const useProjects = () =>
     queryKey: ["projects"],
     queryFn: async () => {
       if (mock) return mockProjects;
-      const res = (await projectApi.get("/")).data;
+      const res = (await projectApi.get("")).data;
       // Backend returns { projects: [...], total: N }
       return Array.isArray(res) ? res : (res.projects ?? []);
     }
