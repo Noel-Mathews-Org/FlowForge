@@ -34,7 +34,7 @@ router = APIRouter(prefix="/analytics/reports", tags=["reports"])
 
 AZURE_CONN_STR = os.getenv("AZURE_STORAGE_CONNECTION_STRING", "")
 CONTAINER_NAME = "flowforge-reports"
-LOCAL_REPORTS_DIR = "/app/data/reports" if os.getenv("DOCKER_ENV") else "./data/reports"
+LOCAL_REPORTS_DIR = "/tmp/flowforge_reports"
 
 # Ensure local fallback directory exists
 os.makedirs(LOCAL_REPORTS_DIR, exist_ok=True)
