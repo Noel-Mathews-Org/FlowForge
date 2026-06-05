@@ -15,6 +15,7 @@ import {
   Users,
   X,
   Menu,
+  BarChart3,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getUser, logout } from "@/lib/auth";
@@ -31,6 +32,7 @@ const navByRole = {
     { href: "/org", label: "Dashboard", icon: LayoutDashboard },
     { href: "/org/users", label: "Users", icon: Users },
     { href: "/org/projects", label: "Projects", icon: FolderKanban },
+    { href: "/org/reports", label: "Reports", icon: BarChart3 },
     { href: "/profile", label: "Profile", icon: Settings },
   ],
   manager: [

@@ -1,21 +1,19 @@
 "use client";
 
 import { format } from "date-fns";
-import { OverviewCards } from "@/components/admin/OverviewCards";
-import { ThroughputChart } from "@/components/admin/ThroughputChart";
-import { RolePieChart } from "@/components/admin/RolePieChart";
+import { SystemMetricsCards } from "@/components/admin/SystemMetricsCards";
+import { PlatformHealthChart } from "@/components/admin/PlatformHealthChart";
 import { AiCostCard } from "@/components/admin/AiCostCard";
 import { AuditTable } from "@/components/admin/AuditTable";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAnalyticsOverview, useAudit, useThroughput } from "@/hooks/useAnalytics";
+import { usePlatformHealth, useAudit } from "@/hooks/useAnalytics";
 import { getUser } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { RefreshCcw } from "lucide-react";
 
 export default function AdminPage() {
   const user = getUser();
-  const overview = useAnalyticsOverview();
-  const throughput = useThroughput(7);
+  const health = usePlatformHealth();
   const audit = useAudit();
 
   return (
@@ -42,41 +40,32 @@ export default function AdminPage() {
 
       {/* Overview Cards */}
       <section>
-        {overview.isLoading ? (
+        {health.isLoading ? (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-32 rounded-2xl" />)}
           </div>
-        ) : overview.isError || !overview.data ? (
+        ) : health.isError || !health.data ? (
           <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-center text-rose-700 dark:border-rose-900/30 dark:bg-rose-900/10">
             <p className="text-sm font-semibold">Intelligence core failed to respond.</p>
-            <Button variant="outline" size="sm" className="mt-4 border-rose-200" onClick={() => overview.refetch()}>Re-initialize</Button>
+            <Button variant="outline" size="sm" className="mt-4 border-rose-200" onClick={() => health.refetch()}>Re-initialize</Button>
           </div>
         ) : (
-          <OverviewCards overview={overview.data} />
+          <SystemMetricsCards healthData={health.data} />
         )}
       </section>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-        {/* Throughput Chart */}
-        <section className="lg:col-span-8">
-          {throughput.isLoading ? (
+        {/* Latency Chart */}
+        <section className="lg:col-span-12">
+          {health.isLoading ? (
             <Skeleton className="h-[400px] rounded-2xl" />
-          ) : throughput.isError || !throughput.data ? (
+          ) : health.isError || !health.data ? (
             <div className="rounded-2xl border border-rose-200 bg-rose-50 p-8 text-center text-rose-700 dark:border-rose-900/30 dark:bg-rose-900/10">
-              <p className="text-sm font-semibold">Throughput metrics are temporarily unavailable.</p>
-              <Button variant="outline" size="sm" className="mt-4 border-rose-200" onClick={() => throughput.refetch()}>Retry Sync</Button>
+              <p className="text-sm font-semibold">Health metrics are temporarily unavailable.</p>
+              <Button variant="outline" size="sm" className="mt-4 border-rose-200" onClick={() => health.refetch()}>Retry Sync</Button>
             </div>
           ) : (
-            <ThroughputChart data={throughput.data} />
-          )}
-        </section>
-
-        {/* Task Status Pie Chart */}
-        <section className="lg:col-span-4">
-          {overview.data?.tasks_by_status ? (
-            <RolePieChart tasksByStatus={overview.data.tasks_by_status} />
-          ) : (
-            <Skeleton className="h-64 rounded-2xl" />
+            <PlatformHealthChart healthData={health.data} />
           )}
         </section>
       </div>

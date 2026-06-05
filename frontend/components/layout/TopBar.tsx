@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Menu, Moon, Sun } from "lucide-react";
+import { Menu, Moon, Sun, RefreshCcw } from "lucide-react";
 import { useTheme } from "next-themes";
 import { getUser, DecodedUser } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,14 @@ export const TopBar = ({ title, onMenuClick }: { title: string; onMenuClick?: ()
       </div>
       
       <div className="flex items-center gap-2">
+        <Button 
+          variant="ghost" 
+          onClick={() => window.location.reload()} 
+          className="h-10 w-10 rounded-xl p-0"
+          title="Refresh Dashboard"
+        >
+          <RefreshCcw className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+        </Button>
         <Button 
           variant="ghost" 
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")} 

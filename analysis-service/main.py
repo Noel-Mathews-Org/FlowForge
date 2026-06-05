@@ -8,8 +8,7 @@ from redis.asyncio import Redis
 from config import settings
 from database import AsyncSessionLocal, Base, engine
 from rbac import HeaderExtractionMiddleware
-from routes.ai import router as ai_router
-from routes.analytics import router as analytics_router
+from routes import ai, analytics, reports
 from workers.aggregator import aggregation_scheduler
 from workers.stream_consumer import consume_stream
 
@@ -49,8 +48,9 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="FlowForge Analytics & AI Service", lifespan=lifespan)
 app.add_middleware(HeaderExtractionMiddleware)
-app.include_router(analytics_router)
-app.include_router(ai_router)
+app.include_router(analytics.router)
+app.include_router(ai.router)
+app.include_router(reports.router)
 
 
 @app.get("/health")

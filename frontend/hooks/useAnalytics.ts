@@ -19,6 +19,12 @@ export const useThroughput = (days = 7) =>
     queryFn: async () => (mock ? mockThroughput : (await analyticsApi.get(`/task-throughput?days=${days}`)).data)
   });
 
+export const usePlatformHealth = () =>
+  useQuery<any>({
+    queryKey: ["platform-health"],
+    queryFn: async () => (await analyticsApi.get("/platform/health")).data
+  });
+
 export const useAudit = () =>
   useQuery<AuditEvent[]>({
     queryKey: ["audit"],

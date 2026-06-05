@@ -5,9 +5,9 @@ import { Users, Briefcase, CheckCircle, TrendingUp, Loader2, Zap } from "lucide-
 import { analyticsApi, aiApi, authApi } from "@/lib/api";
 import { getUser, logout } from "@/lib/auth";
 import { useAllProjects } from "@/hooks/useProjects";
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
-
-const COLORS = ["#7c3aed", "#a78bfa", "#e879f9", "#f472b6"];
+import { ThroughputChart } from "@/components/admin/ThroughputChart";
+import { RolePieChart } from "@/components/admin/RolePieChart";
+import { useThroughput } from "@/hooks/useAnalytics";
 
 export default function OrgOwnerPage() {
   const [overview, setOverview]   = useState<any>(null);
@@ -15,6 +15,7 @@ export default function OrgOwnerPage() {
   const [genLoading, setGenLoading] = useState(false);
   const [loading, setLoading]     = useState(true);
   const user = getUser();
+  const throughput = useThroughput(7);
   const { data: allProjectsData } = useAllProjects();
   const projectsData = [...(allProjectsData?.active ?? []), ...(allProjectsData?.archived ?? [])];
 
@@ -53,20 +54,6 @@ export default function OrgOwnerPage() {
     </div>
   );
 
-  const barData = overview?.project_throughput?.slice(0, 8).map((p: any) => {
-    const project = projectsData?.find(proj => proj.id === p.project_id);
-    const projectName = project ? project.name : (p.project_id.slice(0, 8) + "…");
-    return {
-      name: projectName.length > 15 ? projectName.slice(0, 15) + "…" : projectName,
-      completed: p.tasks_completed,
-      created: p.tasks_created,
-    };
-  }) ?? [];
-
-  const pieData = [
-    { name: "Completed", value: overview?.total_completed ?? 0 },
-    { name: "Remaining", value: (overview?.total_tasks ?? 0) - (overview?.total_completed ?? 0) },
-  ];
 
   return (
     <div className="space-y-6">
@@ -87,35 +74,26 @@ export default function OrgOwnerPage() {
         </div>
 
         {/* Charts */}
-        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <div className="rounded-2xl border bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <h2 className="mb-4 text-sm font-semibold text-slate-700 dark:text-slate-200">Task Throughput by Project (30 days)</h2>
-            {barData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={barData}>
-                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="completed" name="Completed" fill="#7c3aed" radius={[4,4,0,0]} />
-                  <Bar dataKey="created" name="Created" fill="#e879f9" radius={[4,4,0,0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : <p className="text-sm text-slate-400">No project data yet.</p>}
-          </div>
+        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-12">
+          <section className="lg:col-span-8">
+            {throughput.isLoading ? (
+              <div className="h-[400px] rounded-2xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
+            ) : throughput.isError || !throughput.data ? (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-8 text-center text-rose-700 dark:border-rose-900/30 dark:bg-rose-900/10">
+                <p className="text-sm font-semibold">Throughput metrics are temporarily unavailable.</p>
+              </div>
+            ) : (
+              <ThroughputChart data={throughput.data} />
+            )}
+          </section>
 
-          <div className="rounded-2xl border bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <h2 className="mb-4 text-sm font-semibold text-slate-700 dark:text-slate-200">Overall Completion</h2>
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} dataKey="value" label>
-                  {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
+          <section className="lg:col-span-4">
+            {overview?.tasks_by_status ? (
+              <RolePieChart tasksByStatus={overview.tasks_by_status} />
+            ) : (
+              <div className="h-[300px] rounded-2xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
+            )}
+          </section>
         </div>
 
         {/* AI Summary */}

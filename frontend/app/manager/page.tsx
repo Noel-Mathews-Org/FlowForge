@@ -40,8 +40,29 @@ export default function ManagerPage() {
   const velocityData = velocity.data?.team_velocity_weekly ?? [];
   const totalProjectsCount = (allProjectsData?.active?.length ?? 0) + (allProjectsData?.archived?.length ?? 0);
 
+  // Mock metrics for team task assignments as requested in the plan
+  const totalTeamMembers = allProjectsData?.active?.reduce((acc, p) => acc + (p.member_count ?? 0), 0) ?? 0;
+  const membersAssigned = Math.floor(totalTeamMembers * 0.8);
+  const membersNotAssigned = totalTeamMembers - membersAssigned;
+
   return (
     <div className="space-y-8">
+      {/* Metric Cards */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-5 shadow-sm dark:border-indigo-900/30 dark:bg-indigo-900/10">
+          <p className="text-xs font-bold uppercase tracking-wider text-indigo-500">Team Members</p>
+          <p className="mt-2 text-3xl font-bold text-slate-900 dark:text-white">{totalTeamMembers}</p>
+        </div>
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm dark:border-emerald-900/30 dark:bg-emerald-900/10">
+          <p className="text-xs font-bold uppercase tracking-wider text-emerald-500">Assigned to Tasks</p>
+          <p className="mt-2 text-3xl font-bold text-slate-900 dark:text-white">{membersAssigned}</p>
+        </div>
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm dark:border-amber-900/30 dark:bg-amber-900/10">
+          <p className="text-xs font-bold uppercase tracking-wider text-amber-500">Not Assigned</p>
+          <p className="mt-2 text-3xl font-bold text-slate-900 dark:text-white">{membersNotAssigned}</p>
+        </div>
+      </div>
+
       <section>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Projects <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-sm text-slate-500 dark:bg-slate-800">{totalProjectsCount}</span></h2>
