@@ -14,7 +14,7 @@ User management routes:
 import uuid
 
 import httpx
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query, status
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,6 +22,11 @@ from config import settings
 from database import get_db
 from models import Notification, User
 from schemas import NotificationResponse, TransferMemberRequest, TransferMemberResponse, UserProfile
+from services.email_service import (
+    send_user_revoked_email,
+    send_user_activated_email,
+    send_member_transferred_email,
+)
 
 router = APIRouter(prefix="/auth/users", tags=["users"])
 
@@ -83,6 +88,7 @@ async def list_team(
 @router.patch("/{user_id}/revoke")
 async def revoke_user(
     user_id: str,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     x_user_role: str | None = Header(default=None, alias="X-User-Role"),
     x_user_id: str | None = Header(default=None, alias="X-User-ID"),
@@ -106,13 +112,22 @@ async def revoke_user(
             )
 
     target.is_active = False
+    # In-app notification
+    db.add(Notification(
+        user_id=target.id, type="account_revoked",
+        title="Account Access Revoked",
+        content="Your account access has been revoked by an administrator.",
+    ))
     await db.commit()
+    # Email notification
+    background_tasks.add_task(send_user_revoked_email, target.email, target.full_name)
     return {"success": True, "message": "User revoked"}
 
 
 @router.patch("/{user_id}/activate")
 async def activate_user(
     user_id: str,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     x_user_role: str | None = Header(default=None, alias="X-User-Role"),
 ):
@@ -121,7 +136,15 @@ async def activate_user(
     if not target:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
     target.is_active = True
+    # In-app notification
+    db.add(Notification(
+        user_id=target.id, type="account_activated",
+        title="Account Reactivated",
+        content="Your account has been reactivated. You can now sign in.",
+    ))
     await db.commit()
+    login_url = f"{settings.frontend_url}/login"
+    background_tasks.add_task(send_user_activated_email, target.email, target.full_name, login_url)
     return {"success": True, "message": "User activated"}
 
 
@@ -208,6 +231,10 @@ async def transfer_member(
     )
     db.add(notif)
     await db.commit()
+
+    # Email notification to the transferred member
+    background_tasks = BackgroundTasks()
+    await send_member_transferred_email(member.email, member.full_name, new_mgr.full_name)
 
     return TransferMemberResponse(
         success=True,

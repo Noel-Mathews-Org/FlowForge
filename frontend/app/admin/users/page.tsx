@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Shield, ShieldAlert, Key, Users, Info } from "lucide-react";
+import { Shield, ShieldAlert, Key, Users } from "lucide-react";
 import { authApi } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -18,18 +18,7 @@ export default function AdminUsersPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">User Directory</h2>
-          <p className="text-sm font-medium text-slate-500">Read-only view of all platform users. User management has been moved to the Org Owner dashboard.</p>
-        </div>
-      </div>
-
-      {/* Info Banner */}
-      <div className="flex items-start gap-3 rounded-2xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
-        <Info className="mt-0.5 h-5 w-5 shrink-0 text-blue-600 dark:text-blue-400" />
-        <div>
-          <p className="text-sm font-semibold text-blue-800 dark:text-blue-300">User Management Relocated</p>
-          <p className="mt-1 text-sm text-blue-700 dark:text-blue-400">
-            All user management capabilities (invite, revoke, activate, role changes, transfers) are now available exclusively in the <span className="font-semibold">Org Owner</span> dashboard. This page provides a read-only overview for platform monitoring.
-          </p>
+          <p className="text-sm font-medium text-slate-500">Overview of all registered platform users.</p>
         </div>
       </div>
 

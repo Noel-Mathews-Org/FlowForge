@@ -274,3 +274,81 @@ async def send_admin_user_created_email(
         logger.info("Admin user created email sent to %s", to_email)
     except Exception as exc:
         logger.exception("Failed to send admin user created email to %s: %s", to_email, exc)
+
+
+async def send_user_revoked_email(to_email: str, full_name: str) -> None:
+    """Email sent when a user's account is revoked."""
+    subject = "FlowForge Account Access Revoked"
+    content = f"""
+    <h1 style="margin:0 0 8px 0; font-size:24px; font-weight:700; color:#1a1a2e;">Hello {full_name},</h1>
+    <p style="margin:0 0 24px 0; font-size:15px; color:#8993a4;">Your account access has been updated</p>
+    <div style="background-color:#fef2f2; border: 1px solid #fecaca; border-radius:8px; padding:20px 24px; margin-bottom:24px;">
+      <p style="margin:0; font-size:15px; color:#991b1b; line-height:24px;">
+        Your FlowForge account access has been revoked by an administrator. You will no longer be able to sign in.
+      </p>
+    </div>
+    <p style="margin:0; font-size:14px; color:#3d4f5f;">If you believe this is an error, please contact your organization administrator.</p>
+    """
+    html_body = _base_template(content, preview_text="Your FlowForge account access has been revoked")
+    text_body = f"Hello {full_name}, your FlowForge account access has been revoked. Contact your organization administrator if this is unexpected."
+    await send_notification_email(to_email, subject, html_body)
+
+
+async def send_user_activated_email(to_email: str, full_name: str, login_url: str) -> None:
+    """Email sent when a user's account is re-activated."""
+    subject = "FlowForge Account Reactivated"
+    content = f"""
+    <h1 style="margin:0 0 8px 0; font-size:24px; font-weight:700; color:#1a1a2e;">Welcome Back, {full_name}!</h1>
+    <p style="margin:0 0 24px 0; font-size:15px; color:#8993a4;">Your account has been reactivated</p>
+    <div style="background-color:#f0fdf4; border: 1px solid #86efac; border-radius:8px; padding:20px 24px; margin-bottom:24px;">
+      <p style="margin:0; font-size:15px; color:#166534; line-height:24px;">
+        Your FlowForge account has been reactivated. You can now sign in and access your projects and tasks.
+      </p>
+    </div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      <tr><td align="center" style="padding: 8px 0 24px 0;">
+        <a href="{login_url}" style="display:inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:#ffffff; text-decoration:none; padding:14px 36px; border-radius:8px; font-size:15px; font-weight:600;">Sign In Now</a>
+      </td></tr>
+    </table>
+    """
+    html_body = _base_template(content, preview_text="Your FlowForge account has been reactivated")
+    text_body = f"Hello {full_name}, your FlowForge account has been reactivated. Sign in at {login_url}"
+    await send_notification_email(to_email, subject, html_body)
+
+
+async def send_member_transferred_email(
+    to_email: str, full_name: str, new_manager_name: str
+) -> None:
+    """Email sent when a member is transferred to a new manager."""
+    subject = "FlowForge: Manager Reassignment"
+    content = f"""
+    <h1 style="margin:0 0 8px 0; font-size:24px; font-weight:700; color:#1a1a2e;">Hello {full_name},</h1>
+    <p style="margin:0 0 24px 0; font-size:15px; color:#8993a4;">Your reporting manager has been updated</p>
+    <div style="background-color:#eff6ff; border: 1px solid #93c5fd; border-radius:8px; padding:20px 24px; margin-bottom:24px;">
+      <p style="margin:0; font-size:15px; color:#1e40af; line-height:24px;">
+        You have been reassigned to a new manager: <strong>{new_manager_name}</strong>
+      </p>
+    </div>
+    <p style="margin:0; font-size:14px; color:#3d4f5f;">Your existing projects and tasks remain unchanged.</p>
+    """
+    html_body = _base_template(content, preview_text=f"You now report to {new_manager_name}")
+    text_body = f"Hello {full_name}, you have been reassigned to {new_manager_name}."
+    await send_notification_email(to_email, subject, html_body)
+
+
+async def send_report_generated_email(to_email: str, report_name: str) -> None:
+    """Email sent to org owner / admin when a report is generated."""
+    subject = f"FlowForge Report Ready: {report_name}"
+    content = f"""
+    <h1 style="margin:0 0 8px 0; font-size:24px; font-weight:700; color:#1a1a2e;">Report Generated</h1>
+    <p style="margin:0 0 24px 0; font-size:15px; color:#8993a4;">Your executive report is ready for download</p>
+    <div style="background-color:#f8f9fb; border-radius:8px; padding:20px 24px; margin-bottom:24px;">
+      <p style="margin:0; font-size:15px; color:#3d4f5f; line-height:24px;">
+        <strong>{report_name}</strong> has been generated successfully and is ready for viewing.
+      </p>
+    </div>
+    <p style="margin:0; font-size:13px; color:#8993a4;">View your reports in the FlowForge dashboard under Reports section.</p>
+    """
+    html_body = _base_template(content, preview_text=f"Report ready: {report_name}")
+    text_body = f"Your FlowForge report '{report_name}' has been generated and is ready for viewing."
+    await send_notification_email(to_email, subject, html_body)

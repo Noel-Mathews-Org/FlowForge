@@ -80,7 +80,7 @@ export default function OrgUsersPage() {
 
       if (existingUser) {
         setInviteError(
-          `A user with email "${inviteEmail.trim()}" already exists (${existingUser.full_name}, role: ${existingUser.role}). Cannot send a duplicate invite.`
+          "A user with this email already exists in the system."
         );
         setValidatingEmail(false);
         return;

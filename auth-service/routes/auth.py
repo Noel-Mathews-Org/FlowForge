@@ -103,7 +103,7 @@ async def invite_user(
     if existing_user.scalar_one_or_none():
         raise HTTPException(
             status.HTTP_409_CONFLICT,
-            f"A user with email '{payload.email}' already exists. Cannot send duplicate invite.",
+            "A user with this email already exists in the system.",
         )
 
     # ── Validate: no pending invitation for this email ──────────────────
@@ -116,7 +116,7 @@ async def invite_user(
     if existing_invite.scalar_one_or_none():
         raise HTTPException(
             status.HTTP_409_CONFLICT,
-            f"An active invitation for '{payload.email}' is already pending. Please wait for them to accept or cancel the existing invite.",
+            "An invitation for this email is already pending.",
         )
 
     # Validate target manager exists and is active

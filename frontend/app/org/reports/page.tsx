@@ -44,7 +44,7 @@ export default function ReportsPage() {
     try {
       const res = await analyticsApi.post("/reports/generate", {
         project_name: "FlowForge Organization",
-        executive_summary: "This is an AI-generated executive summary based on the latest metrics. The organization has shown significant progress in the last week with a high completion rate.",
+        executive_summary: "This is an AI-generated executive summary based on the latest metrics. The organization has shown significant progress in the last reporting period with a strong completion rate across all active projects.\n\nTeam utilization remains high and project delivery timelines are being met consistently. Manager workload distribution appears balanced with adequate team allocation.",
         chart_labels: ["TODO", "IN_PROGRESS", "DONE"],
         chart_values: [12, 5, 20]
       });
@@ -59,26 +59,18 @@ export default function ReportsPage() {
     }
   };
 
-  /**
-   * Fetch the PDF via the authenticated API client (which sends the JWT)
-   * and create a local blob URL for viewing/downloading.
-   */
   const fetchPdfBlob = async (report: Report): Promise<string | null> => {
     try {
-      // For local storage reports, the URL is relative like /api/analytics/reports/download/...
-      // For azure, it's a full SAS URL that doesn't need auth.
       if (report.storage === "azure") {
-        return report.url; // Azure SAS URLs are pre-authenticated
+        return report.url;
       }
-
-      // Local storage: fetch through the authenticated API
       const reportId = report.id;
       const res = await analyticsApi.get(`/reports/download/${reportId}`, {
         responseType: "blob",
       });
       const blob = new Blob([res.data], { type: "application/pdf" });
       return URL.createObjectURL(blob);
-    } catch (err: any) {
+    } catch {
       toast.error("Failed to fetch report. Please try again.");
       return null;
     }
@@ -102,14 +94,12 @@ export default function ReportsPage() {
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      // Revoke after download for non-azure
       if (report.storage !== "azure") {
         URL.revokeObjectURL(blobUrl);
       }
     }
   };
 
-  // Clean up blob URLs when viewer closes
   const closeViewer = () => {
     if (viewerUrl && viewerUrl.startsWith("blob:")) {
       URL.revokeObjectURL(viewerUrl);
@@ -126,8 +116,8 @@ export default function ReportsPage() {
             Generate and view professional AI-summarized PDF reports.
           </p>
         </div>
-        <Button 
-          onClick={handleGenerate} 
+        <Button
+          onClick={handleGenerate}
           disabled={generating}
           className="rounded-xl bg-indigo-600 text-white hover:bg-indigo-700"
         >
@@ -136,7 +126,7 @@ export default function ReportsPage() {
         </Button>
       </div>
 
-      {/* Loading overlay for fetching PDF */}
+      {/* Loading overlay */}
       <AnimatePresence>
         {viewLoading && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
@@ -154,8 +144,8 @@ export default function ReportsPage() {
       </AnimatePresence>
 
       {loading ? (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3].map(i => <Skeleton key={i} className="h-48 rounded-2xl" />)}
+        <div className="space-y-3">
+          {[1, 2, 3].map(i => <Skeleton key={i} className="h-16 rounded-xl" />)}
         </div>
       ) : reports.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 py-24 text-center dark:border-slate-700 bg-white dark:bg-slate-900/50">
@@ -168,44 +158,66 @@ export default function ReportsPage() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {reports.map(report => (
-            <div key={report.id} className="group relative flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
-              <div>
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-rose-50 text-rose-500 dark:bg-rose-900/20 dark:text-rose-400">
-                  <FileText className="h-6 w-6" />
-                </div>
-                <h3 className="font-semibold text-slate-900 dark:text-slate-100 line-clamp-2">{report.name}</h3>
-                <div className="mt-2 flex items-center text-xs text-slate-500">
-                  <Clock className="mr-1.5 h-3.5 w-3.5" />
-                  {format(new Date(report.created_at), "MMM d, yyyy 'at' h:mm a")}
-                </div>
-                <div className="mt-2 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-500 dark:border-slate-800 dark:bg-slate-800/50">
-                  {report.storage} storage
-                </div>
-              </div>
-              <div className="mt-6 flex gap-3">
-                <Button 
-                  variant="outline" 
-                  className="flex-1 rounded-xl"
-                  onClick={() => handleView(report)}
-                >
-                  <Eye className="mr-2 h-4 w-4" /> View
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="flex-1 rounded-xl"
-                  onClick={() => handleDownload(report)}
-                >
-                  <Download className="mr-2 h-4 w-4" /> Download
-                </Button>
-              </div>
-            </div>
-          ))}
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="border-b bg-slate-50 dark:border-slate-800 dark:bg-slate-800/50">
+              <tr>
+                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Report</th>
+                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 hidden sm:table-cell">Generated</th>
+                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 hidden md:table-cell">Storage</th>
+                <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y dark:divide-slate-800">
+              {reports.map(report => (
+                <tr key={report.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                  <td className="px-5 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-rose-50 text-rose-500 dark:bg-rose-900/20 dark:text-rose-400">
+                        <FileText className="h-4 w-4" />
+                      </div>
+                      <span className="font-medium text-slate-900 dark:text-white truncate max-w-[300px]">{report.name}</span>
+                    </div>
+                  </td>
+                  <td className="px-5 py-3 hidden sm:table-cell">
+                    <div className="flex items-center text-xs text-slate-500">
+                      <Clock className="mr-1.5 h-3.5 w-3.5" />
+                      {format(new Date(report.created_at), "MMM d, yyyy 'at' h:mm a")}
+                    </div>
+                  </td>
+                  <td className="px-5 py-3 hidden md:table-cell">
+                    <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-500 dark:border-slate-800 dark:bg-slate-800/50">
+                      {report.storage}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3">
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-lg h-8 px-3"
+                        onClick={() => handleView(report)}
+                      >
+                        <Eye className="mr-1.5 h-3.5 w-3.5" /> View
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-lg h-8 px-3"
+                        onClick={() => handleDownload(report)}
+                      >
+                        <Download className="mr-1.5 h-3.5 w-3.5" /> Download
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
-      {/* PDF Document Viewer Modal */}
+      {/* PDF Viewer Modal */}
       <AnimatePresence>
         {viewerUrl && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 sm:p-8">
