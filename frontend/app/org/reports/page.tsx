@@ -22,6 +22,7 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
+  const [viewLoading, setViewLoading] = useState(false);
 
   const fetchReports = async () => {
     try {
@@ -41,13 +42,11 @@ export default function ReportsPage() {
   const handleGenerate = async () => {
     setGenerating(true);
     try {
-      // In a real app we might select a project or specific parameters.
-      // Here we just ask the backend to generate an org-level executive report.
       const res = await analyticsApi.post("/reports/generate", {
         project_name: "FlowForge Organization",
         executive_summary: "This is an AI-generated executive summary based on the latest metrics. The organization has shown significant progress in the last week with a high completion rate.",
         chart_labels: ["TODO", "IN_PROGRESS", "DONE"],
-        chart_values: [12, 5, 20] // Mock data for generation
+        chart_values: [12, 5, 20]
       });
       if (res.data.success) {
         toast.success("Report generated successfully!");
@@ -58,6 +57,64 @@ export default function ReportsPage() {
     } finally {
       setGenerating(false);
     }
+  };
+
+  /**
+   * Fetch the PDF via the authenticated API client (which sends the JWT)
+   * and create a local blob URL for viewing/downloading.
+   */
+  const fetchPdfBlob = async (report: Report): Promise<string | null> => {
+    try {
+      // For local storage reports, the URL is relative like /api/analytics/reports/download/...
+      // For azure, it's a full SAS URL that doesn't need auth.
+      if (report.storage === "azure") {
+        return report.url; // Azure SAS URLs are pre-authenticated
+      }
+
+      // Local storage: fetch through the authenticated API
+      const reportId = report.id;
+      const res = await analyticsApi.get(`/reports/download/${reportId}`, {
+        responseType: "blob",
+      });
+      const blob = new Blob([res.data], { type: "application/pdf" });
+      return URL.createObjectURL(blob);
+    } catch (err: any) {
+      toast.error("Failed to fetch report. Please try again.");
+      return null;
+    }
+  };
+
+  const handleView = async (report: Report) => {
+    setViewLoading(true);
+    const blobUrl = await fetchPdfBlob(report);
+    setViewLoading(false);
+    if (blobUrl) {
+      setViewerUrl(blobUrl);
+    }
+  };
+
+  const handleDownload = async (report: Report) => {
+    const blobUrl = await fetchPdfBlob(report);
+    if (blobUrl) {
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = report.name || report.id;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      // Revoke after download for non-azure
+      if (report.storage !== "azure") {
+        URL.revokeObjectURL(blobUrl);
+      }
+    }
+  };
+
+  // Clean up blob URLs when viewer closes
+  const closeViewer = () => {
+    if (viewerUrl && viewerUrl.startsWith("blob:")) {
+      URL.revokeObjectURL(viewerUrl);
+    }
+    setViewerUrl(null);
   };
 
   return (
@@ -78,6 +135,23 @@ export default function ReportsPage() {
           Generate New Report
         </Button>
       </div>
+
+      {/* Loading overlay for fetching PDF */}
+      <AnimatePresence>
+        {viewLoading && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="flex flex-col items-center gap-4 rounded-2xl bg-white p-8 shadow-2xl dark:bg-slate-900"
+            >
+              <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+              <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Loading report…</p>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {loading ? (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -114,14 +188,14 @@ export default function ReportsPage() {
                 <Button 
                   variant="outline" 
                   className="flex-1 rounded-xl"
-                  onClick={() => setViewerUrl(report.url)}
+                  onClick={() => handleView(report)}
                 >
                   <Eye className="mr-2 h-4 w-4" /> View
                 </Button>
                 <Button 
                   variant="outline" 
                   className="flex-1 rounded-xl"
-                  onClick={() => window.open(report.url, "_blank")}
+                  onClick={() => handleDownload(report)}
                 >
                   <Download className="mr-2 h-4 w-4" /> Download
                 </Button>
@@ -146,7 +220,7 @@ export default function ReportsPage() {
                   <FileText className="mr-2 h-5 w-5 text-rose-500" />
                   Document Viewer
                 </h3>
-                <Button variant="ghost" size="icon" onClick={() => setViewerUrl(null)} className="h-8 w-8 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">
+                <Button variant="ghost" size="icon" onClick={closeViewer} className="h-8 w-8 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">
                   <X className="h-5 w-5" />
                 </Button>
               </div>

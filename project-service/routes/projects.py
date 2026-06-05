@@ -341,8 +341,7 @@ async def add_member(project_id: UUID, payload: AddMemberRequest, request: Reque
                     target_email = data.get("email", target_id_str)
                     target_manager_id = data.get("manager_id")
                 else:
-                    target_email = target_id_str
-                    target_manager_id = None
+                    raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found. Make sure the user exists and has accepted their invite.")
             
             # Check if user belongs to the same manager as the project
             if target_manager_id and str(target_manager_id) != str(project.manager_id):

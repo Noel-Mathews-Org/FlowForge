@@ -28,7 +28,7 @@ from services import email_service, jwt_service
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 ADMIN_ROLES = {"platform_admin", "org_owner"}
-INVITE_ALLOWED = {"platform_admin", "org_owner", "manager"}
+INVITE_ALLOWED = {"platform_admin", "org_owner"}
 
 
 def _to_profile(u: User) -> UserProfile:
@@ -91,13 +91,33 @@ async def invite_user(
     if not x_user_role or x_user_role not in INVITE_ALLOWED:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Insufficient permissions")
 
-    # Managers can only invite members
-    if x_user_role == "manager" and payload.role != "member":
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Managers can only invite members")
 
     # member invites require a manager_id
     if payload.role == "member" and not payload.manager_id:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "manager_id required when inviting a member")
+
+    # ── Validate: user must NOT already exist ─────────────────────────────
+    existing_user = await db.execute(
+        select(User).where(User.email == str(payload.email).lower())
+    )
+    if existing_user.scalar_one_or_none():
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"A user with email '{payload.email}' already exists. Cannot send duplicate invite.",
+        )
+
+    # ── Validate: no pending invitation for this email ──────────────────
+    existing_invite = await db.execute(
+        select(Invitation).where(
+            Invitation.email == str(payload.email),
+            Invitation.status == "PENDING",
+        )
+    )
+    if existing_invite.scalar_one_or_none():
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"An active invitation for '{payload.email}' is already pending. Please wait for them to accept or cancel the existing invite.",
+        )
 
     # Validate target manager exists and is active
     manager_uuid: uuid.UUID | None = None
