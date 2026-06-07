@@ -210,11 +210,13 @@ async def invite_user(
 
     if settings.entra_enabled:
         from services.entra_service import invite_user_to_entra
-        success = await invite_user_to_entra(str(payload.email), payload.role)
+        success, error_detail = await invite_user_to_entra(str(payload.email), payload.role)
         if success:
             return {"success": True, "message": "B2B Invitation sent via Microsoft Entra ID", "invite_url": ""}
         else:
-            raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Failed to send Entra ID invitation")
+            # Map Azure permission errors to 403, everything else to 502 (bad gateway to upstream)
+            http_status = status.HTTP_403_FORBIDDEN if "permission" in (error_detail or "").lower() else status.HTTP_502_BAD_GATEWAY
+            raise HTTPException(http_status, error_detail or "Failed to send Entra ID invitation")
 
     token = secrets.token_urlsafe(32)
     expires_at = datetime.now(UTC) + timedelta(days=7)

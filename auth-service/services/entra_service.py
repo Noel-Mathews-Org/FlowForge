@@ -162,12 +162,15 @@ def get_group_id_for_role(role: str) -> str:
     return mapping.get(role, "")
 
 
-async def invite_user_to_entra(email: str, role: str) -> bool:
-    """Send a B2B guest invitation via Graph API and add to the appropriate group."""
+async def invite_user_to_entra(email: str, role: str) -> tuple[bool, str | None]:
+    """
+    Send a B2B guest invitation via Graph API and add to the appropriate group.
+    Returns (success: bool, error_detail: str | None).
+    """
     token = await _get_app_token()
     if not token:
         logger.warning("Cannot invite to Entra — no app token available")
-        return False
+        return False, "Entra ID is not configured correctly (missing client credentials)."
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.post(
@@ -189,8 +192,28 @@ async def invite_user_to_entra(email: str, role: str) -> bool:
                     group_id = get_group_id_for_role(role)
                     if group_id:
                         await add_user_to_group(user_oid, group_id)
-                return True
-            logger.error("Entra invite failed: %s", resp.text[:200])
+                return True, None
+
+            # Parse Microsoft Graph error for a user-friendly message
+            error_body = resp.text[:500]
+            logger.error("Entra invite failed (HTTP %s): %s", resp.status_code, error_body)
+
+            if resp.status_code in (401, 403) or "Insufficient privileges" in error_body:
+                return False, (
+                    "Azure App Registration lacks the 'User.Invite.All' permission. "
+                    "An admin must grant this permission and provide admin consent in the Azure Portal."
+                )
+            if resp.status_code == 400:
+                try:
+                    msg = resp.json().get("error", {}).get("message", error_body)
+                except Exception:
+                    msg = error_body
+                return False, f"Bad request from Microsoft Graph: {msg}"
+
+            return False, f"Microsoft Graph API returned HTTP {resp.status_code}."
+    except httpx.TimeoutException:
+        logger.error("Timeout inviting user to Entra")
+        return False, "Microsoft Graph API request timed out. Please try again."
     except Exception as exc:
         logger.error("Error inviting user to Entra: %s", exc)
-    return False
+        return False, f"Unexpected error: {exc}"
