@@ -15,6 +15,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showFallback, setShowFallback] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
     if (isEntraEnabled) {
@@ -23,11 +24,17 @@ export default function LoginPage() {
           if (token) {
             const user = getUser();
             if (user) window.location.href = routeForRole(user.role);
+            else setIsInitializing(false);
+          } else {
+            setIsInitializing(false);
           }
         })
         .catch((err) => {
           setError("Microsoft sign-in failed during redirect.");
+          setIsInitializing(false);
         });
+    } else {
+      setIsInitializing(false);
     }
   }, []);
 
@@ -137,7 +144,7 @@ export default function LoginPage() {
             <div className="mt-6">
               <Button
                 onClick={handleEntraLogin}
-                disabled={submitting}
+                disabled={submitting || isInitializing}
                 className="h-12 w-full rounded-xl bg-[#2f2f2f] text-white hover:bg-[#404040] dark:bg-[#f3f3f3] dark:text-[#1a1a1a] dark:hover:bg-[#e0e0e0] transition-all"
               >
                 <AnimatePresence mode="wait">

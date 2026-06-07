@@ -121,6 +121,8 @@ async def add_user_to_group(user_oid: str, group_id: str) -> bool:
                 },
                 json={"@odata.id": f"{GRAPH_API}/directoryObjects/{user_oid}"},
             )
+            if resp.status_code not in (200, 204):
+                logger.error("Error adding user to group (HTTP %s): %s", resp.status_code, resp.text)
             return resp.status_code in (200, 204)
     except Exception as exc:
         logger.error("Error adding user to group: %s", exc)
@@ -191,7 +193,9 @@ async def invite_user_to_entra(email: str, role: str) -> tuple[bool, str | None]
                 if user_oid:
                     group_id = get_group_id_for_role(role)
                     if group_id:
-                        await add_user_to_group(user_oid, group_id)
+                        success = await add_user_to_group(user_oid, group_id)
+                        if not success:
+                            return False, "User invited, but failed to assign to security group. Check App Permissions (GroupMember.ReadWrite.All)."
                 return True, None
 
             # Parse Microsoft Graph error for a user-friendly message

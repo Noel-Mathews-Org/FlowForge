@@ -27,7 +27,7 @@ except ImportError:
 
 # Conditionally import Azure
 try:
-    from azure.storage.blob import BlobServiceClient, generate_blob_sas, BlobSasPermissions
+    from azure.storage.blob import BlobServiceClient, generate_blob_sas, BlobSasPermissions, ContentSettings
     HAS_AZURE = True
 except ImportError:
     HAS_AZURE = False
@@ -379,7 +379,14 @@ async def generate_report(payload: GenerateReportRequest, request: Request):
                 container_client.create_container()
 
             blob_client = container_client.get_blob_client(file_id)
-            blob_client.upload_blob(pdf_bytes, overwrite=True)
+            blob_client.upload_blob(
+                pdf_bytes, 
+                overwrite=True, 
+                content_settings=ContentSettings(
+                    content_type='application/pdf', 
+                    content_disposition='inline'
+                )
+            )
 
             sas_token = generate_blob_sas(
                 account_name=blob_service_client.account_name,

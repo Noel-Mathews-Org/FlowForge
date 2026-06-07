@@ -168,7 +168,7 @@ async def _call_ai(prompt: str, db: AsyncSession, user_id: str, org_id: str, end
     model_name = "unknown"
     try:
         if AZURE_ENDPOINT and (AZURE_KEY or AZURE_USE_MANAGED_IDENTITY):
-            url = f"{AZURE_ENDPOINT}/openai/deployments/{AZURE_DEPLOYMENT}/chat/completions?api-version=2024-06-01"
+            url = f"{AZURE_ENDPOINT}/openai/deployments/{AZURE_DEPLOYMENT}/chat/completions?api-version=2024-02-01"
 
             if AZURE_USE_MANAGED_IDENTITY:
                 token = await _get_azure_token()
