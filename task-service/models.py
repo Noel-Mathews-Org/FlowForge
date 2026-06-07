@@ -37,11 +37,11 @@ class Task(Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(
-        pgEnum("TODO", "IN_PROGRESS", "DONE", "BLOCKED", name="task_status", create_type=False),
+        pgEnum("TODO", "IN_PROGRESS", "DONE", "BLOCKED", name="task_status"),
         nullable=False, default="TODO", server_default="TODO"
     )
     priority: Mapped[str] = mapped_column(
-        pgEnum("LOW", "MEDIUM", "HIGH", name="task_priority", create_type=False),
+        pgEnum("LOW", "MEDIUM", "HIGH", name="task_priority"),
         nullable=False, default="MEDIUM", server_default="MEDIUM"
     )
     assignee_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
@@ -75,7 +75,7 @@ class ApprovalRequest(Base):
     requested_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     requested_status: Mapped[str] = mapped_column(String(20), nullable=False)
     status: Mapped[str] = mapped_column(
-        pgEnum("PENDING", "APPROVED", "REJECTED", name="approval_status", create_type=False),
+        pgEnum("PENDING", "APPROVED", "REJECTED", name="approval_status"),
         nullable=False, default="PENDING"
     )
     reviewed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
