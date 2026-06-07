@@ -6,10 +6,10 @@ import type { AnalyticsOverview } from "@/types";
 
 export const OverviewCards = ({ overview }: { overview: AnalyticsOverview }) => {
   const cards = [
-    { label: "Total Tasks", value: overview.total_tasks, color: "indigo", trend: overview.events_today },
-    { label: "Active Projects", value: overview.total_projects, color: "emerald", trend: 8 },
-    { label: "Team Members", value: overview.total_users, color: "violet", trend: 5 },
-    { label: "Completion Rate", value: `${overview.completion_rate}%`, color: "amber", trend: 3, circle: true }
+    { label: "Total Tasks", value: overview.total_tasks, color: "indigo", trend: overview.events_today, trendLabel: "events today" },
+    { label: "Active Projects", value: overview.total_projects, color: "emerald", trend: null },
+    { label: "Team Members", value: overview.total_users, color: "violet", trend: null },
+    { label: "Completion Rate", value: `${overview.completion_rate}%`, color: "amber", trend: null, circle: true }
   ];
 
   const colors: Record<string, string> = {
@@ -58,12 +58,12 @@ export const OverviewCards = ({ overview }: { overview: AnalyticsOverview }) => 
                   <div className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
                 </div>
               </div>
-            ) : (
-              <div className={`flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-bold ${card.trend > 0 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400"}`}>
-                {card.trend > 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-                {Math.abs(card.trend)}%
+            ) : card.trend !== null && card.trend !== undefined ? (
+              <div className={`flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-bold ${card.trend > 0 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"}`}>
+                {card.trend > 0 && <ArrowUpRight className="h-3 w-3" />}
+                {card.trend} {(card as any).trendLabel ?? ""}
               </div>
-            )}
+            ) : null}
           </div>
           
           {/* Subtle background decoration */}

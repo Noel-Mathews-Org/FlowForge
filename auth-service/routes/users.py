@@ -119,6 +119,12 @@ async def revoke_user(
         content="Your account access has been revoked by an administrator.",
     ))
     await db.commit()
+    # Sync Entra ID group (best-effort)
+    if settings.entra_enabled and target.entra_oid:
+        from services.entra_service import remove_user_from_group, get_group_id_for_role
+        group_id = get_group_id_for_role(target.role)
+        if group_id:
+            background_tasks.add_task(remove_user_from_group, target.entra_oid, group_id)
     # Email notification
     background_tasks.add_task(send_user_revoked_email, target.email, target.full_name)
     return {"success": True, "message": "User revoked"}
@@ -143,6 +149,12 @@ async def activate_user(
         content="Your account has been reactivated. You can now sign in.",
     ))
     await db.commit()
+    # Sync Entra ID group (best-effort)
+    if settings.entra_enabled and target.entra_oid:
+        from services.entra_service import add_user_to_group, get_group_id_for_role
+        group_id = get_group_id_for_role(target.role)
+        if group_id:
+            background_tasks.add_task(add_user_to_group, target.entra_oid, group_id)
     login_url = f"{settings.frontend_url}/login"
     background_tasks.add_task(send_user_activated_email, target.email, target.full_name, login_url)
     return {"success": True, "message": "User activated"}
@@ -178,8 +190,17 @@ async def update_user_role(
                 "Cannot change role of a manager who still has active members. Transfer members first.",
             )
 
+    old_role = target.role
     target.role = new_role
     await db.commit()
+    # Sync Entra ID group (best-effort)
+    if settings.entra_enabled and target.entra_oid:
+        from services.entra_service import change_user_group, get_group_id_for_role
+        old_group = get_group_id_for_role(old_role)
+        new_group = get_group_id_for_role(new_role)
+        if old_group and new_group and old_group != new_group:
+            import asyncio
+            asyncio.create_task(change_user_group(target.entra_oid, old_group, new_group))
     return {"success": True, "message": "User role updated"}
 
 

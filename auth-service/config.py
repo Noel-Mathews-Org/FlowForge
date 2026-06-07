@@ -1,5 +1,12 @@
 import os
 
+# Load secrets from Azure Key Vault before reading env vars
+try:
+    from keyvault import apply_keyvault_secrets
+    apply_keyvault_secrets()
+except Exception:
+    pass  # Key Vault is optional
+
 
 def _parse_int(name: str, default: int) -> int:
     try:
@@ -38,6 +45,25 @@ class Settings:
         self.default_org_id: str = os.getenv(
             "DEFAULT_ORG_ID", "00000000-0000-0000-0000-000000000001"
         )
+
+        # ── Entra ID (Azure AD) — all optional, disabled if tenant_id not set ──
+        self.entra_tenant_id: str = os.getenv("ENTRA_TENANT_ID", "")
+        self.entra_client_id: str = os.getenv("ENTRA_CLIENT_ID", "")
+        self.entra_client_secret: str = os.getenv("ENTRA_CLIENT_SECRET", "")
+        self.entra_authority: str = (
+            f"https://login.microsoftonline.com/{self.entra_tenant_id}"
+            if self.entra_tenant_id else ""
+        )
+        self.entra_enabled: bool = bool(self.entra_tenant_id and self.entra_client_id)
+
+        # Security Group Object IDs for RBAC mapping
+        self.entra_group_platform_admin: str = os.getenv("ENTRA_GROUP_PLATFORM_ADMIN", "")
+        self.entra_group_org_owner: str = os.getenv("ENTRA_GROUP_ORG_OWNER", "")
+        self.entra_group_manager: str = os.getenv("ENTRA_GROUP_MANAGER", "")
+        self.entra_group_member: str = os.getenv("ENTRA_GROUP_MEMBER", "")
+
+        # Azure Key Vault (optional)
+        self.azure_keyvault_url: str = os.getenv("AZURE_KEYVAULT_URL", "")
 
 
 settings = Settings()

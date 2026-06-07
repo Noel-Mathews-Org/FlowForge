@@ -70,6 +70,84 @@ async def login(payload: LoginRequest, db: AsyncSession = Depends(get_db)):
 # Simple in-memory rate limiter: 10 invites per user per hour
 _invite_rl: dict[str, list[float]] = {}
 
+
+# ─── Entra ID Login ──────────────────────────────────────────────────────────
+
+class EntraLoginRequest(BaseModel):
+    access_token: str
+
+
+@router.post("/login/entra", response_model=LoginResponse)
+async def login_entra(payload: EntraLoginRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Accept an Entra ID access token from the frontend MSAL library.
+    Validate it, map group claims → FlowForge role, JIT-provision user if needed.
+    """
+    if not settings.entra_enabled:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Entra ID authentication is not configured")
+
+    from services.entra_service import validate_entra_token, get_user_groups, get_role_from_groups
+
+    # 1. Validate the token with Microsoft Graph
+    profile = await validate_entra_token(payload.access_token)
+    if not profile:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid Entra ID token")
+
+    entra_oid = profile.get("id", "")
+    email = (profile.get("mail") or profile.get("userPrincipalName") or "").lower()
+    full_name = profile.get("displayName", email.split("@")[0])
+
+    if not email:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Could not determine email from Entra ID token")
+
+    # 2. Get user's security group memberships
+    groups = await get_user_groups(payload.access_token)
+    role = get_role_from_groups(groups)
+    if not role:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "Your account is not assigned to any FlowForge security group. Contact your administrator.",
+        )
+
+    # 3. Find or create the local user (JIT provisioning)
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+
+    if user:
+        # Update entra_oid and role if changed
+        if not user.entra_oid:
+            user.entra_oid = entra_oid
+        if user.role != role:
+            user.role = role
+        if not user.is_active:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Account is deactivated")
+        await db.commit()
+    else:
+        # JIT provision new user
+        user = User(
+            org_id=uuid.UUID(settings.default_org_id),
+            email=email,
+            hashed_password=None,
+            full_name=full_name,
+            role=role,
+            entra_oid=entra_oid,
+            is_active=True,
+            must_reset_password=False,
+        )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+
+    # 4. Issue FlowForge JWT
+    token = jwt_service.sign_jwt(user)
+    return LoginResponse(
+        access_token=token,
+        role=user.role,
+        user_id=str(user.id),
+        full_name=user.full_name,
+        must_reset_password=False,
+    )
+
 # ─── Invite ──────────────────────────────────────────────────────────────────
 
 @router.post("/invite")

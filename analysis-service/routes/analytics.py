@@ -9,6 +9,7 @@ Analytics endpoints — role-scoped per FAD Section 6.
   GET /analytics/events              → platform_admin
   GET /analytics/audit-log           → platform_admin (alias)
 """
+from collections import deque
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
@@ -21,6 +22,9 @@ from rbac import require_role
 from schemas import AuditEventResponse, OverviewResponse, ProjectStatsRow, ThroughputPoint, UserActivityRow
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
+
+# Rolling buffer of real DB / Redis latency measurements (persists across requests)
+_latency_buffer: deque[dict] = deque(maxlen=20)
 
 
 def _require(role: str | None, allowed: set) -> None:
@@ -338,18 +342,34 @@ async def platform_health(request: Request, db: AsyncSession = Depends(get_db)):
     except Exception:
         pass
 
-    import random
-    from datetime import datetime, timedelta
-    
-    now = datetime.now()
-    latency_data = []
-    for i in range(20, -1, -1):
-        t = now - timedelta(minutes=i)
-        latency_data.append({
-            "time": t.strftime("%H:%M"),
-            "db_latency_ms": random.randint(5, 25) if db_ok else 0,
-            "redis_latency_ms": random.randint(1, 10) if redis_ok else 0,
-        })
+    import time as _time
+    from datetime import datetime as _dt
+
+    # ── Real latency measurement ──
+    db_ms = 0.0
+    if db_ok:
+        try:
+            _s = _time.perf_counter()
+            await db.execute(select(1))
+            db_ms = round((_time.perf_counter() - _s) * 1000, 2)
+        except Exception:
+            db_ms = 0.0
+
+    redis_ms = 0.0
+    if redis_ok:
+        try:
+            _s = _time.perf_counter()
+            await redis_client.ping()
+            redis_ms = round((_time.perf_counter() - _s) * 1000, 2)
+        except Exception:
+            redis_ms = 0.0
+
+    _latency_buffer.append({
+        "time": _dt.now().strftime("%H:%M:%S"),
+        "db_latency_ms": db_ms,
+        "redis_latency_ms": redis_ms,
+    })
+    latency_data = list(_latency_buffer)
         
     total_users = (await db.execute(
         select(func.count(distinct(AuditEvent.user_id)))

@@ -1,10 +1,10 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Shield } from "lucide-react";
 import { FormEvent, useState, ChangeEvent } from "react";
 import { authApi } from "@/lib/api";
-import { getUser, routeForRole, setToken, setRefreshToken } from "@/lib/auth";
+import { getUser, routeForRole, setToken, setRefreshToken, isEntraEnabled, loginWithEntra } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -14,6 +14,22 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showFallback, setShowFallback] = useState(false);
+
+  const handleEntraLogin = async () => {
+    setSubmitting(true);
+    setError(null);
+    try {
+      await loginWithEntra();
+      const user = getUser();
+      if (user) window.location.href = routeForRole(user.role);
+    } catch (err: any) {
+      const msg = err?.response?.data?.detail || err?.message || "Microsoft sign-in failed.";
+      setError(msg);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -80,8 +96,7 @@ export default function LoginPage() {
       </section>
 
       <section className="flex items-center justify-center bg-white px-4 py-12 sm:px-8 md:px-20 dark:bg-slate-950">
-        <motion.form
-          onSubmit={onSubmit}
+        <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ type: "spring", stiffness: 300, damping: 28 }}
@@ -104,38 +119,92 @@ export default function LoginPage() {
             )}
           </AnimatePresence>
 
-          <div className="mt-6 space-y-4">
-            <Input value={email} onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)} placeholder="Email" type="email" required className="w-full" />
-            <div className="relative">
-              <Input
-                value={password}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
-                placeholder="Password"
-                type={showPassword ? "text" : "password"}
-                required
-                className="w-full"
-              />
-              <button type="button" onClick={() => setShowPassword((v) => !v)} className="absolute right-3 top-3 text-slate-400">
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          {/* ─── Entra ID (Microsoft) Login ─── */}
+          {isEntraEnabled && (
+            <div className="mt-6">
+              <Button
+                onClick={handleEntraLogin}
+                disabled={submitting}
+                className="h-12 w-full rounded-xl bg-[#2f2f2f] text-white hover:bg-[#404040] dark:bg-[#f3f3f3] dark:text-[#1a1a1a] dark:hover:bg-[#e0e0e0] transition-all"
+              >
+                <AnimatePresence mode="wait">
+                  {submitting ? (
+                    <motion.div key="load" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent dark:border-slate-900 dark:border-t-transparent" />
+                  ) : (
+                    <motion.span key="txt" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-3">
+                      <svg className="h-5 w-5" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+                        <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+                        <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+                        <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+                      </svg>
+                      Sign in with Microsoft
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </Button>
+
+              {/* Toggle for fallback email/password login */}
+              <button
+                type="button"
+                onClick={() => setShowFallback(!showFallback)}
+                className="mt-4 w-full text-center text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+              >
+                {showFallback ? "Hide" : "Use"} email & password instead
               </button>
             </div>
-            <Button disabled={submitting} className="h-11 w-full">
-              <AnimatePresence mode="wait">
-                {submitting ? (
-                  <motion.div key="load" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                ) : (
-                  <motion.span key="txt" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                    Sign in
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </Button>
-          </div>
+          )}
+
+          {/* ─── Email/Password Fallback (or primary if Entra not enabled) ─── */}
+          {(!isEntraEnabled || showFallback) && (
+            <motion.form
+              onSubmit={onSubmit}
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              {isEntraEnabled && (
+                <div className="my-6 flex items-center gap-3">
+                  <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
+                  <span className="text-xs text-slate-400">or</span>
+                  <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
+                </div>
+              )}
+              <div className={`${isEntraEnabled ? "" : "mt-6"} space-y-4`}>
+                <Input value={email} onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)} placeholder="Email" type="email" required className="w-full" />
+                <div className="relative">
+                  <Input
+                    value={password}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
+                    placeholder="Password"
+                    type={showPassword ? "text" : "password"}
+                    required
+                    className="w-full"
+                  />
+                  <button type="button" onClick={() => setShowPassword((v) => !v)} className="absolute right-3 top-3 text-slate-400">
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <Button disabled={submitting} className="h-11 w-full">
+                  <AnimatePresence mode="wait">
+                    {submitting ? (
+                      <motion.div key="load" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    ) : (
+                      <motion.span key="txt" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                        Sign in
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </Button>
+              </div>
+            </motion.form>
+          )}
 
           <p className="mt-6 text-center text-xs text-slate-400 dark:text-slate-500">
             Don&apos;t have an account? Contact your administrator.
           </p>
-        </motion.form>
+        </motion.div>
       </section>
     </div>
   );

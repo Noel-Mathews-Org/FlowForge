@@ -2,6 +2,13 @@ import os
 from dataclasses import dataclass
 from typing import List
 
+# Load secrets from Azure Key Vault before reading env vars
+try:
+    from keyvault import apply_keyvault_secrets
+    apply_keyvault_secrets()
+except Exception:
+    pass  # Key Vault is optional
+
 
 def _get_env(name: str, default: str | None = None, required: bool = False) -> str:
     value = os.getenv(name, default)

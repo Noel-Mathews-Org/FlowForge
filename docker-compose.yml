@@ -41,6 +41,7 @@ services:
     environment:
       - PUBLIC_IP=${PUBLIC_IP:-localhost}
       - JWT_SECRET=${JWT_SECRET:-super-secret-jwt-key-for-flowforge-12345}
+      - AZURE_KEYVAULT_URL=${AZURE_KEYVAULT_URL:-}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 15s
@@ -61,6 +62,14 @@ services:
     environment:
       - JWT_SECRET=${JWT_SECRET:-super-secret-jwt-key-for-flowforge-12345}
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-flowforge-internal-secret-key-change-in-prod}
+      - AZURE_KEYVAULT_URL=${AZURE_KEYVAULT_URL:-}
+      - ENTRA_TENANT_ID=${ENTRA_TENANT_ID:-}
+      - ENTRA_CLIENT_ID=${ENTRA_CLIENT_ID:-}
+      - ENTRA_CLIENT_SECRET=${ENTRA_CLIENT_SECRET:-}
+      - ENTRA_GROUP_PLATFORM_ADMIN=${ENTRA_GROUP_PLATFORM_ADMIN:-}
+      - ENTRA_GROUP_ORG_OWNER=${ENTRA_GROUP_ORG_OWNER:-}
+      - ENTRA_GROUP_MANAGER=${ENTRA_GROUP_MANAGER:-}
+      - ENTRA_GROUP_MEMBER=${ENTRA_GROUP_MEMBER:-}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
       interval: 15s
@@ -123,11 +132,17 @@ services:
       - ./analysis-service/.env
     environment:
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-flowforge-internal-secret-key-change-in-prod}
+      - AZURE_KEYVAULT_URL=${AZURE_KEYVAULT_URL:-}
       - AZURE_FOUNDRY_ENDPOINT=${AZURE_FOUNDRY_ENDPOINT:-}
       - AZURE_FOUNDRY_KEY=${AZURE_FOUNDRY_KEY:-}
-      - AZURE_FOUNDRY_DEPLOYMENT=${AZURE_FOUNDRY_DEPLOYMENT:-gpt-35-turbo}
+      - AZURE_FOUNDRY_DEPLOYMENT=${AZURE_FOUNDRY_DEPLOYMENT:-summary-agent}
+      - AZURE_FOUNDRY_USE_MANAGED_IDENTITY=${AZURE_FOUNDRY_USE_MANAGED_IDENTITY:-false}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-3.5-turbo}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4.1-mini}
+      - AZURE_STORAGE_CONNECTION_STRING=${AZURE_STORAGE_CONNECTION_STRING:-}
+      - AZURE_STORAGE_ACCOUNT_NAME=${AZURE_STORAGE_ACCOUNT_NAME:-}
+      - AZURE_STORAGE_USE_MANAGED_IDENTITY=${AZURE_STORAGE_USE_MANAGED_IDENTITY:-false}
+      - AZURE_STORAGE_CONTAINER=${AZURE_STORAGE_CONTAINER:-flowforge-reports}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8004/health')"]
       interval: 15s
@@ -148,6 +163,9 @@ services:
       context: ./frontend
       args:
         - BASE_PUBLIC_URL=${PUBLIC_IP:-localhost}
+        - NEXT_PUBLIC_ENTRA_CLIENT_ID=${NEXT_PUBLIC_ENTRA_CLIENT_ID:-}
+        - NEXT_PUBLIC_ENTRA_TENANT_ID=${NEXT_PUBLIC_ENTRA_TENANT_ID:-}
+        - NEXT_PUBLIC_ENTRA_REDIRECT_URI=${NEXT_PUBLIC_ENTRA_REDIRECT_URI:-http://localhost:3000}
     ports:
       - "3000:3000"
     environment:
@@ -155,6 +173,32 @@ services:
     depends_on:
       - gateway
 
+  # ── Nginx SSL Termination (optional — enable for production) ──
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - certbot-data:/etc/letsencrypt:ro
+      - certbot-webroot:/var/www/certbot:ro
+    depends_on:
+      - frontend
+      - gateway
+    profiles:
+      - ssl
+
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - certbot-data:/etc/letsencrypt
+      - certbot-webroot:/var/www/certbot
+    profiles:
+      - ssl
+
 volumes:
   postgres_data:
   redis_data:
+  certbot-data:
+  certbot-webroot:

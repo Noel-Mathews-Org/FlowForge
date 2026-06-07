@@ -44,9 +44,6 @@ export default function ReportsPage() {
     try {
       const res = await analyticsApi.post("/reports/generate", {
         project_name: "FlowForge Organization",
-        executive_summary: "This is an AI-generated executive summary based on the latest metrics. The organization has shown significant progress in the last reporting period with a strong completion rate across all active projects.\n\nTeam utilization remains high and project delivery timelines are being met consistently. Manager workload distribution appears balanced with adequate team allocation.",
-        chart_labels: ["TODO", "IN_PROGRESS", "DONE"],
-        chart_values: [12, 5, 20]
       });
       if (res.data.success) {
         toast.success("Report generated successfully!");

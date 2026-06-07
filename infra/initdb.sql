@@ -28,11 +28,12 @@ CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     org_id UUID NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
-    hashed_password VARCHAR(255) NOT NULL,
+    hashed_password VARCHAR(255),
     full_name VARCHAR(255) NOT NULL,
     role user_role NOT NULL,
     manager_id UUID REFERENCES users(id) ON DELETE SET NULL,
     notification_email VARCHAR(255),
+    entra_oid VARCHAR(255) UNIQUE,
     must_reset_password BOOLEAN NOT NULL DEFAULT FALSE,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
@@ -201,3 +202,20 @@ CREATE TABLE IF NOT EXISTS user_activity_stats (
     tasks_completed INTEGER NOT NULL DEFAULT 0,
     UNIQUE(user_id, date)
 );
+
+CREATE TABLE IF NOT EXISTS ai_usage_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id VARCHAR(64) NOT NULL DEFAULT '',
+    project_id VARCHAR(64),
+    user_id VARCHAR(64) NOT NULL,
+    endpoint VARCHAR(100) NOT NULL,
+    model VARCHAR(100) NOT NULL,
+    prompt_tokens INTEGER NOT NULL DEFAULT 0,
+    completion_tokens INTEGER NOT NULL DEFAULT 0,
+    total_tokens INTEGER NOT NULL DEFAULT 0,
+    cost_usd DOUBLE PRECISION NOT NULL DEFAULT 0.0,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_usage_logs_created_at ON ai_usage_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_ai_usage_logs_user_id ON ai_usage_logs(user_id);

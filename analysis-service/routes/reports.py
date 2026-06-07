@@ -32,15 +32,34 @@ try:
 except ImportError:
     HAS_AZURE = False
 
+try:
+    from azure.identity import DefaultAzureCredential
+    HAS_AZURE_IDENTITY = True
+except ImportError:
+    HAS_AZURE_IDENTITY = False
+
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/analytics/reports", tags=["reports"])
 
 AZURE_CONN_STR = os.getenv("AZURE_STORAGE_CONNECTION_STRING", "")
-CONTAINER_NAME = "flowforge-reports"
+AZURE_STORAGE_ACCOUNT = os.getenv("AZURE_STORAGE_ACCOUNT_NAME", "")
+AZURE_USE_MI = os.getenv("AZURE_STORAGE_USE_MANAGED_IDENTITY", "false").lower() == "true"
+CONTAINER_NAME = os.getenv("AZURE_STORAGE_CONTAINER", "flowforge-reports")
 LOCAL_REPORTS_DIR = "/tmp/flowforge_reports"
 AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://auth-service:8001")
 PROJECT_SERVICE_URL = os.getenv("PROJECT_SERVICE_URL", "http://project-service:8002")
 INTERNAL_TOKEN = os.getenv("INTERNAL_API_KEY", "")
+
+
+def _get_blob_service_client():
+    """Get a BlobServiceClient using Managed Identity or connection string."""
+    if AZURE_USE_MI and HAS_AZURE_IDENTITY and AZURE_STORAGE_ACCOUNT:
+        credential = DefaultAzureCredential()
+        account_url = f"https://{AZURE_STORAGE_ACCOUNT}.blob.core.windows.net"
+        return BlobServiceClient(account_url=account_url, credential=credential)
+    if AZURE_CONN_STR:
+        return BlobServiceClient.from_connection_string(AZURE_CONN_STR)
+    return None
 
 # Ensure local fallback directory exists
 os.makedirs(LOCAL_REPORTS_DIR, exist_ok=True)
@@ -48,9 +67,9 @@ os.makedirs(LOCAL_REPORTS_DIR, exist_ok=True)
 class GenerateReportRequest(BaseModel):
     project_id: str | None = None
     project_name: str | None = None
-    executive_summary: str
-    chart_labels: list[str] = []
-    chart_values: list[int] = []
+    executive_summary: str | None = None
+    chart_labels: list[str] | None = None
+    chart_values: list[int] | None = None
 
 
 def _build_bar_chart(labels, values, title, colors_list=None):
@@ -122,6 +141,23 @@ async def _fetch_org_data():
     return users, projects
 
 
+async def _fetch_task_status_counts():
+    """Fetch real task status counts from the task-service."""
+    TASK_SERVICE_URL = os.getenv("TASK_SERVICE_URL", "http://task-service:8003")
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(
+                f"{TASK_SERVICE_URL}/tasks/internal/status-counts",
+                headers={"X-Internal-Token": INTERNAL_TOKEN},
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                return data
+    except Exception as e:
+        logger.warning(f"Failed to fetch task status counts: {e}")
+    return {"TODO": 0, "IN_PROGRESS": 0, "DONE": 0}
+
+
 @router.post("/generate", dependencies=[require_role("org_owner", "platform_admin")])
 async def generate_report(payload: GenerateReportRequest, request: Request):
     if not HAS_REPORTING:
@@ -130,6 +166,27 @@ async def generate_report(payload: GenerateReportRequest, request: Request):
     now = datetime.utcnow()
     display_name = f"AnalysisReport-({now.strftime('%Y-%m-%d %H:%M')})"
     file_id = f"AnalysisReport-{now.strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}.pdf"
+
+    # ── Fetch real chart data if not provided ──
+    chart_labels = payload.chart_labels
+    chart_values = payload.chart_values
+    if not chart_labels or not chart_values:
+        status_counts = await _fetch_task_status_counts()
+        chart_labels = list(status_counts.keys())
+        chart_values = list(status_counts.values())
+
+    # ── Generate executive summary if not provided ──
+    executive_summary = payload.executive_summary
+    if not executive_summary:
+        total = sum(chart_values)
+        done = status_counts.get("DONE", 0) if not payload.chart_values else 0
+        pct = round(done / total * 100) if total else 0
+        executive_summary = (
+            f"This report was auto-generated on {now.strftime('%Y-%m-%d')}. "
+            f"The organization has {total} total tasks across all projects. "
+            f"{pct}% of tasks are completed. "
+            f"Team activity remains consistent with ongoing project delivery."
+        )
 
     # Fetch org data for enriched report
     users, projects = await _fetch_org_data()
@@ -174,7 +231,7 @@ async def generate_report(payload: GenerateReportRequest, request: Request):
 
     # ── Executive Summary ─────────────────────────────────────────────────
     story.append(Paragraph("Executive Summary", heading_style))
-    for p in payload.executive_summary.split('\n'):
+    for p in executive_summary.split('\n'):
         if p.strip():
             story.append(Paragraph(p.strip(), body_style))
             story.append(Spacer(1, 6))
@@ -208,15 +265,15 @@ async def generate_report(payload: GenerateReportRequest, request: Request):
     story.append(overview_table)
     story.append(Spacer(1, 20))
 
-    # ── Task Status Distribution (from payload or computed) ───────────────
-    if payload.chart_labels and payload.chart_values:
+    # ── Task Status Distribution (real data) ──────────────────────────────
+    if chart_labels and chart_values:
         story.append(Paragraph("Task Status Distribution", heading_style))
-        pie_buf = _build_pie_chart(payload.chart_labels, payload.chart_values, "Task Status Breakdown")
+        pie_buf = _build_pie_chart(chart_labels, chart_values, "Task Status Breakdown")
         if pie_buf:
             story.append(Image(pie_buf, width=320, height=220))
         story.append(Spacer(1, 8))
 
-        bar_buf = _build_bar_chart(payload.chart_labels, payload.chart_values, "Task Counts by Status")
+        bar_buf = _build_bar_chart(chart_labels, chart_values, "Task Counts by Status")
         if bar_buf:
             story.append(Image(bar_buf, width=380, height=220))
         story.append(Spacer(1, 20))
@@ -314,9 +371,9 @@ async def generate_report(payload: GenerateReportRequest, request: Request):
     pdf_bytes = pdf_buffer.getvalue()
 
     # 3. Upload to Azure or save locally
-    if HAS_AZURE and AZURE_CONN_STR:
+    blob_service_client = _get_blob_service_client() if HAS_AZURE else None
+    if blob_service_client:
         try:
-            blob_service_client = BlobServiceClient.from_connection_string(AZURE_CONN_STR)
             container_client = blob_service_client.get_container_client(CONTAINER_NAME)
             if not container_client.exists():
                 container_client.create_container()
@@ -349,9 +406,9 @@ async def generate_report(payload: GenerateReportRequest, request: Request):
 async def list_reports():
     reports = []
 
-    if HAS_AZURE and AZURE_CONN_STR:
+    blob_service_client = _get_blob_service_client() if HAS_AZURE else None
+    if blob_service_client:
         try:
-            blob_service_client = BlobServiceClient.from_connection_string(AZURE_CONN_STR)
             container_client = blob_service_client.get_container_client(CONTAINER_NAME)
             if container_client.exists():
                 for blob in container_client.list_blobs():
@@ -365,7 +422,6 @@ async def list_reports():
                             expiry=datetime.utcnow() + __import__('datetime').timedelta(hours=24)
                         )
                         url = f"https://{blob_service_client.account_name}.blob.core.windows.net/{CONTAINER_NAME}/{blob.name}?{sas_token}"
-                        # Derive display name from filename
                         display = blob.name.replace(".pdf", "").replace("_", " ")
                         reports.append({
                             "id": blob.name,
@@ -377,7 +433,6 @@ async def list_reports():
             return {"reports": sorted(reports, key=lambda x: x["created_at"], reverse=True)}
         except Exception as e:
             logger.error(f"Azure list blobs failed: {e}")
-            pass
 
     # Local fallback
     for fname in os.listdir(LOCAL_REPORTS_DIR):
