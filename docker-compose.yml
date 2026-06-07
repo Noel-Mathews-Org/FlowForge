@@ -29,10 +29,6 @@ services:
       - REDIS_URL=${REDIS_URL:-}
       - ENTRA_TENANT_ID=${ENTRA_TENANT_ID:-}
       - ENTRA_CLIENT_ID=${ENTRA_CLIENT_ID:-}
-      - ENTRA_GROUP_PLATFORM_ADMIN=${ENTRA_GROUP_PLATFORM_ADMIN:-}
-      - ENTRA_GROUP_ORG_OWNER=${ENTRA_GROUP_ORG_OWNER:-}
-      - ENTRA_GROUP_MANAGER=${ENTRA_GROUP_MANAGER:-}
-      - ENTRA_GROUP_MEMBER=${ENTRA_GROUP_MEMBER:-}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
       interval: 15s
