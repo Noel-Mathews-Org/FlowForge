@@ -181,7 +181,7 @@ async def invite_user_to_entra(email: str, role: str) -> tuple[bool, str | None]
                 },
                 json={
                     "invitedUserEmailAddress": email,
-                    "inviteRedirectUrl": settings.frontend_url,
+                    "inviteRedirectUrl": f"{settings.frontend_url}/login",
                     "sendInvitationMessage": True,
                 },
             )
