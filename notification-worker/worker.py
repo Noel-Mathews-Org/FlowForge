@@ -32,6 +32,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger("notification-worker")
 
+import os
+
+try:
+    from keyvault import apply_keyvault_secrets
+    apply_keyvault_secrets()
+except Exception:
+    pass
+
 # ─── Config ──────────────────────────────────────────────────────────────────
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379")
 CONSUMER_GROUP = os.getenv("STREAM_CONSUMER_GROUP", "notification-group")

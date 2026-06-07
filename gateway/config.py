@@ -52,7 +52,7 @@ def get_settings() -> Settings:
         auth_service_url=_get_env("AUTH_SERVICE_URL", "http://auth-service:8001"),
         project_service_url=_get_env("PROJECT_SERVICE_URL", "http://project-service:8002"),
         task_service_url=_get_env("TASK_SERVICE_URL", "http://task-service:8003"),
-        analytics_service_url=_get_env("ANALYTICS_SERVICE_URL", "http://analytics-service:8004"),
+        analytics_service_url=_get_env("ANALYTICS_SERVICE_URL", "http://analysis-service:8004"),
         rate_limit_requests=int(_get_env("RATE_LIMIT_REQUESTS", "100")),
         rate_limit_window_seconds=int(_get_env("RATE_LIMIT_WINDOW_SECONDS", "60")),
         gateway_port=int(_get_env("GATEWAY_PORT", "8000")),

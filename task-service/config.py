@@ -1,5 +1,11 @@
 import os
 
+try:
+    from keyvault import apply_keyvault_secrets
+    apply_keyvault_secrets()
+except Exception:
+    pass  # Key Vault is optional
+
 
 class Settings:
     def __init__(self) -> None:

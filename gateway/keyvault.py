@@ -38,6 +38,10 @@ SECRET_MAP = {
     "database-url-analytics": "DATABASE_URL",
     "redis-url": "REDIS_URL",
     "azure-storage-connection-string": "AZURE_STORAGE_CONNECTION_STRING",
+    "entra-group-platform-admin": "ENTRA_GROUP_PLATFORM_ADMIN",
+    "entra-group-org-owner": "ENTRA_GROUP_ORG_OWNER",
+    "entra-group-manager": "ENTRA_GROUP_MANAGER",
+    "entra-group-member": "ENTRA_GROUP_MEMBER",
 }
 
 

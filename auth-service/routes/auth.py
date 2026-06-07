@@ -208,6 +208,14 @@ async def invite_user(
         if not mgr or not mgr.is_active or mgr.role != "manager":
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "Specified manager not found or inactive")
 
+    if settings.entra_enabled:
+        from services.entra_service import invite_user_to_entra
+        success = await invite_user_to_entra(str(payload.email), payload.role)
+        if success:
+            return {"success": True, "message": "B2B Invitation sent via Microsoft Entra ID", "invite_url": ""}
+        else:
+            raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Failed to send Entra ID invitation")
+
     token = secrets.token_urlsafe(32)
     expires_at = datetime.now(UTC) + timedelta(days=7)
     invite = Invitation(
