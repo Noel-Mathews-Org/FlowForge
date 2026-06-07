@@ -50,6 +50,7 @@ services:
       auth-service:
         condition: service_started
     environment:
+      - AZURE_KEYVAULT_URL=${AZURE_KEYVAULT_URL:-}
       - DATABASE_URL=${DATABASE_URL:-}
       - REDIS_URL=${REDIS_URL:-}
       - SMTP_HOST=${SMTP_HOST:-}
@@ -73,6 +74,7 @@ services:
       project-service:
         condition: service_started
     environment:
+      - AZURE_KEYVAULT_URL=${AZURE_KEYVAULT_URL:-}
       - DATABASE_URL=${DATABASE_URL:-}
       - REDIS_URL=${REDIS_URL:-}
       - SMTP_HOST=${SMTP_HOST:-}
@@ -107,6 +109,7 @@ services:
     build: ./notification-worker
     depends_on: []
     environment:
+      - AZURE_KEYVAULT_URL=${AZURE_KEYVAULT_URL:-}
       - REDIS_URL=${REDIS_URL:-}
       - SMTP_HOST=${SMTP_HOST:-}
       - SMTP_PORT=${SMTP_PORT:-587}

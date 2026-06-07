@@ -126,6 +126,7 @@ export const loginWithEntra = async (): Promise<void> => {
 
   await msal.loginRedirect({
     scopes: ["User.Read", "GroupMember.Read.All"],
+    prompt: "select_account",
   });
 };
 
