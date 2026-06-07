@@ -2,9 +2,9 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { Eye, EyeOff, Shield } from "lucide-react";
-import { FormEvent, useState, ChangeEvent } from "react";
+import { FormEvent, useState, ChangeEvent, useEffect } from "react";
 import { authApi } from "@/lib/api";
-import { getUser, routeForRole, setToken, setRefreshToken, isEntraEnabled, loginWithEntra } from "@/lib/auth";
+import { getUser, routeForRole, setToken, setRefreshToken, isEntraEnabled, loginWithEntra, handleEntraRedirect } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -15,6 +15,21 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showFallback, setShowFallback] = useState(false);
+
+  useEffect(() => {
+    if (isEntraEnabled) {
+      handleEntraRedirect()
+        .then((token) => {
+          if (token) {
+            const user = getUser();
+            if (user) window.location.href = routeForRole(user.role);
+          }
+        })
+        .catch((err) => {
+          setError("Microsoft sign-in failed during redirect.");
+        });
+    }
+  }, []);
 
   const handleEntraLogin = async () => {
     setSubmitting(true);

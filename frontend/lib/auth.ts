@@ -117,31 +117,49 @@ async function getMsalInstance() {
 }
 
 /**
- * Sign in with Microsoft Entra ID via popup.
- * Returns the FlowForge JWT access_token on success.
+ * Sign in with Microsoft Entra ID via redirect.
+ * This completely avoids Cross-Origin-Opener-Policy popup issues.
  */
-export const loginWithEntra = async (): Promise<string> => {
+export const loginWithEntra = async (): Promise<void> => {
   const msal = await getMsalInstance();
   if (!msal) throw new Error("Entra ID is not configured");
 
-  const loginResponse = await msal.loginPopup({
+  await msal.loginRedirect({
     scopes: ["User.Read", "GroupMember.Read.All"],
   });
+};
 
-  const entraToken = loginResponse.accessToken;
+/**
+ * Handle the redirect back from Microsoft Entra ID.
+ * Returns the FlowForge JWT access_token on success, or null if no redirect occurred.
+ */
+export const handleEntraRedirect = async (): Promise<string | null> => {
+  const msal = await getMsalInstance();
+  if (!msal) return null;
 
-  // Send Entra token to FlowForge backend for validation + JIT provisioning
-  const { data } = await authApi.post("/login/entra", {
-    access_token: entraToken,
-  });
-
-  setToken(data.access_token);
-
-  // Get refresh token (non-blocking)
   try {
-    const rt = await authApi.post("/token/issue");
-    setRefreshToken(rt.data.refresh_token);
-  } catch { /* ignore */ }
+    const response = await msal.handleRedirectPromise();
+    if (response) {
+      const entraToken = response.accessToken;
 
-  return data.access_token;
+      // Send Entra token to FlowForge backend for validation + JIT provisioning
+      const { data } = await authApi.post("/login/entra", {
+        access_token: entraToken,
+      });
+
+      setToken(data.access_token);
+
+      // Get refresh token (non-blocking)
+      try {
+        const rt = await authApi.post("/token/issue");
+        setRefreshToken(rt.data.refresh_token);
+      } catch { /* ignore */ }
+
+      return data.access_token;
+    }
+  } catch (error) {
+    console.error("Entra redirect error:", error);
+  }
+  
+  return null;
 };
