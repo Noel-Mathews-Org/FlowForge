@@ -25,6 +25,7 @@ settings = get_settings()
 # ─── Public routes that skip JWT validation ───────────────────────────────────
 PUBLIC_ROUTES = {
     ("POST", "/api/auth/login"),
+    ("POST", "/api/auth/login/entra"),
     ("GET",  "/api/auth/invite/verify"),
     ("POST", "/api/auth/invite/accept"),
     ("POST", "/api/auth/refresh"),

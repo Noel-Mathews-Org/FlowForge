@@ -36,12 +36,10 @@ export default function LoginPage() {
     setError(null);
     try {
       await loginWithEntra();
-      const user = getUser();
-      if (user) window.location.href = routeForRole(user.role);
+      // Page will navigate away to Microsoft login — nothing more to do here.
     } catch (err: any) {
       const msg = err?.response?.data?.detail || err?.message || "Microsoft sign-in failed.";
       setError(msg);
-    } finally {
       setSubmitting(false);
     }
   };
