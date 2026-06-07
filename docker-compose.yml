@@ -8,13 +8,9 @@ services:
     ports:
       - "8000:8000"
     depends_on: []
-    env_file:
-      - ./gateway/.env
     environment:
       - PUBLIC_IP=${PUBLIC_IP:-localhost}
-      - JWT_SECRET=${JWT_SECRET:-super-secret-jwt-key-for-flowforge-12345}
       - AZURE_KEYVAULT_URL=${AZURE_KEYVAULT_URL:-}
-      - DATABASE_URL=${DATABASE_URL:-}
       - REDIS_URL=${REDIS_URL:-}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
@@ -27,17 +23,12 @@ services:
     ports:
       - "8001:8001"
     depends_on: []
-    env_file:
-      - ./auth-service/.env
     environment:
-      - JWT_SECRET=${JWT_SECRET:-super-secret-jwt-key-for-flowforge-12345}
-      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-flowforge-internal-secret-key-change-in-prod}
       - AZURE_KEYVAULT_URL=${AZURE_KEYVAULT_URL:-}
       - DATABASE_URL=${DATABASE_URL:-}
       - REDIS_URL=${REDIS_URL:-}
       - ENTRA_TENANT_ID=${ENTRA_TENANT_ID:-}
       - ENTRA_CLIENT_ID=${ENTRA_CLIENT_ID:-}
-      - ENTRA_CLIENT_SECRET=${ENTRA_CLIENT_SECRET:-}
       - ENTRA_GROUP_PLATFORM_ADMIN=${ENTRA_GROUP_PLATFORM_ADMIN:-}
       - ENTRA_GROUP_ORG_OWNER=${ENTRA_GROUP_ORG_OWNER:-}
       - ENTRA_GROUP_MANAGER=${ENTRA_GROUP_MANAGER:-}
@@ -55,10 +46,7 @@ services:
     depends_on:
       auth-service:
         condition: service_started
-    env_file:
-      - ./project-service/.env
     environment:
-      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-flowforge-internal-secret-key-change-in-prod}
       - DATABASE_URL=${DATABASE_URL:-}
       - REDIS_URL=${REDIS_URL:-}
     healthcheck:
@@ -75,10 +63,7 @@ services:
     depends_on:
       project-service:
         condition: service_started
-    env_file:
-      - ./task-service/.env
     environment:
-      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-flowforge-internal-secret-key-change-in-prod}
       - DATABASE_URL=${DATABASE_URL:-}
       - REDIS_URL=${REDIS_URL:-}
     healthcheck:
@@ -92,23 +77,11 @@ services:
     ports:
       - "8004:8004"
     depends_on: []
-    env_file:
-      - ./analysis-service/.env
     environment:
-      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-flowforge-internal-secret-key-change-in-prod}
       - AZURE_KEYVAULT_URL=${AZURE_KEYVAULT_URL:-}
-      - AZURE_FOUNDRY_ENDPOINT=${AZURE_FOUNDRY_ENDPOINT:-}
-      - AZURE_FOUNDRY_KEY=${AZURE_FOUNDRY_KEY:-}
-      - AZURE_FOUNDRY_DEPLOYMENT=${AZURE_FOUNDRY_DEPLOYMENT:-summary-agent}
-      - AZURE_FOUNDRY_USE_MANAGED_IDENTITY=${AZURE_FOUNDRY_USE_MANAGED_IDENTITY:-false}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4.1-mini}
-      - AZURE_STORAGE_CONNECTION_STRING=${AZURE_STORAGE_CONNECTION_STRING:-}
-      - AZURE_STORAGE_ACCOUNT_NAME=${AZURE_STORAGE_ACCOUNT_NAME:-}
-      - AZURE_STORAGE_USE_MANAGED_IDENTITY=${AZURE_STORAGE_USE_MANAGED_IDENTITY:-false}
-      - AZURE_STORAGE_CONTAINER=${AZURE_STORAGE_CONTAINER:-flowforge-reports}
       - DATABASE_URL=${DATABASE_URL:-}
       - REDIS_URL=${REDIS_URL:-}
+      - AZURE_FOUNDRY_ENDPOINT=${AZURE_FOUNDRY_ENDPOINT:-}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8004/health')"]
       interval: 15s
@@ -118,10 +91,9 @@ services:
   notification-worker:
     build: ./notification-worker
     depends_on: []
-    env_file:
-      - ./notification-worker/.env
     environment:
       - REDIS_URL=${REDIS_URL:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
     restart: unless-stopped
 
   frontend:
