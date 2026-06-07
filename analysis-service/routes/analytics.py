@@ -375,6 +375,7 @@ async def platform_health(request: Request, db: AsyncSession = Depends(get_db)):
         select(func.count(distinct(AuditEvent.user_id)))
     )).scalar_one()
     
+    now = _dt.now()
     active_users = (await db.execute(
         select(func.count(distinct(AuditEvent.user_id)))
         .where(AuditEvent.occurred_at >= now - timedelta(days=7))

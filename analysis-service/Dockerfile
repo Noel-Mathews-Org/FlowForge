@@ -9,6 +9,8 @@ FROM python:3.11-slim AS runner
 WORKDIR /app
 COPY --from=builder /install /usr/local
 RUN addgroup --system stgroup && adduser --system --group stuser
+ENV MPLCONFIGDIR=/tmp/matplotlib
+RUN mkdir -p /tmp/matplotlib && chown -R stuser:stgroup /tmp/matplotlib
 COPY --chown=stuser:stgroup . .
 USER stuser
 EXPOSE 8004
