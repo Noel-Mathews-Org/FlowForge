@@ -11,7 +11,6 @@ services:
     environment:
       - PUBLIC_IP=${PUBLIC_IP:-localhost}
       - AZURE_KEYVAULT_URL=${AZURE_KEYVAULT_URL:-}
-      - REDIS_URL=${REDIS_URL:-}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 15s
@@ -25,8 +24,6 @@ services:
     depends_on: []
     environment:
       - AZURE_KEYVAULT_URL=${AZURE_KEYVAULT_URL:-}
-      - DATABASE_URL=${DATABASE_URL:-}
-      - REDIS_URL=${REDIS_URL:-}
       - ENTRA_TENANT_ID=${ENTRA_TENANT_ID:-}
       - ENTRA_CLIENT_ID=${ENTRA_CLIENT_ID:-}
       - FRONTEND_URL=https://${PUBLIC_IP:-localhost}
@@ -51,8 +48,6 @@ services:
         condition: service_started
     environment:
       - AZURE_KEYVAULT_URL=${AZURE_KEYVAULT_URL:-}
-      - DATABASE_URL=${DATABASE_URL:-}
-      - REDIS_URL=${REDIS_URL:-}
       - SMTP_HOST=${SMTP_HOST:-}
       - SMTP_PORT=${SMTP_PORT:-587}
       - SMTP_USERNAME=${SMTP_USERNAME:-}
@@ -75,8 +70,6 @@ services:
         condition: service_started
     environment:
       - AZURE_KEYVAULT_URL=${AZURE_KEYVAULT_URL:-}
-      - DATABASE_URL=${DATABASE_URL:-}
-      - REDIS_URL=${REDIS_URL:-}
       - SMTP_HOST=${SMTP_HOST:-}
       - SMTP_PORT=${SMTP_PORT:-587}
       - SMTP_USERNAME=${SMTP_USERNAME:-}
@@ -96,8 +89,6 @@ services:
     depends_on: []
     environment:
       - AZURE_KEYVAULT_URL=${AZURE_KEYVAULT_URL:-}
-      - DATABASE_URL=${DATABASE_URL:-}
-      - REDIS_URL=${REDIS_URL:-}
       - AZURE_FOUNDRY_ENDPOINT=${AZURE_FOUNDRY_ENDPOINT:-}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8004/health')"]
@@ -110,7 +101,6 @@ services:
     depends_on: []
     environment:
       - AZURE_KEYVAULT_URL=${AZURE_KEYVAULT_URL:-}
-      - REDIS_URL=${REDIS_URL:-}
       - SMTP_HOST=${SMTP_HOST:-}
       - SMTP_PORT=${SMTP_PORT:-587}
       - SMTP_USERNAME=${SMTP_USERNAME:-}
