@@ -16,6 +16,7 @@ try:
     from reportlab.lib.pagesizes import letter
     from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle, PageBreak
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.enums import TA_JUSTIFY
     from reportlab.lib import colors
     from reportlab.lib.units import inch
     import matplotlib
@@ -213,7 +214,7 @@ async def generate_report(payload: GenerateReportRequest, request: Request):
     subtitle_style = ParagraphStyle('Subtitle', parent=styles['Normal'], fontSize=10, textColor=colors.HexColor('#6b7280'), spaceAfter=16)
     heading_style = ParagraphStyle('SectionHeading', parent=styles['Heading2'], fontSize=14, textColor=colors.HexColor('#312e81'), spaceBefore=16, spaceAfter=8,
                                     borderColor=colors.HexColor('#6366f1'), borderWidth=0, borderPadding=0)
-    body_style = ParagraphStyle('BodyText', parent=styles['Normal'], fontSize=10, textColor=colors.HexColor('#374151'), leading=16)
+    body_style = ParagraphStyle('BodyText', parent=styles['Normal'], fontSize=10, textColor=colors.HexColor('#374151'), leading=16, alignment=TA_JUSTIFY)
     small_style = ParagraphStyle('SmallText', parent=styles['Normal'], fontSize=8, textColor=colors.HexColor('#9ca3af'))
 
     story = []
@@ -230,10 +231,20 @@ async def generate_report(payload: GenerateReportRequest, request: Request):
     story.append(Spacer(1, 30))
 
     # ── Executive Summary ─────────────────────────────────────────────────
+    import re
     story.append(Paragraph("Executive Summary", heading_style))
     for p in executive_summary.split('\n'):
-        if p.strip():
-            story.append(Paragraph(p.strip(), body_style))
+        clean_p = p.strip()
+        if clean_p:
+            # Convert markdown bold to ReportLab bold tags
+            clean_p = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', clean_p)
+            # Remove markdown bullets for cleaner look
+            if clean_p.startswith('- '):
+                clean_p = clean_p[2:]
+            elif clean_p.startswith('* '):
+                clean_p = clean_p[2:]
+                
+            story.append(Paragraph(clean_p, body_style))
             story.append(Spacer(1, 6))
     story.append(Spacer(1, 12))
 

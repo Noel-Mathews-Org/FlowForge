@@ -34,14 +34,20 @@ from models import AiUsageLog, DailyTaskStats
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ai", tags=["ai"])
 
-# ─── AI Config (all from env) ────────────────────────────────────────────────
-AZURE_ENDPOINT = os.getenv("AZURE_FOUNDRY_ENDPOINT", "")
-AZURE_KEY = os.getenv("AZURE_FOUNDRY_KEY", "")
-AZURE_DEPLOYMENT = os.getenv("AZURE_FOUNDRY_DEPLOYMENT", "summary-agent")
-AZURE_USE_MANAGED_IDENTITY = os.getenv("AZURE_FOUNDRY_USE_MANAGED_IDENTITY", "false").lower() == "true"
-OPENAI_KEY = os.getenv("OPENAI_API_KEY", "")
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
-AI_CONFIGURED = bool(AZURE_KEY or OPENAI_KEY or (AZURE_USE_MANAGED_IDENTITY and AZURE_ENDPOINT))
+# ─── AI Config (Dynamic to support Key Vault injection) ────────────────────────
+def get_ai_config():
+    return {
+        "azure_endpoint": os.getenv("AZURE_FOUNDRY_ENDPOINT", ""),
+        "azure_key": os.getenv("AZURE_FOUNDRY_KEY", ""),
+        "azure_deployment": os.getenv("AZURE_FOUNDRY_DEPLOYMENT", "summary-agent"),
+        "azure_use_mi": os.getenv("AZURE_FOUNDRY_USE_MANAGED_IDENTITY", "false").lower() == "true",
+        "openai_key": os.getenv("OPENAI_API_KEY", ""),
+        "openai_model": os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
+    }
+
+def is_ai_configured() -> bool:
+    c = get_ai_config()
+    return bool(c["azure_key"] or c["openai_key"] or (c["azure_use_mi"] and c["azure_endpoint"]))
 
 # ─── Guardrail Constants ─────────────────────────────────────────────────────
 AI_MAX_TOKENS = 150
@@ -165,18 +171,20 @@ async def _call_ai(prompt: str, db: AsyncSession, user_id: str, org_id: str, end
     ]
     payload = {"messages": messages, "max_tokens": AI_MAX_TOKENS, "temperature": AI_TEMPERATURE}
 
+    cfg = get_ai_config()
+
     model_name = "unknown"
     try:
-        if AZURE_ENDPOINT and (AZURE_KEY or AZURE_USE_MANAGED_IDENTITY):
-            url = f"{AZURE_ENDPOINT}/openai/deployments/{AZURE_DEPLOYMENT}/chat/completions?api-version=2024-02-01"
+        if cfg["azure_endpoint"] and (cfg["azure_key"] or cfg["azure_use_mi"]):
+            url = f"{cfg['azure_endpoint']}/openai/deployments/{cfg['azure_deployment']}/chat/completions?api-version=2024-02-01"
 
-            if AZURE_USE_MANAGED_IDENTITY:
+            if cfg["azure_use_mi"]:
                 token = await _get_azure_token()
                 headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
             else:
-                headers = {"api-key": AZURE_KEY, "Content-Type": "application/json"}
+                headers = {"api-key": cfg["azure_key"], "Content-Type": "application/json"}
 
-            model_name = f"azure/{AZURE_DEPLOYMENT}"
+            model_name = f"azure/{cfg['azure_deployment']}"
             async with httpx.AsyncClient(timeout=AI_TIMEOUT) as client:
                 resp = await client.post(url, json=payload, headers=headers)
                 resp.raise_for_status()
@@ -184,10 +192,10 @@ async def _call_ai(prompt: str, db: AsyncSession, user_id: str, org_id: str, end
                 await _log_usage(db, data, model_name, endpoint, user_id, org_id, project_id)
                 return data["choices"][0]["message"]["content"].strip()
 
-        if OPENAI_KEY:
-            headers = {"Authorization": f"Bearer {OPENAI_KEY}", "Content-Type": "application/json"}
-            payload["model"] = OPENAI_MODEL
-            model_name = OPENAI_MODEL
+        if cfg["openai_key"]:
+            headers = {"Authorization": f"Bearer {cfg['openai_key']}", "Content-Type": "application/json"}
+            payload["model"] = cfg["openai_model"]
+            model_name = cfg["openai_model"]
             async with httpx.AsyncClient(timeout=AI_TIMEOUT) as client:
                 resp = await client.post("https://api.openai.com/v1/chat/completions", json=payload, headers=headers)
                 resp.raise_for_status()
@@ -250,7 +258,7 @@ async def summarize_project(payload: ProjectSummaryRequest, request: Request, db
     blocked = 0  # blocked is not tracked in DailyTaskStats currently
     pending = max(created - completed - in_progress, 0)
 
-    if not AI_CONFIGURED:
+    if not is_ai_configured():
         return SummaryResponse(
             summary=_project_fallback("Project", created, completed, in_progress, blocked),
             generated_by="fallback",
@@ -267,7 +275,8 @@ async def summarize_project(payload: ProjectSummaryRequest, request: Request, db
     )
     try:
         text = await _call_ai(prompt, db, user_id, org_id, "summarize-project", payload.project_id)
-        model_name = f"azure/{AZURE_DEPLOYMENT}" if (AZURE_KEY or AZURE_USE_MANAGED_IDENTITY) else OPENAI_MODEL
+        cfg = get_ai_config()
+        model_name = f"azure/{cfg['azure_deployment']}" if (cfg['azure_key'] or cfg['azure_use_mi']) else cfg['openai_model']
         return SummaryResponse(summary=text, generated_by="ai", model=model_name)
     except Exception as exc:
         logger.warning("AI call failed, using fallback: %s", exc)
@@ -312,7 +321,7 @@ async def summarize_org(request: Request, db: AsyncSession = Depends(get_db)):
 
     project_count = len(proj_rows)
 
-    if not AI_CONFIGURED:
+    if not is_ai_configured():
         return SummaryResponse(
             summary=_org_fallback(total_created, total_completed, project_count),
             generated_by="fallback",
@@ -329,7 +338,8 @@ async def summarize_org(request: Request, db: AsyncSession = Depends(get_db)):
     )
     try:
         text = await _call_ai(prompt, db, user_id, org_id, "summarize-org")
-        model_name = f"azure/{AZURE_DEPLOYMENT}" if (AZURE_KEY or AZURE_USE_MANAGED_IDENTITY) else OPENAI_MODEL
+        cfg = get_ai_config()
+        model_name = f"azure/{cfg['azure_deployment']}" if (cfg['azure_key'] or cfg['azure_use_mi']) else cfg['openai_model']
         return SummaryResponse(summary=text, generated_by="ai", model=model_name)
     except Exception as exc:
         logger.warning("AI org call failed, using fallback: %s", exc)
@@ -386,5 +396,5 @@ async def ai_usage(request: Request, db: AsyncSession = Depends(get_db)):
         "estimated_cost_usd": round(float(total_cost), 4),
         "total_requests": int(total_requests),
         "entries": entries,
-        "ai_configured": AI_CONFIGURED,
+        "ai_configured": is_ai_configured(),
     }
