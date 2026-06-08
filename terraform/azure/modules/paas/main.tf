@@ -13,7 +13,7 @@ resource "azurerm_redis_enterprise_cluster" "redis" {
   name                = "redis-flowforge-${random_string.suffix.result}"
   location            = var.location
   resource_group_name = var.resource_group_name
-  sku_name            = "Balanced_B1"
+  sku_name            = "Enterprise_E10-2"
 }
 
 resource "azurerm_redis_enterprise_database" "redis_db" {
