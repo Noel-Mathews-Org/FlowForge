@@ -13,20 +13,20 @@ output "vpn_gateway_public_ip" {
   description = "Public IP of the Azure VPN Gateway (Give this to AWS CGW)"
 }
 
-output "front_door_url" {
-  value       = module.front_door.frontdoor_url
-  description = "The default Azure Front Door URL"
-}
+# output "front_door_url" {
+#   value       = module.front_door.frontdoor_url
+#   description = "The default Azure Front Door URL"
+# }
 
-output "dns_cname_record" {
-  value       = "Create a CNAME record in your DNS provider: ${var.domain_name} -> ${module.front_door.frontdoor_cname}"
-  description = "Instruction for DNS CNAME mapping"
-}
+# output "dns_cname_record" {
+#   value       = "Create a CNAME record in your DNS provider: ${var.domain_name} -> ${module.front_door.frontdoor_cname}"
+#   description = "Instruction for DNS CNAME mapping"
+# }
 
-output "dns_txt_validation_record" {
-  value       = "Create a TXT record for _dnsauth.${var.domain_name} with value: ${module.front_door.frontdoor_validation_token}"
-  description = "Instruction for Azure Front Door SSL domain validation"
-}
+# output "dns_txt_validation_record" {
+#   value       = "Create a TXT record for _dnsauth.${var.domain_name} with value: ${module.front_door.frontdoor_validation_token}"
+#   description = "Instruction for Azure Front Door SSL domain validation"
+# }
 
 output "redis_primary_connection_string" {
   value       = module.paas.redis_primary_connection_string

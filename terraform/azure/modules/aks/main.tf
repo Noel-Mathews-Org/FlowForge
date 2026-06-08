@@ -23,6 +23,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
 
   network_profile {
     network_plugin    = "azure"
+    network_policy    = "calico"
     outbound_type     = "userDefinedRouting" # Critical for no PIP
     load_balancer_sku = "standard"
   }
