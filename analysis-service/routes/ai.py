@@ -54,8 +54,8 @@ def is_ai_configured() -> bool:
 AI_MAX_TOKENS = 150
 AI_TEMPERATURE = 0.3
 AI_TIMEOUT = 8.0
-MAX_PROMPT_CHARS = 5000
-AI_RATE_LIMIT_PER_MINUTE = 50
+MAX_PROMPT_CHARS = 3000
+AI_RATE_LIMIT_PER_MINUTE = 10
 
 # gpt-4.1-mini pricing (input + output averaged)
 COST_PER_1K_INPUT_TOKENS = 0.0004

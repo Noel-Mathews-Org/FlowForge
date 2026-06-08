@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { FileText, Download, Plus, X, Loader2, BarChart3, Clock, Eye } from "lucide-react";
-import { analyticsApi } from "@/lib/api";
+import { analyticsApi, aiApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion, AnimatePresence } from "framer-motion";
@@ -42,8 +42,29 @@ export default function ReportsPage() {
   const handleGenerate = async () => {
     setGenerating(true);
     try {
+      let summaryText = null;
+      try {
+        const overviewRes = await analyticsApi.get("/org/overview");
+        const overview = overviewRes.data;
+        
+        const aiRes = await aiApi.post("/summarize-org", {
+          projects: overview.project_throughput?.map((p: any) => ({
+            name: p.project_id,
+            total: p.tasks_created,
+            completed: p.tasks_completed,
+            in_progress: 0,
+          })) ?? [],
+          total_tasks: overview.total_tasks ?? 0,
+          total_completed: overview.total_completed ?? 0,
+        });
+        summaryText = aiRes.data.summary;
+      } catch (err) {
+        console.warn("Failed to fetch AI summary, continuing with fallback.");
+      }
+
       const res = await analyticsApi.post("/reports/generate", {
         project_name: "FlowForge Organization",
+        executive_summary: summaryText,
       });
       if (res.data.success) {
         toast.success("Report generated successfully!");
