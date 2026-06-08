@@ -16,7 +16,7 @@ resource "azurerm_redis_cache" "redis" {
   capacity            = 1
   family              = "C"
   sku_name            = "Standard" # 1GB Non-Clustered plan
-  enable_non_ssl_port = false
+  non_ssl_port_enabled = false
   minimum_tls_version = "1.2"
   
   public_network_access_enabled = false
@@ -31,9 +31,12 @@ resource "azurerm_key_vault" "kv" {
   resource_group_name       = var.resource_group_name
   tenant_id                 = data.azurerm_client_config.current.tenant_id
   sku_name                  = "standard"
-  enable_rbac_authorization = true
+  rbac_authorization_enabled = true
   
-  public_network_access_enabled = false
+  network_acls {
+    default_action = "Deny"
+    bypass         = "AzureServices"
+  }
 }
 
 # ==========================================

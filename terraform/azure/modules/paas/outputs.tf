@@ -11,6 +11,10 @@ output "storage_account_name" {
   value = azurerm_storage_account.sa.name
 }
 
-output "blob_container_name" {
-  value = azurerm_storage_container.blob.name
+output "tfstate_container_name" {
+  value = azurerm_storage_container.tfstate.name
+}
+
+output "reports_container_name" {
+  value = azurerm_storage_container.reports.name
 }
