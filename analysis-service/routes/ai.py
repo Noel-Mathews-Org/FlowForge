@@ -21,6 +21,7 @@ import uuid as _uuid
 from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Optional
+from urllib.parse import urlparse
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -176,7 +177,11 @@ async def _call_ai(prompt: str, db: AsyncSession, user_id: str, org_id: str, end
     model_name = "unknown"
     try:
         if cfg["azure_endpoint"] and (cfg["azure_key"] or cfg["azure_use_mi"]):
-            url = f"{cfg['azure_endpoint']}/openai/deployments/{cfg['azure_deployment']}/chat/completions?api-version=2024-02-01"
+            # Sanitize the endpoint URL to remove any trailing paths the user might have accidentally included
+            parsed = urlparse(cfg["azure_endpoint"])
+            base_endpoint = f"{parsed.scheme}://{parsed.netloc}"
+            
+            url = f"{base_endpoint}/openai/deployments/{cfg['azure_deployment']}/chat/completions?api-version=2024-06-01"
 
             if cfg["azure_use_mi"]:
                 token = await _get_azure_token()
