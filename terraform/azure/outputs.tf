@@ -1,6 +1,6 @@
 output "appgw_public_ip" {
   value       = module.app_gateway.appgw_public_ip
-  description = "Public IP of the Application Gateway (Used by Front Door)"
+  description = "Public IP of the Application Gateway (Map your DNS A Record to this IP)"
 }
 
 output "firewall_public_ip" {

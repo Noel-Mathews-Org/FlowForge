@@ -19,7 +19,7 @@ variable "private_subnet_cidr" {
 variable "azure_vpngw_ip" {
   description = "Public IP of the Azure VPN Gateway"
   type        = string
-  default     = "1.2.3.4" # Placeholder
+  # NO DEFAULT - forces user to supply it
 }
 
 variable "azure_vnet_cidr" {

@@ -9,17 +9,20 @@ data "azurerm_client_config" "current" {}
 # ==========================================
 # 1. AZURE CACHE FOR REDIS
 # ==========================================
-resource "azurerm_redis_cache" "redis" {
+resource "azurerm_redis_enterprise_cluster" "redis" {
   name                = "redis-flowforge-${random_string.suffix.result}"
   location            = var.location
   resource_group_name = var.resource_group_name
-  capacity            = 1
-  family              = "C"
-  sku_name            = "Standard" # 1GB Non-Clustered plan
-  non_ssl_port_enabled = false
-  minimum_tls_version = "1.2"
-  
-  public_network_access_enabled = false
+  sku_name            = "Balanced_B1"
+}
+
+resource "azurerm_redis_enterprise_database" "redis_db" {
+  name              = "default"
+  cluster_id        = azurerm_redis_enterprise_cluster.redis.id
+  client_protocol   = "Encrypted"
+  clustering_policy = "EnterpriseCluster"
+  eviction_policy   = "NoEviction"
+  port              = 10000
 }
 
 # ==========================================
@@ -111,9 +114,9 @@ resource "azurerm_private_endpoint" "redis_pe" {
 
   private_service_connection {
     name                           = "redis-privatelink"
-    private_connection_resource_id = azurerm_redis_cache.redis.id
+    private_connection_resource_id = azurerm_redis_enterprise_cluster.redis.id
     is_manual_connection           = false
-    subresource_names              = ["redisCache"]
+    subresource_names              = ["redisEnterprise"]
   }
   private_dns_zone_group {
     name                 = "redis-dns-group"

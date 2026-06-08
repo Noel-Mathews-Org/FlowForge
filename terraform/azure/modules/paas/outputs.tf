@@ -1,5 +1,5 @@
 output "redis_primary_connection_string" {
-  value     = azurerm_redis_cache.redis.primary_connection_string
+  value     = "rediss://:${azurerm_redis_enterprise_database.redis_db.primary_access_key}@${azurerm_redis_enterprise_cluster.redis.hostname}:10000"
   sensitive = true
 }
 

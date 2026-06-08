@@ -53,6 +53,14 @@ resource "azurerm_firewall_network_rule_collection" "net_rules" {
   }
 
   rule {
+    name                  = "Allow-AWSDB-to-AKS"
+    source_addresses      = [var.aws_vpc_cidr]
+    destination_addresses = ["192.169.1.0/24"]
+    destination_ports     = ["1024-65535"]
+    protocols             = ["TCP"]
+  }
+
+  rule {
     name                  = "Allow-SMTP"
     source_addresses      = ["192.169.1.0/24"]
     destination_addresses = ["*"]

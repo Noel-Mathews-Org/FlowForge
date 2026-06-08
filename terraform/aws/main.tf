@@ -6,8 +6,8 @@ module "vpc" {
   region              = var.region
 }
 
-module "aurora" {
-  source               = "./modules/aurora"
+module "rds" {
+  source               = "./modules/rds"
   vpc_id               = module.vpc.vpc_id
   private_subnet_id    = module.vpc.private_subnet_id
   db_security_group_id = module.vpc.db_security_group_id

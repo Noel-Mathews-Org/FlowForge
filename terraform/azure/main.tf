@@ -66,6 +66,7 @@ module "vpn" {
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
   gateway_subnet_id   = module.network_hub.gateway_subnet_id
+  aws_cgw_ip          = var.aws_cgw_ip
 }
 
 module "paas" {

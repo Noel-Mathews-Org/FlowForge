@@ -3,12 +3,7 @@ output "aws_vpn_public_ip" {
   description = "Public IP of the AWS VPN Tunnel (Give this to Azure Local Network Gateway)"
 }
 
-output "aurora_cluster_endpoint" {
-  value       = module.aurora.aurora_cluster_endpoint
-  description = "The Primary connection endpoint for the Aurora PostgreSQL database"
-}
-
-output "aurora_reader_endpoint" {
-  value       = module.aurora.aurora_reader_endpoint
-  description = "The Read-Only endpoint for the Aurora PostgreSQL database"
+output "db_endpoint" {
+  value       = module.rds.db_endpoint
+  description = "The Primary connection endpoint for the PostgreSQL database"
 }

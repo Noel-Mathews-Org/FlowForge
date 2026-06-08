@@ -21,3 +21,9 @@ variable "domain_name" {
   type        = string
   default     = "flowforge.com"
 }
+
+variable "aws_cgw_ip" {
+  description = "The Public IP of the AWS VPN Gateway (obtained after running AWS terraform)"
+  type        = string
+  # NO DEFAULT - forces user to supply it
+}
