@@ -44,21 +44,7 @@ resource "azurerm_firewall_network_rule_collection" "net_rules" {
     protocols             = ["TCP"]
   }
 
-  rule {
-    name                  = "Allow-AKS-to-AWSDB"
-    source_addresses      = ["192.169.1.0/24"]
-    destination_addresses = [var.aws_vpc_cidr]
-    destination_ports     = ["5432"]
-    protocols             = ["TCP"]
-  }
 
-  rule {
-    name                  = "Allow-AWSDB-to-AKS"
-    source_addresses      = [var.aws_vpc_cidr]
-    destination_addresses = ["192.169.1.0/24"]
-    destination_ports     = ["1024-65535"]
-    protocols             = ["TCP"]
-  }
 
   rule {
     name                  = "Allow-SMTP"
@@ -159,12 +145,7 @@ resource "azurerm_route_table" "aks_rt" {
     next_hop_type          = "VirtualAppliance"
     next_hop_in_ip_address = azurerm_firewall.fw.ip_configuration[0].private_ip_address
   }
-  route {
-    name                   = "Force-AWS-DB-Through-FW"
-    address_prefix         = var.aws_vpc_cidr
-    next_hop_type          = "VirtualAppliance"
-    next_hop_in_ip_address = azurerm_firewall.fw.ip_configuration[0].private_ip_address
-  }
+
   route {
     name                   = "Force-AppGw-Return-Through-FW"
     address_prefix         = "192.168.1.0/24" # AppGW Subnet
@@ -173,18 +154,7 @@ resource "azurerm_route_table" "aks_rt" {
   }
 }
 
-resource "azurerm_route_table" "gateway_rt" {
-  name                = "rt-gateway"
-  location            = var.location
-  resource_group_name = var.resource_group_name
 
-  route {
-    name                   = "Force-AWS-Return-Through-FW"
-    address_prefix         = var.spoke_vnet_cidr
-    next_hop_type          = "VirtualAppliance"
-    next_hop_in_ip_address = azurerm_firewall.fw.ip_configuration[0].private_ip_address
-  }
-}
 
 # Subnet Associations
 
@@ -198,7 +168,4 @@ resource "azurerm_subnet_route_table_association" "aks_rt_assoc" {
   route_table_id = azurerm_route_table.aks_rt.id
 }
 
-resource "azurerm_subnet_route_table_association" "gateway_rt_assoc" {
-  subnet_id      = var.gateway_subnet_id
-  route_table_id = azurerm_route_table.gateway_rt.id
-}
+

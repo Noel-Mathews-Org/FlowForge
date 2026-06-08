@@ -9,20 +9,21 @@ data "azurerm_client_config" "current" {}
 # ==========================================
 # 1. AZURE CACHE FOR REDIS
 # ==========================================
-resource "azurerm_redis_enterprise_cluster" "redis" {
+resource "azurerm_redis_cache" "redis" {
   name                = "redis-flowforge-${random_string.suffix.result}"
   location            = var.location
   resource_group_name = var.resource_group_name
-  sku_name            = "Enterprise_E10-2"
-}
+  capacity            = 1
+  family              = "P"
+  sku_name            = "Premium"
 
-resource "azurerm_redis_enterprise_database" "redis_db" {
-  name              = "default"
-  cluster_id        = azurerm_redis_enterprise_cluster.redis.id
-  client_protocol   = "Encrypted"
-  clustering_policy = "EnterpriseCluster"
-  eviction_policy   = "NoEviction"
-  port              = 10000
+  minimum_tls_version = "1.2"
+
+  redis_configuration {
+    maxmemory_reserved = 2
+    maxmemory_delta    = 2
+    maxmemory_policy   = "allkeys-lru"
+  }
 }
 
 # ==========================================
@@ -52,18 +53,18 @@ resource "azurerm_storage_account" "sa" {
   account_tier             = "Standard"
   account_replication_type = "LRS"
   
-  public_network_access_enabled = false
+  public_network_access_enabled = true
 }
 
 resource "azurerm_storage_container" "tfstate" {
   name                  = "tfstate-files"
-  storage_account_name  = azurerm_storage_account.sa.name
+  storage_account_id    = azurerm_storage_account.sa.id
   container_access_type = "private"
 }
 
 resource "azurerm_storage_container" "reports" {
   name                  = "application-reports"
-  storage_account_name  = azurerm_storage_account.sa.name
+  storage_account_id    = azurerm_storage_account.sa.id
   container_access_type = "private"
 }
 
@@ -114,9 +115,9 @@ resource "azurerm_private_endpoint" "redis_pe" {
 
   private_service_connection {
     name                           = "redis-privatelink"
-    private_connection_resource_id = azurerm_redis_enterprise_cluster.redis.id
+    private_connection_resource_id = azurerm_redis_cache.redis.id
     is_manual_connection           = false
-    subresource_names              = ["redisEnterprise"]
+    subresource_names              = ["redisCache"]
   }
   private_dns_zone_group {
     name                 = "redis-dns-group"

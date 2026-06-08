@@ -16,14 +16,14 @@ resource "aws_db_subnet_group" "rds_subnet_group" {
 resource "aws_db_instance" "postgresql" {
   identifier             = "database-1"
   engine                 = "postgres"
-  engine_version         = "15.3"
+  engine_version         = "16"
   instance_class         = "db.t4g.micro" # Free Tier eligible
   allocated_storage      = 20             # Free Tier maximum
   storage_type           = "gp2"          # General Purpose SSD
   
   db_name                = "flowforge"
   username               = "noelmc"
-  password               = "Niamc@12345"
+  password               = "Niamc12345"
   
   db_subnet_group_name   = aws_db_subnet_group.rds_subnet_group.name
   vpc_security_group_ids = [var.db_security_group_id]

@@ -9,7 +9,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
 
   default_node_pool {
     name                = "default"
-    vm_size             = "Standard_B2ms"
+    vm_size             = "Standard_B2s_v2"
     vnet_subnet_id      = var.aks_subnet_id
     auto_scaling_enabled = true
     min_count           = 1

@@ -2,7 +2,7 @@ resource "azurerm_public_ip" "vpn_pip" {
   name                = "pip-vpngw"
   location            = var.location
   resource_group_name = var.resource_group_name
-  allocation_method   = "Dynamic" # Basic/VpnGw1 uses Dynamic, generation 2 uses Static.
+  allocation_method   = "Static"
 }
 
 resource "azurerm_virtual_network_gateway" "vng" {

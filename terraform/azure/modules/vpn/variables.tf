@@ -18,5 +18,5 @@ variable "aws_vpc_cidr" {
 }
 variable "shared_key" {
   type = string
-  default = "FlowForgeSuperSecretKey123!"
+  default = "FlowForgeSuperSecretKey123"
 }

@@ -22,6 +22,8 @@ resource "azurerm_application_gateway" "appgw" {
     subnet_id = var.appgw_subnet_id
   }
 
+  firewall_policy_id = azurerm_web_application_firewall_policy.waf.id
+
   frontend_port {
     name = "frontend-port"
     port = 80
@@ -69,10 +71,25 @@ resource "azurerm_application_gateway" "appgw" {
     priority                   = 100
   }
 
-  waf_configuration {
-    enabled          = true
-    firewall_mode    = "Prevention"
-    rule_set_type    = "OWASP"
-    rule_set_version = "3.2"
+}
+
+resource "azurerm_web_application_firewall_policy" "waf" {
+  name                = "waf-appgw-flowforge-prod"
+  location            = var.location
+  resource_group_name = var.resource_group_name
+
+  policy_settings {
+    enabled                     = true
+    mode                        = "Prevention"
+    request_body_check          = true
+    file_upload_limit_in_mb     = 100
+    max_request_body_size_in_kb = 128
+  }
+
+  managed_rules {
+    managed_rule_set {
+      type    = "OWASP"
+      version = "3.2"
+    }
   }
 }
