@@ -1,14 +1,14 @@
 # Terraform
-.terraform.lock.hcl
 .terraform/
 **/.terraform/
 *.tfstate
 *.tfstate.*
-.terraformrc
+.terraform.lock.hcl
 terraform.tfvars
 terraform.tfvars.json
 
-# Specific paths (these are covered by **/.terraform/ above)
-# terraform/aws/.terraform
-# terraform/azure/.terraform
-hi
+# Binary files
+*.exe
+*.dll
+*.so
+*.dylib
