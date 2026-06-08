@@ -29,14 +29,6 @@ resource "azurerm_firewall_network_rule_collection" "net_rules" {
   action              = "Allow"
 
   rule {
-    name                  = "Allow-AppGw-to-AKS"
-    source_addresses      = ["192.168.1.0/24"]
-    destination_addresses = ["192.169.1.0/24"] # Normally specific internal LB IP, using subnet for flexibility
-    destination_ports     = ["80", "443"]
-    protocols             = ["TCP"]
-  }
-
-  rule {
     name                  = "Allow-AKS-to-AWSDB"
     source_addresses      = ["192.169.1.0/24"]
     destination_addresses = [var.aws_vpc_cidr]
@@ -104,21 +96,19 @@ resource "azurerm_firewall_application_rule_collection" "app_rules" {
       type = "Http"
     }
   }
+
+  rule {
+    name             = "Allow-Helm-Docker"
+    source_addresses = ["192.169.1.0/24"]
+    target_fqdns     = ["*.helm.sh", "registry-1.docker.io", "quay.io", "github.com", "argoproj.github.io", "auth.docker.io"]
+    protocol {
+      port = "443"
+      type = "Https"
+    }
+  }
 }
 
 # Route Tables
-resource "azurerm_route_table" "appgw_rt" {
-  name                = "rt-appgw"
-  location            = var.location
-  resource_group_name = var.resource_group_name
-
-  route {
-    name                   = "Force-Inbound-Through-FW"
-    address_prefix         = var.spoke_vnet_cidr
-    next_hop_type          = "VirtualAppliance"
-    next_hop_in_ip_address = azurerm_firewall.fw.ip_configuration[0].private_ip_address
-  }
-}
 
 resource "azurerm_route_table" "aks_rt" {
   name                = "rt-aks"
@@ -153,10 +143,6 @@ resource "azurerm_route_table" "gateway_rt" {
 }
 
 # Subnet Associations
-resource "azurerm_subnet_route_table_association" "appgw_rt_assoc" {
-  subnet_id      = var.appgw_subnet_id
-  route_table_id = azurerm_route_table.appgw_rt.id
-}
 
 resource "azurerm_subnet_route_table_association" "aks_rt_assoc" {
   subnet_id      = var.aks_subnet_id

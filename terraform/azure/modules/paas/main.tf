@@ -49,8 +49,14 @@ resource "azurerm_storage_account" "sa" {
   public_network_access_enabled = false
 }
 
-resource "azurerm_storage_container" "blob" {
-  name                  = "app-data"
+resource "azurerm_storage_container" "tfstate" {
+  name                  = "tfstate-files"
+  storage_account_name  = azurerm_storage_account.sa.name
+  container_access_type = "private"
+}
+
+resource "azurerm_storage_container" "reports" {
+  name                  = "application-reports"
   storage_account_name  = azurerm_storage_account.sa.name
   container_access_type = "private"
 }

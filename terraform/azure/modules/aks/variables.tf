@@ -7,3 +7,6 @@ variable "location" {
 variable "aks_subnet_id" {
   type = string
 }
+variable "appgw_id" {
+  type = string
+}

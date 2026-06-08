@@ -44,6 +44,7 @@ module "aks" {
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
   aks_subnet_id       = module.network_spoke.aks_subnet_id
+  appgw_id            = module.app_gateway.appgw_id
 }
 
 module "app_gateway" {
@@ -53,12 +54,12 @@ module "app_gateway" {
   appgw_subnet_id     = module.network_hub.appgw_subnet_id
 }
 
-module "front_door" {
-  source                  = "./modules/front_door"
-  resource_group_name     = azurerm_resource_group.rg.name
-  domain_name             = var.domain_name
-  appgw_public_ip_address = module.app_gateway.appgw_public_ip
-}
+# module "front_door" {
+#   source                  = "./modules/front_door"
+#   resource_group_name     = azurerm_resource_group.rg.name
+#   domain_name             = var.domain_name
+#   appgw_public_ip_address = module.app_gateway.appgw_public_ip
+# }
 
 module "vpn" {
   source              = "./modules/vpn"
