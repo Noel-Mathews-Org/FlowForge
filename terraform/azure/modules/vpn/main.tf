@@ -1,9 +1,20 @@
 resource "azurerm_public_ip" "vpn_pip" {
-  name                = "pip-vpngw"
+  name                = "pip-vpngw-1"
   location            = var.location
   resource_group_name = var.resource_group_name
   allocation_method   = "Static"
+  sku                 = "Standard"
+  zones               = ["1", "2", "3"]
 }
+
+# resource "azurerm_public_ip" "vpn_pip_2" {
+#   name                = "pip-vpngw-2"
+#   location            = var.location
+#   resource_group_name = var.resource_group_name
+#   allocation_method   = "Static"
+#   sku                 = "Standard"
+#   zones               = ["1", "2", "3"]
+# }
 
 resource "azurerm_virtual_network_gateway" "vng" {
   name                = "vpngw-hub"
@@ -13,14 +24,21 @@ resource "azurerm_virtual_network_gateway" "vng" {
   vpn_type            = "RouteBased"
   active_active       = false
   bgp_enabled         = true
-  sku                 = "VpnGw1"
+  sku                 = "VpnGw1AZ"
 
   ip_configuration {
-    name                          = "vnetGatewayConfig"
+    name                          = "vnetGatewayConfig1"
     public_ip_address_id          = azurerm_public_ip.vpn_pip.id
     private_ip_address_allocation = "Dynamic"
     subnet_id                     = var.gateway_subnet_id
   }
+
+  # ip_configuration {
+  #   name                          = "vnetGatewayConfig2"
+  #   public_ip_address_id          = azurerm_public_ip.vpn_pip_2.id
+  #   private_ip_address_allocation = "Dynamic"
+  #   subnet_id                     = var.gateway_subnet_id
+  # }
 }
 
 resource "azurerm_local_network_gateway" "lng" {

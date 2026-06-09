@@ -9,20 +9,15 @@ data "azurerm_client_config" "current" {}
 # ==========================================
 # 1. AZURE CACHE FOR REDIS
 # ==========================================
-resource "azurerm_redis_cache" "redis" {
-  name                = "redis-flowforge-${random_string.suffix.result}"
-  location            = var.location
-  resource_group_name = var.resource_group_name
-  capacity            = 1
-  family              = "P"
-  sku_name            = "Premium"
+resource "azurerm_managed_redis" "redis" {
+  name                          = "redis-flowforge-${random_string.suffix.result}"
+  location                      = var.location
+  resource_group_name           = var.resource_group_name
+  sku_name                      = "Balanced_B1"
 
-  minimum_tls_version = "1.2"
-
-  redis_configuration {
-    maxmemory_reserved = 2
-    maxmemory_delta    = 2
-    maxmemory_policy   = "allkeys-lru"
+  default_database {
+    clustering_policy      = "EnterpriseCluster"
+    eviction_policy        = "AllKeysLRU"
   }
 }
 
@@ -72,7 +67,7 @@ resource "azurerm_storage_container" "reports" {
 # 4. PRIVATE DNS ZONES
 # ==========================================
 resource "azurerm_private_dns_zone" "redis_dns" {
-  name                = "privatelink.redis.cache.windows.net"
+  name                = "privatelink.redisenterprise.cache.azure.net"
   resource_group_name = var.resource_group_name
 }
 resource "azurerm_private_dns_zone" "kv_dns" {
@@ -115,9 +110,9 @@ resource "azurerm_private_endpoint" "redis_pe" {
 
   private_service_connection {
     name                           = "redis-privatelink"
-    private_connection_resource_id = azurerm_redis_cache.redis.id
+    private_connection_resource_id = azurerm_managed_redis.redis.id
     is_manual_connection           = false
-    subresource_names              = ["redisCache"]
+    subresource_names              = ["redisEnterprise"]
   }
   private_dns_zone_group {
     name                 = "redis-dns-group"

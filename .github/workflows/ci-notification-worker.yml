@@ -1,0 +1,24 @@
+name: Notification Worker CI
+
+on:
+  push:
+    branches:
+      - flowforgev2
+    paths:
+      - 'notification-worker/**'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  run-ci:
+    uses: ./.github/workflows/_ci-reusable.yml
+    with:
+      service_name: notification-worker
+      project_key: Flow_notification_worker
+    secrets:
+      MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+      MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+      DEVELOPMENT_TEAM_EMAIL: ${{ secrets.DEVELOPMENT_TEAM_EMAIL }}
+      GH_PAT: ${{ secrets.GH_PAT }}
