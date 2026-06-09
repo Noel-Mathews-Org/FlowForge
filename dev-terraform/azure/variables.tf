@@ -24,5 +24,5 @@ variable "shared_key" {
 variable "vnet_cidr" {
   type        = string
   description = "CIDR for the Dev VNet"
-  default     = "192.168.0.0/16"
+  default     = "192.169.0.0/16"
 }

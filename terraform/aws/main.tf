@@ -12,6 +12,7 @@ module "rds" {
   private_subnet_id    = module.vpc.private_subnet_id
   db_security_group_id = module.vpc.db_security_group_id
   region               = var.region
+  route_table_id       = module.vpc.route_table_id
 }
 
 module "vpn" {
@@ -20,4 +21,5 @@ module "vpn" {
   route_table_id  = module.vpc.route_table_id
   azure_vpngw_ip  = var.azure_vpngw_ip
   azure_vnet_cidr = var.azure_vnet_cidr
+  shared_key      = var.shared_key
 }

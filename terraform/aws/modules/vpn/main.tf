@@ -27,6 +27,21 @@ resource "aws_vpn_connection" "main" {
   tunnel1_preshared_key = var.shared_key
   tunnel2_preshared_key = var.shared_key
 
+  tunnel1_ike_versions                 = ["ikev2"]
+  tunnel1_phase1_encryption_algorithms = ["AES256"]
+  tunnel1_phase1_integrity_algorithms  = ["SHA2-256"]
+  tunnel1_phase1_dh_group_numbers      = [14]
+  tunnel1_phase2_encryption_algorithms = ["AES256"]
+  tunnel1_phase2_integrity_algorithms  = ["SHA2-256"]
+  tunnel1_phase2_dh_group_numbers      = [14]
+
+  tunnel2_ike_versions                 = ["ikev2"]
+  tunnel2_phase1_encryption_algorithms = ["AES256"]
+  tunnel2_phase1_integrity_algorithms  = ["SHA2-256"]
+  tunnel2_phase1_dh_group_numbers      = [14]
+  tunnel2_phase2_encryption_algorithms = ["AES256"]
+  tunnel2_phase2_integrity_algorithms  = ["SHA2-256"]
+  tunnel2_phase2_dh_group_numbers      = [14]
 }
 
 resource "aws_vpn_gateway_route_propagation" "private" {

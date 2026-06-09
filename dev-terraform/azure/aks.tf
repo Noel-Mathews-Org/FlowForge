@@ -95,3 +95,17 @@ resource "azurerm_role_assignment" "agic_appgw" {
   role_definition_name = "Contributor"
   principal_id         = azurerm_kubernetes_cluster.aks.ingress_application_gateway[0].ingress_application_gateway_identity[0].object_id
 }
+
+# Grant AGIC Managed Identity permission to join the App Gateway to the Virtual Network Subnet
+resource "azurerm_role_assignment" "agic_subnet" {
+  scope                = azurerm_subnet.appgw.id
+  role_definition_name = "Network Contributor"
+  principal_id         = azurerm_kubernetes_cluster.aks.ingress_application_gateway[0].ingress_application_gateway_identity[0].object_id
+}
+
+# Grant AGIC Managed Identity permission to read the Public IP Address in the Resource Group
+resource "azurerm_role_assignment" "agic_rg" {
+  scope                = azurerm_resource_group.rg.id
+  role_definition_name = "Reader"
+  principal_id         = azurerm_kubernetes_cluster.aks.ingress_application_gateway[0].ingress_application_gateway_identity[0].object_id
+}

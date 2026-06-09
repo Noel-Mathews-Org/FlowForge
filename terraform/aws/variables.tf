@@ -27,3 +27,8 @@ variable "azure_vnet_cidr" {
   type        = string
   default     = "192.169.0.0/16"
 }
+
+variable "shared_key" {
+  description = "Shared key for VPN connection"
+  type        = string
+}

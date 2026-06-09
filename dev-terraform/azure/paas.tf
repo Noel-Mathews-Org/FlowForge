@@ -29,6 +29,7 @@ resource "azurerm_managed_redis" "redis" {
   default_database {
     clustering_policy = "EnterpriseCluster"
     eviction_policy   = "AllKeysLRU"
+    access_keys_authentication_enabled = true
   }
 }
 

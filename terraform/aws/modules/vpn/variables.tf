@@ -12,5 +12,4 @@ variable "azure_vnet_cidr" {
 }
 variable "shared_key" {
   type = string
-  default = "FlowForgeSuperSecretKey123"
 }

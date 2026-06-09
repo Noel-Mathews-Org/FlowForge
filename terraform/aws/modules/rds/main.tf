@@ -13,6 +13,11 @@ resource "aws_db_subnet_group" "rds_subnet_group" {
   subnet_ids = [var.private_subnet_id, aws_subnet.dummy_private.id]
 }
 
+resource "aws_route_table_association" "dummy_private_assoc" {
+  subnet_id      = aws_subnet.dummy_private.id
+  route_table_id = var.route_table_id
+}
+
 resource "aws_db_instance" "postgresql" {
   identifier             = "database-1"
   engine                 = "postgres"
