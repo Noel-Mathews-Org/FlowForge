@@ -6,6 +6,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --prefix=/install -r requirements.txt
 
 
+    
 FROM python:3.11-slim AS runner
 WORKDIR /app
 COPY --from=builder /install /usr/local
