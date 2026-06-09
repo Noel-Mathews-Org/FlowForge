@@ -23,6 +23,12 @@ variable "gateway_subnet_cidr" {
   type = list(string)
   default = ["192.168.3.0/24"] 
 }
+
+variable "management_subnet_cidr" {
+  type = list(string)
+  default = ["192.168.5.0/24"]
+}
+
 variable "bastion_subnet_cidr" {
   type = list(string)
   default = ["192.168.4.0/24"] 

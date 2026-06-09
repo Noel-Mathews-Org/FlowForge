@@ -16,8 +16,9 @@ resource "azurerm_managed_redis" "redis" {
   sku_name                      = "Balanced_B1"
 
   default_database {
-    clustering_policy      = "EnterpriseCluster"
-    eviction_policy        = "AllKeysLRU"
+    clustering_policy                  = "EnterpriseCluster"
+    eviction_policy                    = "AllKeysLRU"
+    access_keys_authentication_enabled = true
   }
 }
 

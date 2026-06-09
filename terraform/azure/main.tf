@@ -9,11 +9,12 @@ module "network_hub" {
   source              = "./modules/network_hub"
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
-  vnet_cidr           = ["192.168.0.0/16"]
-  appgw_subnet_cidr   = ["192.168.1.0/24"]
-  fw_subnet_cidr      = ["192.168.2.0/24"]
-  gateway_subnet_cidr = ["192.168.3.0/24"]
-  bastion_subnet_cidr = ["192.168.4.0/24"]
+  vnet_cidr           = var.hub_vnet_cidr
+  appgw_subnet_cidr   = var.appgw_subnet_cidr
+  fw_subnet_cidr      = var.fw_subnet_cidr
+  gateway_subnet_cidr    = var.gateway_subnet_cidr
+  management_subnet_cidr = var.management_subnet_cidr
+  bastion_subnet_cidr    = var.bastion_subnet_cidr
 }
 
 module "network_spoke" {
@@ -22,9 +23,9 @@ module "network_spoke" {
   location            = azurerm_resource_group.rg.location
   hub_vnet_name       = module.network_hub.hub_vnet_name
   hub_vnet_id         = module.network_hub.hub_vnet_id
-  vnet_cidr           = ["192.169.0.0/16"]
-  aks_subnet_cidr     = ["192.169.1.0/24"]
-  pe_subnet_cidr      = ["192.169.2.0/24"]
+  vnet_cidr           = var.spoke_vnet_cidr
+  aks_subnet_cidr     = var.aks_subnet_cidr
+  pe_subnet_cidr      = var.pe_subnet_cidr
 }
 
 module "firewall" {
@@ -35,8 +36,8 @@ module "firewall" {
   aks_subnet_id       = module.network_spoke.aks_subnet_id
   appgw_subnet_id     = module.network_hub.appgw_subnet_id
   gateway_subnet_id   = module.network_hub.gateway_subnet_id
-  spoke_vnet_cidr     = "192.169.0.0/16"
-  aws_vpc_cidr        = "10.0.0.0/16"
+  spoke_vnet_cidr     = var.spoke_vnet_cidr[0]
+  aws_vpc_cidr        = var.aws_vpc_cidr
 }
 
 module "aks" {
@@ -45,6 +46,10 @@ module "aks" {
   location            = azurerm_resource_group.rg.location
   aks_subnet_id       = module.network_spoke.aks_subnet_id
   appgw_id            = module.app_gateway.appgw_id
+
+  depends_on = [
+    module.firewall
+  ]
 }
 
 module "app_gateway" {
@@ -67,6 +72,7 @@ module "vpn" {
   location            = azurerm_resource_group.rg.location
   gateway_subnet_id   = module.network_hub.gateway_subnet_id
   aws_cgw_ip          = var.aws_cgw_ip
+  shared_key          = var.shared_key
 }
 
 module "paas" {
@@ -77,4 +83,20 @@ module "paas" {
   spoke_vnet_id                  = module.network_spoke.spoke_vnet_id
   current_user_object_id         = data.azurerm_client_config.current.object_id
   aks_kubelet_identity_object_id = module.aks.kubelet_identity_object_id
+}
+
+# VNet Peering Spoke to Hub (Moved to root to manage VPN Gateway dependency)
+resource "azurerm_virtual_network_peering" "spoke_to_hub" {
+  name                      = "peer-spoke-to-hub"
+  resource_group_name       = azurerm_resource_group.rg.name
+  virtual_network_name      = module.network_spoke.spoke_vnet_name
+  remote_virtual_network_id = module.network_hub.hub_vnet_id
+  allow_virtual_network_access = true
+  allow_forwarded_traffic      = true
+  use_remote_gateways          = true 
+
+  # Wait for the VPN Gateway to be fully created before allowing Spoke to use it
+  depends_on = [
+    module.vpn
+  ]
 }

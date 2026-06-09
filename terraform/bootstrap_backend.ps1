@@ -6,9 +6,13 @@
 Write-Host "Starting Azure Backend Bootstrapping..." -ForegroundColor Cyan
 
 $RESOURCE_GROUP_NAME = "rg-terraform-state"
-$STORAGE_ACCOUNT_NAME = "sttfstateflowforge"
-$CONTAINER_NAME = "tfstate"
 $LOCATION = "centralindia"
+
+# Generate a random string to ensure names are globally unique
+$RANDOM_SUFFIX = -join ((97..122) | Get-Random -Count 6 | % {[char]$_})
+
+$STORAGE_ACCOUNT_NAME = "sttfstateflowforge$RANDOM_SUFFIX"
+$CONTAINER_NAME = "tfstate"
 
 # Create Azure Resource Group
 Write-Host "Creating Azure Resource Group: $RESOURCE_GROUP_NAME"
@@ -34,7 +38,7 @@ Write-Host "----------------------------------------"
 Write-Host "Starting AWS Backend Bootstrapping..." -ForegroundColor Cyan
 
 $AWS_REGION = "ap-south-1"
-$S3_BUCKET_NAME = "tfstate-flowforge-aws"
+$S3_BUCKET_NAME = "tfstate-flowforge-aws-$RANDOM_SUFFIX"
 $DYNAMODB_TABLE_NAME = "terraform-lock"
 
 # Create AWS S3 Bucket
@@ -61,4 +65,10 @@ aws dynamodb create-table `
 
 Write-Host "AWS Backend successfully created!" -ForegroundColor Green
 Write-Host "========================================"
-Write-Host "You may now run 'terraform init' in both the azure and aws directories." -ForegroundColor Yellow
+Write-Host ""
+Write-Host "To initialize Terraform for Azure, run:"
+Write-Host "terraform init -backend-config=`"resource_group_name=$RESOURCE_GROUP_NAME`" -backend-config=`"storage_account_name=$STORAGE_ACCOUNT_NAME`" -backend-config=`"container_name=$CONTAINER_NAME`" -backend-config=`"key=azure-prod.terraform.tfstate`""
+Write-Host ""
+Write-Host "To initialize Terraform for AWS, run:"
+Write-Host "terraform init -backend-config=`"bucket=$S3_BUCKET_NAME`" -backend-config=`"key=aws-prod.terraform.tfstate`" -backend-config=`"region=$AWS_REGION`" -backend-config=`"dynamodb_table=$DYNAMODB_TABLE_NAME`""
+Write-Host ""

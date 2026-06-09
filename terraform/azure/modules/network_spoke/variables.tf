@@ -17,6 +17,8 @@ variable "pe_subnet_cidr" {
   type = list(string)
   default = ["192.169.2.0/24"] 
 }
+
+
 variable "hub_vnet_name" {
   type = string
 }

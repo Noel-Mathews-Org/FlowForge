@@ -53,6 +53,14 @@ resource "azurerm_firewall_network_rule_collection" "net_rules" {
     destination_ports     = ["587"]
     protocols             = ["TCP"]
   }
+
+  rule {
+    name                  = "Allow-AKS-to-Internet-HTTPS"
+    source_addresses      = ["192.169.1.0/24"]
+    destination_addresses = ["*"]
+    destination_ports     = ["80", "443", "1024-65535"]
+    protocols             = ["TCP", "UDP"]
+  }
 }
 
 # Application Rules

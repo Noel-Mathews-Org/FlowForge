@@ -54,13 +54,4 @@ resource "azurerm_virtual_network_peering" "hub_to_spoke" {
   allow_gateway_transit        = true
 }
 
-# VNet Peering Spoke to Hub
-resource "azurerm_virtual_network_peering" "spoke_to_hub" {
-  name                      = "peer-spoke-to-hub"
-  resource_group_name       = var.resource_group_name
-  virtual_network_name      = azurerm_virtual_network.spoke.name
-  remote_virtual_network_id = var.hub_vnet_id
-  allow_virtual_network_access = true
-  allow_forwarded_traffic      = true
-  use_remote_gateways          = false # Set to true if VPN gateway is created before peering, but for circular deps, often handle separately.
-}
+
