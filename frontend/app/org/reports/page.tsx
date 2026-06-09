@@ -79,9 +79,6 @@ export default function ReportsPage() {
 
   const fetchPdfBlob = async (report: Report): Promise<string | null> => {
     try {
-      if (report.storage === "azure") {
-        return report.url;
-      }
       const reportId = report.id;
       const res = await analyticsApi.get(`/reports/download/${reportId}`, {
         responseType: "blob",

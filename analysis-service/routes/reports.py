@@ -6,7 +6,7 @@ from datetime import datetime
 from io import BytesIO
 
 from fastapi import APIRouter, HTTPException, Request, status
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
 from rbac import require_role
@@ -28,7 +28,7 @@ except ImportError:
 
 # Conditionally import Azure
 try:
-    from azure.storage.blob import BlobServiceClient, generate_blob_sas, BlobSasPermissions, ContentSettings
+    from azure.storage.blob import BlobServiceClient, ContentSettings
     HAS_AZURE = True
 except ImportError:
     HAS_AZURE = False
@@ -399,15 +399,7 @@ async def generate_report(payload: GenerateReportRequest, request: Request):
                 )
             )
 
-            sas_token = generate_blob_sas(
-                account_name=blob_service_client.account_name,
-                container_name=CONTAINER_NAME,
-                blob_name=file_id,
-                account_key=blob_service_client.credential.account_key,
-                permission=BlobSasPermissions(read=True),
-                expiry=datetime.utcnow() + __import__('datetime').timedelta(hours=24)
-            )
-            url = f"{blob_client.url}?{sas_token}"
+            url = f"/api/analytics/reports/download/{file_id}"
             return {"success": True, "report_id": file_id, "name": display_name, "url": url, "storage": "azure"}
         except Exception as e:
             logger.error(f"Azure upload failed: {e}")
@@ -431,15 +423,7 @@ async def list_reports():
             if container_client.exists():
                 for blob in container_client.list_blobs():
                     if blob.name.endswith(".pdf"):
-                        sas_token = generate_blob_sas(
-                            account_name=blob_service_client.account_name,
-                            container_name=CONTAINER_NAME,
-                            blob_name=blob.name,
-                            account_key=blob_service_client.credential.account_key,
-                            permission=BlobSasPermissions(read=True),
-                            expiry=datetime.utcnow() + __import__('datetime').timedelta(hours=24)
-                        )
-                        url = f"https://{blob_service_client.account_name}.blob.core.windows.net/{CONTAINER_NAME}/{blob.name}?{sas_token}"
+                        url = f"/api/analytics/reports/download/{blob.name}"
                         display = blob.name.replace(".pdf", "").replace("_", " ")
                         reports.append({
                             "id": blob.name,
@@ -476,16 +460,30 @@ async def list_reports():
 
 @router.get("/download/{report_id}", dependencies=[require_role("org_owner", "platform_admin")])
 async def download_report(report_id: str):
-    """Fallback endpoint for local storage downloads"""
+    """Proxy endpoint for Azure storage downloads, with local fallback"""
     safe_id = os.path.basename(report_id)
     local_path = os.path.join(LOCAL_REPORTS_DIR, safe_id)
 
-    if not os.path.exists(local_path):
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Report not found locally")
-
-    return FileResponse(
-        local_path,
-        media_type="application/pdf",
-        filename=safe_id,
-        content_disposition_type="inline"
-    )
+    if os.path.exists(local_path):
+        return FileResponse(
+            local_path,
+            media_type="application/pdf",
+            filename=safe_id,
+            content_disposition_type="inline"
+        )
+        
+    blob_service_client = _get_blob_service_client() if HAS_AZURE else None
+    if blob_service_client:
+        try:
+            blob_client = blob_service_client.get_blob_client(container=CONTAINER_NAME, blob=safe_id)
+            stream = blob_client.download_blob()
+            return StreamingResponse(
+                stream.chunks(), 
+                media_type="application/pdf", 
+                headers={"Content-Disposition": f"inline; filename={safe_id}"}
+            )
+        except Exception as e:
+            logger.error(f"Error streaming blob: {e}")
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Report not found in Azure")
+            
+    raise HTTPException(status.HTTP_404_NOT_FOUND, "Report not found")
