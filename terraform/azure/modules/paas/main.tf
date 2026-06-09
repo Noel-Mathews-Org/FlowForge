@@ -33,7 +33,7 @@ resource "azurerm_key_vault" "kv" {
   rbac_authorization_enabled = true
   
   network_acls {
-    default_action = "Deny"
+    default_action = "Allow"
     bypass         = "AzureServices"
   }
 }
@@ -48,7 +48,7 @@ resource "azurerm_storage_account" "sa" {
   account_tier             = "Standard"
   account_replication_type = "LRS"
   
-  public_network_access_enabled = true
+  public_network_access_enabled = false
 }
 
 resource "azurerm_storage_container" "tfstate" {

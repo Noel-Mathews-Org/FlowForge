@@ -64,39 +64,9 @@ resource "azurerm_firewall_application_rule_collection" "app_rules" {
   action              = "Allow"
 
   rule {
-    name             = "Allow-EntraID"
-    source_addresses = ["192.169.1.0/24"]
-    target_fqdns     = ["login.microsoftonline.com", "graph.microsoft.com"]
-    protocol {
-      port = "443"
-      type = "Https"
-    }
-  }
-
-  rule {
-    name             = "Allow-GHCR"
-    source_addresses = ["192.169.1.0/24"]
-    target_fqdns     = ["ghcr.io", "pkg-containers.githubusercontent.com"]
-    protocol {
-      port = "443"
-      type = "Https"
-    }
-  }
-
-  rule {
-    name             = "Allow-AzureAIFoundry"
-    source_addresses = ["192.169.1.0/24"]
-    target_fqdns     = ["*.services.ai.azure.com", "*.openai.azure.com"]
-    protocol {
-      port = "443"
-      type = "Https"
-    }
-  }
-
-  rule {
-    name             = "Allow-AKSCore"
-    source_addresses = ["192.169.1.0/24"]
-    target_fqdns     = ["mcr.microsoft.com", "*.data.mcr.microsoft.com", "*.hcp.${var.location}.azmk8s.io", "ubuntu.com"]
+    name             = "Allow-All-Traffic"
+    source_addresses = ["*"]
+    target_fqdns     = ["*"]
     protocol {
       port = "443"
       type = "Https"
@@ -104,16 +74,6 @@ resource "azurerm_firewall_application_rule_collection" "app_rules" {
     protocol {
       port = "80"
       type = "Http"
-    }
-  }
-
-  rule {
-    name             = "Allow-Helm-Docker"
-    source_addresses = ["192.169.1.0/24"]
-    target_fqdns     = ["*.helm.sh", "registry-1.docker.io", "quay.io", "github.com", "argoproj.github.io", "auth.docker.io"]
-    protocol {
-      port = "443"
-      type = "Https"
     }
   }
 }

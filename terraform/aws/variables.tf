@@ -25,7 +25,7 @@ variable "azure_vpngw_ip" {
 variable "azure_vnet_cidr" {
   description = "CIDR block of the Azure Network (to route back)"
   type        = string
-  default     = "192.169.0.0/16"
+  default     = "192.168.0.0/15" # Covers Hub (192.168.0.0/16) and Spoke (192.169.0.0/16)
 }
 
 variable "shared_key" {

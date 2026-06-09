@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
 from rbac import require_role
+from config import settings
 
 # Conditionally import reporting tools so the service doesn't crash if they fail to install
 try:
@@ -54,12 +55,12 @@ INTERNAL_TOKEN = os.getenv("INTERNAL_API_KEY", "")
 
 def _get_blob_service_client():
     """Get a BlobServiceClient using Managed Identity or connection string."""
-    if AZURE_USE_MI and HAS_AZURE_IDENTITY and AZURE_STORAGE_ACCOUNT:
+    if settings.AZURE_STORAGE_USE_MANAGED_IDENTITY and HAS_AZURE_IDENTITY and settings.AZURE_STORAGE_ACCOUNT_NAME:
         credential = DefaultAzureCredential()
-        account_url = f"https://{AZURE_STORAGE_ACCOUNT}.blob.core.windows.net"
+        account_url = f"https://{settings.AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net"
         return BlobServiceClient(account_url=account_url, credential=credential)
-    if AZURE_CONN_STR:
-        return BlobServiceClient.from_connection_string(AZURE_CONN_STR)
+    if settings.AZURE_STORAGE_CONNECTION_STRING:
+        return BlobServiceClient.from_connection_string(settings.AZURE_STORAGE_CONNECTION_STRING)
     return None
 
 # Ensure local fallback directory exists
@@ -385,7 +386,7 @@ async def generate_report(payload: GenerateReportRequest, request: Request):
     blob_service_client = _get_blob_service_client() if HAS_AZURE else None
     if blob_service_client:
         try:
-            container_client = blob_service_client.get_container_client(CONTAINER_NAME)
+            container_client = blob_service_client.get_container_client(settings.AZURE_STORAGE_CONTAINER)
             if not container_client.exists():
                 container_client.create_container()
 
@@ -419,7 +420,7 @@ async def list_reports():
     blob_service_client = _get_blob_service_client() if HAS_AZURE else None
     if blob_service_client:
         try:
-            container_client = blob_service_client.get_container_client(CONTAINER_NAME)
+            container_client = blob_service_client.get_container_client(settings.AZURE_STORAGE_CONTAINER)
             if container_client.exists():
                 for blob in container_client.list_blobs():
                     if blob.name.endswith(".pdf"):
@@ -475,7 +476,7 @@ async def download_report(report_id: str):
     blob_service_client = _get_blob_service_client() if HAS_AZURE else None
     if blob_service_client:
         try:
-            blob_client = blob_service_client.get_blob_client(container=CONTAINER_NAME, blob=safe_id)
+            blob_client = blob_service_client.get_blob_client(container=settings.AZURE_STORAGE_CONTAINER, blob=safe_id)
             stream = blob_client.download_blob()
             return StreamingResponse(
                 stream.chunks(), 
