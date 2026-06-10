@@ -92,14 +92,6 @@ resource "azurerm_route_table" "appgw_rt" {
   name                = "rt-appgw"
   location            = var.location
   resource_group_name = var.resource_group_name
-
-  # Force traffic to AKS Spoke through Firewall
-  route {
-    name                   = "Force-AKS-Traffic-Through-FW"
-    address_prefix         = var.spoke_vnet_cidr
-    next_hop_type          = "VirtualAppliance"
-    next_hop_in_ip_address = azurerm_firewall.fw.ip_configuration[0].private_ip_address
-  }
 }
 
 resource "azurerm_route_table" "aks_rt" {
@@ -110,13 +102,6 @@ resource "azurerm_route_table" "aks_rt" {
   route {
     name                   = "Force-Internet-Through-FW"
     address_prefix         = "0.0.0.0/0"
-    next_hop_type          = "VirtualAppliance"
-    next_hop_in_ip_address = azurerm_firewall.fw.ip_configuration[0].private_ip_address
-  }
-
-  route {
-    name                   = "Force-AppGw-Return-Through-FW"
-    address_prefix         = "192.168.1.0/24" # AppGW Subnet
     next_hop_type          = "VirtualAppliance"
     next_hop_in_ip_address = azurerm_firewall.fw.ip_configuration[0].private_ip_address
   }

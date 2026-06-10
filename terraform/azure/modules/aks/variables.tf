@@ -10,3 +10,6 @@ variable "aks_subnet_id" {
 variable "appgw_id" {
   type = string
 }
+variable "hub_vnet_id" {
+  type = string
+}

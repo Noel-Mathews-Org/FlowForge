@@ -48,3 +48,10 @@ resource "azurerm_role_assignment" "agic_rg" {
   role_definition_name = "Reader"
   principal_id         = azurerm_kubernetes_cluster.aks.ingress_application_gateway[0].ingress_application_gateway_identity[0].object_id
 }
+
+# Grant AGIC Managed Identity permission to join the VNet
+resource "azurerm_role_assignment" "agic_vnet" {
+  scope                = var.hub_vnet_id
+  role_definition_name = "Network Contributor"
+  principal_id         = azurerm_kubernetes_cluster.aks.ingress_application_gateway[0].ingress_application_gateway_identity[0].object_id
+}

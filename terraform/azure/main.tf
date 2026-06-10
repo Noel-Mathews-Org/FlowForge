@@ -46,6 +46,7 @@ module "aks" {
   location            = azurerm_resource_group.rg.location
   aks_subnet_id       = module.network_spoke.aks_subnet_id
   appgw_id            = module.app_gateway.appgw_id
+  hub_vnet_id         = module.network_hub.hub_vnet_id
 
   depends_on = [
     module.firewall
