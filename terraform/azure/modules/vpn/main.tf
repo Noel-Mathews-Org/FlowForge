@@ -47,11 +47,6 @@ resource "azurerm_local_network_gateway" "lng" {
   resource_group_name = var.resource_group_name
   gateway_address     = var.aws_cgw_ip
   address_space       = [var.aws_vpc_cidr]
-
-  bgp_settings {
-    asn                 = 65000
-    bgp_peering_address = "10.0.1.254" # Placeholder for AWS BGP IP
-  }
 }
 
 resource "azurerm_virtual_network_gateway_connection" "vpn_conn" {

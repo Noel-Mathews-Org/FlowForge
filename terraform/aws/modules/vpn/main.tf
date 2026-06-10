@@ -6,7 +6,7 @@ resource "aws_vpn_gateway" "vgw" {
 }
 
 resource "aws_customer_gateway" "cgw" {
-  bgp_asn    = 65515 # Azure default BGP ASN
+  bgp_asn    = 65515 # Required by AWS provider but unused due to static routing
   ip_address = var.azure_vpngw_ip
   type       = "ipsec.1"
   tags = {

@@ -13,10 +13,6 @@ variable "environment" {
   type        = string
 }
 
-variable "domain_name" {
-  description = "The custom domain name for Front Door"
-  type        = string
-}
 
 variable "aws_cgw_ip" {
   description = "The Public IP of the AWS VPN Gateway (Dummy IP for initialization)"

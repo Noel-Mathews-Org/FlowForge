@@ -6,12 +6,12 @@ resource "azurerm_resource_group" "rg" {
 data "azurerm_client_config" "current" {}
 
 module "network_hub" {
-  source              = "./modules/network_hub"
-  resource_group_name = azurerm_resource_group.rg.name
-  location            = azurerm_resource_group.rg.location
-  vnet_cidr           = var.hub_vnet_cidr
-  appgw_subnet_cidr   = var.appgw_subnet_cidr
-  fw_subnet_cidr      = var.fw_subnet_cidr
+  source                 = "./modules/network_hub"
+  resource_group_name    = azurerm_resource_group.rg.name
+  location               = azurerm_resource_group.rg.location
+  vnet_cidr              = var.hub_vnet_cidr
+  appgw_subnet_cidr      = var.appgw_subnet_cidr
+  fw_subnet_cidr         = var.fw_subnet_cidr
   gateway_subnet_cidr    = var.gateway_subnet_cidr
   management_subnet_cidr = var.management_subnet_cidr
   bastion_subnet_cidr    = var.bastion_subnet_cidr
@@ -60,12 +60,6 @@ module "app_gateway" {
   appgw_subnet_id     = module.network_hub.appgw_subnet_id
 }
 
-# module "front_door" {
-#   source                  = "./modules/front_door"
-#   resource_group_name     = azurerm_resource_group.rg.name
-#   domain_name             = var.domain_name
-#   appgw_public_ip_address = module.app_gateway.appgw_public_ip
-# }
 
 module "vpn" {
   source              = "./modules/vpn"
@@ -88,13 +82,13 @@ module "paas" {
 
 # VNet Peering Spoke to Hub (Moved to root to manage VPN Gateway dependency)
 resource "azurerm_virtual_network_peering" "spoke_to_hub" {
-  name                      = "peer-spoke-to-hub"
-  resource_group_name       = azurerm_resource_group.rg.name
-  virtual_network_name      = module.network_spoke.spoke_vnet_name
-  remote_virtual_network_id = module.network_hub.hub_vnet_id
+  name                         = "peer-spoke-to-hub"
+  resource_group_name          = azurerm_resource_group.rg.name
+  virtual_network_name         = module.network_spoke.spoke_vnet_name
+  remote_virtual_network_id    = module.network_hub.hub_vnet_id
   allow_virtual_network_access = true
   allow_forwarded_traffic      = true
-  use_remote_gateways          = true 
+  use_remote_gateways          = true
 
   # Wait for the VPN Gateway to be fully created before allowing Spoke to use it
   depends_on = [
