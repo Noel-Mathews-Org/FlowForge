@@ -17,28 +17,28 @@ global:
 gateway:
   enabled: true
   image:
-    tag: 2be66ca
+    tag: 0037d90
 frontend:
   enabled: true
   image:
-    tag: d7d1340
+    tag: 0037d90
 auth-service:
   enabled: true
   image:
-    tag: 17c8e62
+    tag: 0037d90
 project-service:
   enabled: true
   image:
-    tag: 2be66ca
+    tag: 0037d90
 task-service:
   enabled: true
   image:
-    tag: 8308f26
+    tag: 0037d90
 analysis-service:
   enabled: true
   image:
-    tag: 98bc831
+    tag: 0037d90
 notification-worker:
   enabled: true
   image:
-    tag: 2be66ca
+    tag: 0037d90
