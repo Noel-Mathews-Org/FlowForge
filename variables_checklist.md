@@ -41,17 +41,22 @@ These values are highly sensitive. They are fetched dynamically at application r
 
 The `Helm/values-dev.yaml` file acts as your central configuration hub for non-sensitive cluster data. Values defined here are injected into the Kubernetes ConfigMap (`flowforge-config`) and read by GitHub Actions.
 
+> **CRITICAL ARCHITECTURE NOTE (The "Dual-Use" Variables):**
+> Because Next.js (the Frontend) requires variables at *build time*, the GitHub Actions workflow parses `values-dev.yaml` to bake the Entra Tenant ID and Client ID directly into the frontend image. 
+> However, the Backend securely pulls these same values directly from the Azure Key Vault at *runtime*.
+> **Therefore, the Entra Tenant ID and Client ID must exist in BOTH the Azure Key Vault (Section 1) AND the `values-dev.yaml` file.**
+
 When deploying to a **new environment**, you must update `Helm/values-dev.yaml`:
 
 ```yaml
 global:
   domain: your-new-domain.com           # 1. Update Domain
   azure:
-    tenantId: "NEW-TENANT-ID"           # 2. Update Azure Tenant ID
+    tenantId: "NEW-TENANT-ID"           # 2. Update Azure Tenant ID (Must match Key Vault)
     keyvaultName: "new-kv-name"         # 3. Update Key Vault Name
     keyvaultUrl: "https://new-kv-name.vault.azure.net/" # 4. Update Key Vault URL
   entra:
-    clientId: "NEW-CLIENT-ID"           # 5. Update Entra App Client ID
+    clientId: "NEW-CLIENT-ID"           # 5. Update Entra App Client ID (Must match Key Vault)
   storage:
     accountName: "newstorageacct"       # 6. Update Storage Account Name
 ```
