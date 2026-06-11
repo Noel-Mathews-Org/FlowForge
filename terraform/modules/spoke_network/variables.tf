@@ -1,0 +1,16 @@
+variable "location" { type = string }
+variable "resource_group_name" { type = string }
+variable "env" { type = string }
+variable "owner" { type = string }
+variable "spoke_vnet_cidr" { type = string }
+variable "appgw_subnet_cidr" { type = string }
+variable "aks_subnet_cidr" { type = string }
+variable "pe_subnet_cidr" { type = string }
+variable "db_subnet_cidr" { type = string }
+variable "hub_vnet_id" { type = string }
+variable "hub_vnet_name" { type = string }
+variable "hub_resource_group_name" { type = string }
+variable "private_dns_zone_kv_id" { type = string }
+variable "private_dns_zone_storage_id" { type = string }
+variable "private_dns_zone_postgres_id" { type = string }
+variable "private_dns_zone_redis_id" { type = string }

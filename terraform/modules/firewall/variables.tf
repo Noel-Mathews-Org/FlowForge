@@ -1,0 +1,14 @@
+variable "location" { type = string }
+variable "resource_group_name" { type = string }
+variable "env" { type = string }
+variable "owner" { type = string }
+variable "hub_vnet_name" { type = string }
+variable "fw_subnet_cidr" { type = string }
+variable "log_analytics_workspace_id" { type = string }
+variable "aks_subnet_id" { type = string }
+variable "pe_subnet_id" { type = string }
+variable "db_subnet_id" { type = string }
+variable "aks_allowed_fqdns" {
+  type    = list(string)
+  default = ["*.azure.com", "*.docker.io"]
+}

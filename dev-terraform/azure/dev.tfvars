@@ -1,5 +1,0 @@
-resource_group_name = "rg-flowforge-dev"
-location            = "centralindia"
-vnet_cidr           = "192.169.0.0/16"
-aws_cgw_ip          = "13.127.157.2" 
-shared_key          = "DevSecretKey123_"

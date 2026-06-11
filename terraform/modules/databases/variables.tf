@@ -1,0 +1,15 @@
+variable "location" { type = string }
+variable "resource_group_name" { type = string }
+variable "env" { type = string }
+variable "owner" { type = string }
+variable "pe_subnet_id" { type = string }
+variable "private_dns_zone_postgres_id" { type = string }
+variable "private_dns_zone_redis_id" { type = string }
+variable "postgres_sku" { type = string }
+variable "postgres_version" { type = string }
+variable "postgres_storage_mb" { type = number }
+variable "postgres_storage_tier" { type = string }
+variable "redis_enterprise_sku" { type = string }
+variable "log_analytics_workspace_id" { type = string }
+variable "postgres_admin_username" { type = string }
+variable "postgres_admin_password" { type = string }
