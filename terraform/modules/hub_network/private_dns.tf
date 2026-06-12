@@ -30,7 +30,7 @@ resource "azurerm_private_dns_zone" "postgres" {
 
 # Redis DNS Zone
 resource "azurerm_private_dns_zone" "redis" {
-  name                = "privatelink.redis.cache.windows.net"
+  name                = "privatelink.redisenterprise.cache.azure.net"
   resource_group_name = var.resource_group_name
   tags = {
     Env   = var.env

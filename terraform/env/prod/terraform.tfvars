@@ -20,7 +20,7 @@ postgres_storage_mb       = 131072
 postgres_storage_tier     = "P10"
 redis_enterprise_sku      = "Balanced_B1"
 aks_allowed_fqdns = [
-  "*.azure.com", "*.docker.io", "docker.io", "production.cloudflare.docker.com", "mcr.microsoft.com", "*.ubuntu.com", "*.ghcr.io", "ghcr.io", "*.azurecr.io", "*.pkg.dev", "*.helm.sh", "*.githubusercontent.com",
+  "*.azure.com", "*.docker.io", "docker.io", "production.cloudflare.docker.com", "production.cloudfront.docker.com", "mcr.microsoft.com", "*.ubuntu.com", "*.ghcr.io", "ghcr.io", "*.azurecr.io", "*.pkg.dev", "*.helm.sh", "*.githubusercontent.com",
   "github.com", "api.github.com", "*.quay.io", "quay.io", "*.letsencrypt.org", "letsencrypt.org", "*.k8s.io", "registry.k8s.io",
   "*.azmk8s.io", "login.microsoftonline.com", "packages.microsoft.com", "*.data.mcr.microsoft.com", "*.cdn.mscr.io", "acs-mirror.azureedge.net"
 ]

@@ -1,17 +1,17 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: flowforge-dev
+  name: flowforge-prod
   namespace: argocd
 spec:
   project: default
   source:
     repoURL: 'https://github.com/Noel-Mathews-Org/FlowForge.git'
-    targetRevision: Cloud-Track-dev
+    targetRevision: Cloud-Track-prod
     path: Helm
     helm:
       valueFiles:
-        - values-dev.yaml
+        - values-prod.yaml
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: flowforge
