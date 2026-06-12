@@ -1,0 +1,112 @@
+name: Terraform Provisioning (Prod)
+
+on:
+  workflow_dispatch: # Kept only manual trigger to disable automated runs
+
+jobs:
+  terraform-apply:
+    name: Provision Infrastructure
+    runs-on: ubuntu-latest
+    env:
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      WORKING_DIR: terraform/env/prod
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        working-directory: ${{ env.WORKING_DIR }}
+        run: terraform init
+
+      - name: Terraform Validate
+        working-directory: ${{ env.WORKING_DIR }}
+        run: terraform validate
+
+      - name: Terraform Plan
+        working-directory: ${{ env.WORKING_DIR }}
+        run: terraform plan -out=tfplan
+
+      - name: Terraform Apply
+        working-directory: ${{ env.WORKING_DIR }}
+        run: terraform apply -auto-approve tfplan
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Push Secrets to Key Vault
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          KV_NAME=$(terraform output -raw kv_name)
+          POSTGRES_CONN=$(terraform output -raw postgres_connection_string)
+          REDIS_ENDPOINT=$(terraform output -raw redis_endpoint)
+          
+          echo "Pushing secrets to Key Vault: $KV_NAME"
+          
+          az keyvault secret set --vault-name $KV_NAME --name "POSTGRES-URL" --value "$POSTGRES_CONN"
+          az keyvault secret set --vault-name $KV_NAME --name "REDIS-URL" --value "$REDIS_ENDPOINT"
+          
+          # Example of pushing a pre-existing third party secret from GitHub
+          if [ -n "${{ secrets.ENTRA_CLIENT_SECRET }}" ]; then
+            az keyvault secret set --vault-name $KV_NAME --name "ENTRA-CLIENT-SECRET" --value "${{ secrets.ENTRA_CLIENT_SECRET }}"
+          fi
+
+  notify:
+    name: Notify Team on Failure
+    needs: [terraform-apply]
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Get commit details
+        id: commit
+        run: |
+          echo "AUTHOR_NAME=$(git log -1 --pretty=format:'%an')" >> $GITHUB_OUTPUT
+          echo "AUTHOR_EMAIL=$(git log -1 --pretty=format:'%ae')" >> $GITHUB_OUTPUT
+          echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+          echo "COMMIT_URL=https://github.com/${{ github.repository }}/commit/${{ github.sha }}" >> $GITHUB_OUTPUT
+
+      - name: Send Summary Email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          to: ${{ secrets.DEVELOPMENT_TEAM_EMAIL }}
+          from: FlowForge DevOps <${{ secrets.MAIL_USERNAME }}>
+          subject: "❌ FAILED | Terraform Provisioning | ${{ github.event_name }}"
+          html_body: |
+            <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden">
+              <div style="background:#d9534f;color:white;padding:20px">
+                <h2 style="margin:0;font-size:20px">❌ Terraform Provisioning Failed</h2>
+                <p style="margin:6px 0 0;opacity:0.9;font-size:14px">${{ github.event_name }} on ${{ github.ref_name }}</p>
+              </div>
+              <div style="background:#f8f9fa;padding:16px 20px;border-bottom:1px solid #e9ecef">
+                <h3 style="margin:0 0 12px;font-size:14px;color:#6c757d;text-transform:uppercase">Trigger Details</h3>
+                <table style="width:100%;border-collapse:collapse;font-size:14px">
+                  <tr><td style="padding:4px 0;color:#6c757d;width:120px">Author</td><td style="font-weight:bold">${{ steps.commit.outputs.AUTHOR_NAME }}</td></tr>
+                  <tr><td style="padding:4px 0;color:#6c757d">Commit ID</td><td><a href="${{ steps.commit.outputs.COMMIT_URL }}" style="color:#0366d6;font-family:monospace;font-weight:bold">${{ steps.commit.outputs.SHORT_SHA }}</a></td></tr>
+                </table>
+              </div>
+              <div style="padding:20px">
+                <h3 style="margin:0 0 12px;font-size:14px;color:#6c757d;text-transform:uppercase">Action Required</h3>
+                <p>The Terraform pipeline encountered an error during deployment. Please review the pipeline logs to debug the issue.</p>
+                <div style="text-align:center;margin-top:20px">
+                  <a href="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" style="background:#24292e;color:white;padding:10px 24px;border-radius:6px;text-decoration:none;font-size:14px;display:inline-block">View Logs</a>
+                </div>
+              </div>
+            </div>

@@ -6,6 +6,7 @@ variable "bastion_subnet_cidr" { type = string }
 variable "management_subnet_cidr" { type = string }
 variable "gateway_subnet_cidr" { type = string }
 variable "fw_subnet_cidr" { type = string }
+variable "fw_management_subnet_cidr" { type = string }
 variable "spoke_vnet_cidr" { type = string }
 variable "appgw_subnet_cidr" { type = string }
 variable "aks_subnet_cidr" { type = string }

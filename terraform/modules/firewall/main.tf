@@ -14,6 +14,22 @@ resource "azurerm_public_ip" "fw_pip" {
   tags                = { Env = var.env, Owner = var.owner }
 }
 
+resource "azurerm_subnet" "fw_mgmt" {
+  name                 = "AzureFirewallManagementSubnet"
+  resource_group_name  = var.resource_group_name
+  virtual_network_name = var.hub_vnet_name
+  address_prefixes     = [var.fw_management_subnet_cidr]
+}
+
+resource "azurerm_public_ip" "fw_mgmt_pip" {
+  name                = "pip-fw-mgmt-${var.env}"
+  location            = var.location
+  resource_group_name = var.resource_group_name
+  allocation_method   = "Static"
+  sku                 = "Standard"
+  tags                = { Env = var.env, Owner = var.owner }
+}
+
 resource "azurerm_firewall" "fw" {
   name                = "fw-${var.env}"
   location            = var.location
@@ -25,6 +41,12 @@ resource "azurerm_firewall" "fw" {
     name                 = "configuration"
     subnet_id            = azurerm_subnet.fw.id
     public_ip_address_id = azurerm_public_ip.fw_pip.id
+  }
+
+  management_ip_configuration {
+    name                 = "mgmt-configuration"
+    subnet_id            = azurerm_subnet.fw_mgmt.id
+    public_ip_address_id = azurerm_public_ip.fw_mgmt_pip.id
   }
 
   tags = { Env = var.env, Owner = var.owner }

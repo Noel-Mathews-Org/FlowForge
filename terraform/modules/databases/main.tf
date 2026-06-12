@@ -1,14 +1,14 @@
 # PostgreSQL Flexible Server
 resource "azurerm_postgresql_flexible_server" "postgres" {
-  name                          = "psql-${var.env}-ff"
-  resource_group_name           = var.resource_group_name
-  location                      = var.location
-  version                       = var.postgres_version
-  sku_name                      = var.postgres_sku
-  storage_mb                    = var.postgres_storage_mb
-  storage_tier                  = var.postgres_storage_tier
-  backup_retention_days         = 7
-  geo_redundant_backup_enabled  = false
+  name                         = "psql-${var.env}-ff"
+  resource_group_name          = var.resource_group_name
+  location                     = var.location
+  version                      = var.postgres_version
+  sku_name                     = var.postgres_sku
+  storage_mb                   = var.postgres_storage_mb
+  storage_tier                 = var.postgres_storage_tier
+  backup_retention_days        = 7
+  geo_redundant_backup_enabled = false
 
 
   administrator_login    = var.postgres_admin_username

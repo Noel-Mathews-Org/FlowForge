@@ -57,6 +57,7 @@ module "firewall" {
   owner                      = var.owner
   hub_vnet_name              = module.hub_network.hub_vnet_name
   fw_subnet_cidr             = var.fw_subnet_cidr
+  fw_management_subnet_cidr  = var.fw_management_subnet_cidr
   log_analytics_workspace_id = module.hub_network.log_analytics_workspace_id
   aks_subnet_id              = module.spoke_network.aks_subnet_id
   pe_subnet_id               = module.spoke_network.pe_subnet_id
@@ -101,6 +102,7 @@ module "aks" {
   aks_vm_size                = var.aks_vm_size
   spoke_resource_group_name  = azurerm_resource_group.app.name
   aks_outbound_type          = "userDefinedRouting"
+  depends_on                 = [module.firewall]
 }
 
 module "databases" {
@@ -156,7 +158,7 @@ resource "azurerm_virtual_network_peering" "spoke_to_hub" {
   allow_virtual_network_access = true
   allow_forwarded_traffic      = true
   use_remote_gateways          = true
-  depends_on                   = [module.vpn_gateway]
+  depends_on                   = [module.vpn_gateway, module.firewall]
 }
 
 resource "azurerm_virtual_network_peering" "hub_to_spoke" {
@@ -167,7 +169,7 @@ resource "azurerm_virtual_network_peering" "hub_to_spoke" {
   allow_virtual_network_access = true
   allow_forwarded_traffic      = true
   allow_gateway_transit        = true
-  depends_on                   = [module.vpn_gateway]
+  depends_on                   = [module.vpn_gateway, module.firewall]
 }
 
 # Commented out to prevent deployment in lab account

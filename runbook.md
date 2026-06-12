@@ -1,102 +1,163 @@
-# 📘 FlowForge ArgoCD & AKS Runbook
+# FlowForge Cluster Setup Runbook
 
-This runbook provides the exact step-by-step commands to install ArgoCD onto your brand new Azure Dev cluster, access the visual dashboard, and automatically deploy the entire FlowForge application.
+This guide contains the exact steps required to set up a brand new FlowForge cluster immediately after running `terraform apply`.
 
----
+## Prerequisites
+- You have run `terraform apply` successfully.
+- You have the Azure CLI (`az`) and `kubectl` installed.
+- You are logged into Azure (`az login`).
 
-## Step 1: Connect to your AKS Cluster
-First, authenticate your terminal with your Azure account and download the cluster credentials so `kubectl` knows where to send commands.
+## Step 1: Connect to the Cluster
+First, authenticate your local `kubectl` to the newly provisioned AKS cluster.
 
 ```bash
-az login
-az account set --subscription "<YOUR_SUBSCRIPTION_ID>"
+# For Dev:
+az aks get-credentials --resource-group rg-dev-app --name aks-dev --overwrite-existing
 
-# Download the kubeconfig for your Dev Cluster
-az aks get-credentials --resource-group rg-flowforge-dev --name aks-dev --overwrite-existing
+# For Prod:
+az aks get-credentials --resource-group rg-prod-app --name aks-prod --overwrite-existing
 ```
-
----
 
 ## Step 2: Install ArgoCD
-ArgoCD lives in its own dedicated namespace. We will create the namespace and install the core ArgoCD controllers and services.
+ArgoCD manages our GitOps deployments.
 
 ```bash
-# Create the namespace
+# 1. Create the namespace
 kubectl create namespace argocd
 
-# Install the latest stable version of ArgoCD
+# 2. Install ArgoCD
 kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+# 3. Wait for the pods to be ready
+kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=argocd-server -n argocd --timeout=300s
+
+# 4. Forward the port so you can access the UI
+kubectl port-forward svc/argocd-server -n argocd 8080:443
 ```
-*Wait a minute or two for the pods to spin up. You can check their status by running: `kubectl get pods -n argocd`*
+You can now access the ArgoCD UI at `https://localhost:8080`.
 
----
+**Get the Initial Admin Password:**
+Keep this port-forward running in one terminal, and open a new terminal to fetch the password:
+```bash
+kubectl get secret argocd-initial-admin-secret \
+  -n argocd \
+  -o jsonpath="{.data.password}" | base64 --decode
+```
+*Login with username `admin` and the password printed above.*
 
-## Step 3: Access the ArgoCD Dashboard
-To view the beautiful ArgoCD web UI, we need to securely port-forward the dashboard service to your local machine.
-
-1. **Retrieve the auto-generated Admin Password:**
-   Run this command to decode the default password ArgoCD generated for the `admin` user:
-   ```bash
-   kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | ForEach-Object { [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($_)) }
-   ```
-   *(Copy this password down!)*
-
-2. **Start the Port Forward:**
-   ```bash
-   kubectl port-forward svc/argocd-server -n argocd 8080:443
-   ```
-
-3. **Login:**
-   - Open your browser and go to: `https://localhost:8080`
-   - *Note: Your browser will warn you about an insecure certificate (because it's localhost). Click "Advanced" -> "Proceed to localhost".*
-   - **Username:** `admin`
-   - **Password:** *(The password you copied from Step 1)*
-
----
-
-## Step 4: Install Cert-Manager for Free SSL
-To get a green padlock (`https://`) on your domain so Microsoft Entra ID will allow authentication, we use cert-manager to automatically pull Let's Encrypt certificates.
-
-1. **Install Cert-Manager:**
-   ```bash
-   kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.16.1/cert-manager.yaml
-   ```
-   *(Wait about 60 seconds for the cert-manager pods to spin up: `kubectl get pods -n cert-manager`)*
-
-2. **Create the Let's Encrypt ClusterIssuer:**
-   Save this to a file named `issuer.yaml` and apply it:
-   ```yaml
-   apiVersion: cert-manager.io/v1
-   kind: ClusterIssuer
-   metadata:
-     name: letsencrypt-prod
-   spec:
-     acme:
-       server: https://acme-v02.api.letsencrypt.org/directory
-       email: bloodymaryy77@gmail.com
-       privateKeySecretRef:
-         name: letsencrypt-prod
-       solvers:
-       - http01:
-           ingress:
-             class: azure/application-gateway
-   ```
-   Apply it: `kubectl apply -f issuer.yaml`
-
----
-
-## Step 5: Deploy the FlowForge Application
-Now that ArgoCD is running, we will tell it to monitor your GitHub repository and automatically deploy all the Helm charts into the cluster!
-
-Open a **new terminal window** (keep the port-forward command running in the first one) and run:
+## Step 3: Install Cert-Manager
+Cert-Manager automatically provisions Let's Encrypt SSL certificates for our domains.
 
 ```bash
-# Apply the GitOps Manifest we created earlier
+# Install Cert-Manager
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.16.1/cert-manager.yaml
+
+# Wait for Cert-Manager webhooks to be ready
+kubectl wait --for=condition=ready pod -l app.kubernetes.io/instance=cert-manager -n cert-manager --timeout=300s
+```
+
+## Step 4: Configure the Cluster Issuer
+Create the Let's Encrypt ClusterIssuer which tells Cert-Manager how to validate our domain using the Azure Application Gateway.
+
+Create a file named `issuer.yaml` with the following content:
+
+```yaml
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: bloodymaryy77@gmail.com
+    privateKeySecretRef:
+      name: letsencrypt-prod
+    solvers:
+    - http01:
+        ingress:
+          class: azure/application-gateway
+```
+
+Apply it to the cluster:
+```bash
+kubectl apply -f issuer.yaml
+```
+
+## Step 5: Gather Terraform Outputs & Update Variables
+
+Run the following command in your terraform directory to get the critical values needed for the Key Vault and `values.yaml`:
+
+```bash
+terraform output -json
+```
+
+### A. Secrets to Store in Azure Key Vault
+
+These values are highly sensitive. They are fetched dynamically at application runtime by the backend Python services using the AKS Kubelet Identity. 
+
+**You must manually create these exact secret names in your new Azure Key Vault:**
+
+#### Databases & Caching
+*   `database-url` : The PostgreSQL connection string outputted by Terraform.
+*   `redis-url` : The Azure Managed Redis connection string outputted by Terraform.
+
+#### Security & Internal Auth
+*   `jwt-secret` : A secure, random string used to sign JWT tokens.
+*   `internal-api-key` : A secure, random string used for service-to-service internal communication.
+*   `entra-client-secret` : The client secret for your Azure AD (Entra) Application Registration.
+*   `entra-client-id` : The `aks_kubelet_identity_client_id` outputted by Terraform (or your App Reg Client ID).
+*   `entra-tenant-id` : The `azure_tenant_id` outputted by Terraform.
+
+#### Azure AI Foundry
+*   `azure-foundry-key` : API key for your Azure AI Foundry resource.
+*   `azure-foundry-endpoint` : Endpoint URL for your Azure AI Foundry resource.
+
+#### SMTP / Email Delivery
+*   `smtp-username` : The email address used to authenticate with the SMTP server.
+*   `smtp-password` : The app password or SMTP password for the above email.
+
+#### Entra ID RBAC Groups (Object IDs)
+*   `entra-group-platform-admin` : Object ID for Platform Admin group.
+*   `entra-group-org-owner` : Object ID for Org Owner group.
+*   `entra-group-manager` : Object ID for Manager group.
+*   `entra-group-member` : Object ID for Member group.
+
+### B. Variables Configured in Helm (`values-dev.yaml`)
+
+> **CRITICAL ARCHITECTURE NOTE (The "Dual-Use" Variables):**
+> Because Next.js (the Frontend) requires variables at *build time*, the GitHub Actions workflow parses `values-dev.yaml` to bake the Entra Tenant ID and Client ID directly into the frontend image. 
+> However, the Backend securely pulls these same values directly from the Azure Key Vault at *runtime*.
+> **Therefore, the Entra Tenant ID and Client ID must exist in BOTH the Azure Key Vault AND the `values-dev.yaml` file.**
+
+Update `Helm/values-dev.yaml` with your new infrastructure details:
+
+```yaml
+global:
+  domain: your-new-domain.com           # 1. Update Domain
+  azure:
+    tenantId: "NEW-TENANT-ID"           # 2. Update Azure Tenant ID (Must match Key Vault)
+    keyvaultName: "new-kv-name"         # 3. Update Key Vault Name
+    keyvaultUrl: "https://new-kv-name.vault.azure.net/" # 4. Update Key Vault URL
+  entra:
+    clientId: "NEW-CLIENT-ID"           # 5. Update Entra App Client ID (Must match Key Vault)
+  storage:
+    accountName: "newstorageacct"       # 6. Update Storage Account Name
+```
+
+Commit and push `values-dev.yaml` to your repository.
+
+### C. Trigger Frontend Build (GitHub Actions)
+
+1. By pushing your updated `values-dev.yaml`, the GitHub Action (`.github/workflows/ci-frontend.yml`) will automatically trigger.
+2. The pipeline will bake the new `NEXT_PUBLIC_ENTRA_CLIENT_ID` and `NEXT_PUBLIC_ENTRA_TENANT_ID` into the frontend image.
+3. **Important**: Ensure your GitHub Repository Secrets (`MAIL_USERNAME`, `MAIL_PASSWORD`, `DEVELOPMENT_TEAM_EMAIL`, `GH_PAT`) are configured in the new repository settings.
+
+## Step 6: Deploy the Application
+
+Once the GitHub pipeline finishes pushing the new frontend image to the container registry, you can apply your ArgoCD manifest to start syncing the microservices:
+
+```bash
 kubectl apply -f argocd/argocd-dev-app.yaml
 ```
 
-### What happens next?
-1. Go back to your ArgoCD Dashboard in the browser.
-2. You will instantly see a new Application tile called `flowforge-dev`.
-3. Click on it, and you will see a massive, beautiful tree diagram of all your pods, services, and ingress controllers automatically spinning up!
-4. From now on, whenever your CI/CD pipeline pushes a new image tag to GitHub, ArgoCD will detect it and automatically update the cluster.
+The backend pods will automatically read the `AZURE_KEYVAULT_URL` from the ConfigMap, authenticate using their Managed Identity, and securely pull down all passwords, database URLs, and API keys directly into memory.

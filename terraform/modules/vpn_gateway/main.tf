@@ -11,6 +11,7 @@ resource "azurerm_public_ip" "vpngw_pip" {
   resource_group_name = var.resource_group_name
   allocation_method   = "Static" # VpnGw1AZ requires Static PIP
   sku                 = "Standard"
+  zones               = ["1", "2", "3"]
   tags                = { Env = var.env, Owner = var.owner }
 }
 

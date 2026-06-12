@@ -8,13 +8,13 @@ resource "azurerm_kubernetes_cluster" "aks" {
   local_account_disabled  = false
 
   default_node_pool {
-    name                = "default"
-    vm_size             = var.aks_vm_size
-    vnet_subnet_id      = var.aks_subnet_id
+    name                 = "default"
+    vm_size              = var.aks_vm_size
+    vnet_subnet_id       = var.aks_subnet_id
     auto_scaling_enabled = true
-    min_count           = 1
-    max_count           = 3
-    type                = "VirtualMachineScaleSets"
+    min_count            = 1
+    max_count            = 3
+    type                 = "VirtualMachineScaleSets"
   }
 
   identity {
