@@ -65,10 +65,30 @@ jobs:
           exit-code: '0'
           severity: 'CRITICAL,HIGH'
 
-      - name: Retag with SemVer and Push
+      - name: Build or Retag and Push
         run: |
-          docker tag ghcr.io/${{ steps.repo.outputs.name }}/${{ steps.parse.outputs.service }}:${{ steps.fetch-sha.outputs.sha }} ghcr.io/${{ steps.repo.outputs.name }}/${{ steps.parse.outputs.service }}:${{ steps.parse.outputs.version }}
-          docker push ghcr.io/${{ steps.repo.outputs.name }}/${{ steps.parse.outputs.service }}:${{ steps.parse.outputs.version }}
+          if [ "${{ steps.parse.outputs.service }}" == "frontend" ]; then
+            echo "Rebuilding frontend image for PROD with PROD variables..."
+            git checkout origin/Cloud-Track-prod -- Helm/values-prod.yaml
+            
+            export ENTRA_CLIENT_ID=$(yq '.global.entra.clientId' Helm/values-prod.yaml)
+            export ENTRA_TENANT_ID=$(yq '.global.azure.tenantId' Helm/values-prod.yaml)
+            export DOMAIN=$(yq '.global.domain' Helm/values-prod.yaml)
+            
+            docker build \
+              --build-arg NEXT_PUBLIC_ENTRA_CLIENT_ID=$ENTRA_CLIENT_ID \
+              --build-arg NEXT_PUBLIC_ENTRA_TENANT_ID=$ENTRA_TENANT_ID \
+              --build-arg BASE_PUBLIC_URL="https://$DOMAIN" \
+              --build-arg NEXT_PUBLIC_ENTRA_REDIRECT_URI="https://$DOMAIN/login" \
+              -t ghcr.io/${{ steps.repo.outputs.name }}/${{ steps.parse.outputs.service }}:${{ steps.parse.outputs.version }} \
+              ./${{ steps.parse.outputs.service }}
+              
+            docker push ghcr.io/${{ steps.repo.outputs.name }}/${{ steps.parse.outputs.service }}:${{ steps.parse.outputs.version }}
+          else
+            echo "Retagging backend image..."
+            docker tag ghcr.io/${{ steps.repo.outputs.name }}/${{ steps.parse.outputs.service }}:${{ steps.fetch-sha.outputs.sha }} ghcr.io/${{ steps.repo.outputs.name }}/${{ steps.parse.outputs.service }}:${{ steps.parse.outputs.version }}
+            docker push ghcr.io/${{ steps.repo.outputs.name }}/${{ steps.parse.outputs.service }}:${{ steps.parse.outputs.version }}
+          fi
 
       - name: Update values-prod.yaml and Push
         run: |
