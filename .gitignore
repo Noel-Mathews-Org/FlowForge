@@ -5,7 +5,7 @@
 *.tfstate.*
 .terraform.lock.hcl
 terraform.tfvars.json
-
+secrets.env
 # Binary files
 *.exe
 *.dll
