@@ -63,15 +63,3 @@ resource "azurerm_role_assignment" "agic_vnet" {
   principal_id         = azurerm_kubernetes_cluster.aks.ingress_application_gateway[0].ingress_application_gateway_identity[0].object_id
 }
 
-resource "azurerm_monitor_diagnostic_setting" "aks_diag" {
-  name                       = "diag-aks"
-  target_resource_id         = azurerm_kubernetes_cluster.aks.id
-  log_analytics_workspace_id = var.log_analytics_workspace_id
-
-  enabled_log {
-    category = "kube-audit"
-  }
-  enabled_metric {
-    category = "AllMetrics"
-  }
-}

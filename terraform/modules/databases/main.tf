@@ -15,6 +15,13 @@ resource "azurerm_postgresql_flexible_server" "postgres" {
   administrator_password = var.postgres_admin_password
 
   tags = { Env = var.env, Owner = var.owner }
+
+  lifecycle {
+    ignore_changes = [
+      zone,
+      high_availability.0.standby_availability_zone
+    ]
+  }
 }
 
 # Active directory administrator removed per user request
@@ -79,25 +86,3 @@ resource "azurerm_private_endpoint" "pe_redis" {
   tags = { Env = var.env, Owner = var.owner }
 }
 
-resource "azurerm_monitor_diagnostic_setting" "pg_diag" {
-  name                       = "diag-postgres"
-  target_resource_id         = azurerm_postgresql_flexible_server.postgres.id
-  log_analytics_workspace_id = var.log_analytics_workspace_id
-
-  enabled_log {
-    category = "PostgreSQLLogs"
-  }
-  enabled_metric {
-    category = "AllMetrics"
-  }
-}
-
-resource "azurerm_monitor_diagnostic_setting" "redis_diag" {
-  name                       = "diag-redis"
-  target_resource_id         = azurerm_managed_redis.redis.id
-  log_analytics_workspace_id = var.log_analytics_workspace_id
-
-  enabled_metric {
-    category = "AllMetrics"
-  }
-}

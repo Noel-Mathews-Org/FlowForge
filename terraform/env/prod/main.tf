@@ -63,6 +63,9 @@ module "firewall" {
   pe_subnet_id               = module.spoke_network.pe_subnet_id
   db_subnet_id               = module.spoke_network.db_subnet_id
   aks_allowed_fqdns          = var.aks_allowed_fqdns
+  hub_vnet_cidr              = var.hub_vnet_cidr
+  spoke_vnet_cidr            = var.spoke_vnet_cidr
+  vpn_client_address_pool    = var.vpn_client_address_pool
 }
 
 module "vpn_gateway" {
@@ -77,6 +80,7 @@ module "vpn_gateway" {
   vpn_client_address_pool    = var.vpn_client_address_pool
   entra_tenant_id            = data.azurerm_client_config.current.tenant_id
   entra_audience             = var.entra_audience
+  depends_on                 = [module.firewall]
 }
 
 module "app_gateway" {
@@ -102,7 +106,11 @@ module "aks" {
   aks_vm_size                = var.aks_vm_size
   spoke_resource_group_name  = azurerm_resource_group.app.name
   aks_outbound_type          = "userDefinedRouting"
-  depends_on                 = [module.firewall]
+  depends_on = [
+    module.firewall,
+    azurerm_virtual_network_peering.spoke_to_hub,
+    azurerm_virtual_network_peering.hub_to_spoke
+  ]
 }
 
 module "databases" {
@@ -174,8 +182,10 @@ resource "azurerm_virtual_network_peering" "hub_to_spoke" {
 
 # Commented out to prevent deployment in lab account
 # module "policies" {
-#   source          = "../../modules/policies"
-#   env             = var.environment
-#   owner           = var.owner
-#   subscription_id = var.subscription_id
+#   source                     = "../../modules/policies"
+#   env                        = var.environment
+#   owner                      = var.owner
+#   location                   = var.location
+#   subscription_id            = var.subscription_id
+#   log_analytics_workspace_id = module.hub_network.log_analytics_workspace_id
 # }

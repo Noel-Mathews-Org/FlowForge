@@ -72,6 +72,65 @@ resource "azurerm_firewall_application_rule_collection" "aks_rules" {
       type = "Http"
     }
   }
+
+  rule {
+    name             = "AllowAKSFQDNTags"
+    source_addresses = ["*"]
+    fqdn_tags        = ["AzureKubernetesService"]
+  }
+}
+
+resource "azurerm_firewall_network_rule_collection" "aks_net_rules" {
+  name                = "aks-net-rules"
+  azure_firewall_name = azurerm_firewall.fw.name
+  resource_group_name = var.resource_group_name
+  priority            = 100
+  action              = "Allow"
+
+  rule {
+    name                  = "AllowAKS_UDP"
+    source_addresses      = ["*"]
+    destination_addresses = ["AzureCloud"]
+    destination_ports     = ["1194"]
+    protocols             = ["UDP"]
+  }
+  rule {
+    name                  = "AllowAKS_TCP"
+    source_addresses      = ["*"]
+    destination_addresses = ["AzureCloud"]
+    destination_ports     = ["9000"]
+    protocols             = ["TCP"]
+  }
+  rule {
+    name                  = "AllowAKS_API"
+    source_addresses      = ["*"]
+    destination_addresses = ["AzureCloud"]
+    destination_ports     = ["443", "80"]
+    protocols             = ["TCP"]
+  }
+  rule {
+    name                  = "AllowNTP"
+    source_addresses      = ["*"]
+    destination_addresses = ["*"]
+    destination_ports     = ["123"]
+    protocols             = ["UDP"]
+  }
+}
+
+resource "azurerm_firewall_network_rule_collection" "internal_net_rules" {
+  name                = "internal-net-rules"
+  azure_firewall_name = azurerm_firewall.fw.name
+  resource_group_name = var.resource_group_name
+  priority            = 200
+  action              = "Allow"
+
+  rule {
+    name                  = "AllowInternalAnyToAny"
+    source_addresses      = [var.hub_vnet_cidr, var.spoke_vnet_cidr, var.vpn_client_address_pool]
+    destination_addresses = [var.hub_vnet_cidr, var.spoke_vnet_cidr, var.vpn_client_address_pool]
+    destination_ports     = ["*"]
+    protocols             = ["Any"]
+  }
 }
 
 # Route Table for Spoke Subnets
@@ -107,18 +166,3 @@ resource "azurerm_subnet_route_table_association" "db" {
   route_table_id = azurerm_route_table.spoke_rt.id
 }
 
-resource "azurerm_monitor_diagnostic_setting" "fw_diag" {
-  name                       = "diag-fw"
-  target_resource_id         = azurerm_firewall.fw.id
-  log_analytics_workspace_id = var.log_analytics_workspace_id
-
-  enabled_log {
-    category = "AzureFirewallApplicationRule"
-  }
-  enabled_log {
-    category = "AzureFirewallNetworkRule"
-  }
-  enabled_metric {
-    category = "AllMetrics"
-  }
-}

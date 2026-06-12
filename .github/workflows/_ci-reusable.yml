@@ -66,14 +66,14 @@ jobs:
 
       - name: Update values-dev.yaml and Push
         run: |
-          git pull --rebase origin flowforgev2
-          yq eval ".${{ inputs.service_name }}.image.tag = \"${{ steps.vars.outputs.short_sha }}\"" -i Helm/values-dev.yaml
+          git pull --rebase origin Cloud-Track-dev
+          yq eval ".\"${{ inputs.service_name }}\".image.tag = \"${{ steps.vars.outputs.short_sha }}\"" -i Helm/values-dev.yaml
           
           git config user.name "FlowForge Dev Pipeline"
           git config user.email "devops@flowforge.com"
           git add Helm/values-dev.yaml
           git commit -m "chore(gitops): update ${{ inputs.service_name }} to ${{ steps.vars.outputs.short_sha }} in dev" || echo "No changes"
-          git push origin flowforgev2
+          git push origin Cloud-Track-dev
 
   notify:
     name: Notify Team

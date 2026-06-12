@@ -142,8 +142,10 @@ resource "azurerm_virtual_network_peering" "hub_to_spoke" {
 
 # Commented out to prevent deployment in lab account
 # module "policies" {
-#   source          = "../../modules/policies"
-#   env             = var.environment
-#   owner           = var.owner
-#   subscription_id = var.subscription_id
+#   source                     = "../../modules/policies"
+#   env                        = var.environment
+#   owner                      = var.owner
+#   location                   = var.location
+#   subscription_id            = var.subscription_id
+#   log_analytics_workspace_id = module.hub_network.log_analytics_workspace_id
 # }
