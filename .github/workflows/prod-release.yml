@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: prod
+          ref: Cloud-Track-prod
           token: ${{ secrets.GH_PAT }}
 
       - name: Parse Release Tag
@@ -35,10 +35,10 @@ jobs:
       - name: Fetch Dev SHA
         id: fetch-sha
         run: |
-          git fetch origin test
-          git show origin/test:Helm/values-dev.yaml > values-dev-temp.yaml
+          git fetch origin Cloud-Track-dev
+          git show origin/Cloud-Track-dev:Helm/values-dev.yaml > values-dev-temp.yaml
           
-          DEV_SHA=$(yq eval ".${{ steps.parse.outputs.service }}.image.tag" values-dev-temp.yaml)
+          DEV_SHA=$(yq eval ".\"${{ steps.parse.outputs.service }}\".image.tag" values-dev-temp.yaml)
           echo "Found verified SHA in Dev: $DEV_SHA"
           echo "sha=$DEV_SHA" >> $GITHUB_OUTPUT
           rm values-dev-temp.yaml
@@ -72,14 +72,14 @@ jobs:
 
       - name: Update values-prod.yaml and Push
         run: |
-          git pull --rebase origin prod
-          yq eval ".${{ steps.parse.outputs.service }}.image.tag = \"${{ steps.parse.outputs.version }}\"" -i Helm/values-prod.yaml
+          git pull --rebase origin Cloud-Track-prod
+          yq eval ".\"${{ steps.parse.outputs.service }}\".image.tag = \"${{ steps.parse.outputs.version }}\"" -i Helm/values-prod.yaml
           
           git config user.name "FlowForge Release Bot"
           git config user.email "releases@flowforge.com"
           git add Helm/values-prod.yaml
           git commit -m "chore(release): promote ${{ steps.parse.outputs.service }} to ${{ steps.parse.outputs.version }} in PROD" || echo "No changes"
-          git push origin prod
+          git push origin Cloud-Track-prod
 
   notify:
     name: Notify Team

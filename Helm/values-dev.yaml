@@ -1,7 +1,7 @@
 global:
   namespace: flowforge
   environment: dev
-  domain: flowforge.fun
+  domain: dev.flowforge.fun
   azure:
     tenantId: "d8537334-bc24-4daf-95a8-bf4c9fb14394"
     keyvaultName: "kv-dev-ff-001"
@@ -17,28 +17,28 @@ global:
 gateway:
   enabled: true
   image:
-    tag: 0037d90
+    tag: 4d9670e
 frontend:
   enabled: true
   image:
-    tag: 0037d90
+    tag: 4d9670e
 auth-service:
   enabled: true
   image:
-    tag: 0037d90
+    tag: 4d9670e
 project-service:
   enabled: true
   image:
-    tag: 0037d90
+    tag: 4d9670e
 task-service:
   enabled: true
   image:
-    tag: 0037d90
+    tag: 4d9670e
 analysis-service:
   enabled: true
   image:
-    tag: 0037d90
+    tag: 4d9670e
 notification-worker:
   enabled: true
   image:
-    tag: 0037d90
+    tag: 4d9670e

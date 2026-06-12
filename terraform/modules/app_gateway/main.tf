@@ -103,21 +103,3 @@ resource "azurerm_web_application_firewall_policy" "waf" {
   tags = { Env = var.env, Owner = var.owner }
 }
 
-resource "azurerm_monitor_diagnostic_setting" "appgw_diag" {
-  name                       = "diag-appgw"
-  target_resource_id         = azurerm_application_gateway.appgw.id
-  log_analytics_workspace_id = var.log_analytics_workspace_id
-
-  enabled_log {
-    category = "ApplicationGatewayAccessLog"
-  }
-  enabled_log {
-    category = "ApplicationGatewayPerformanceLog"
-  }
-  enabled_log {
-    category = "ApplicationGatewayFirewallLog"
-  }
-  enabled_metric {
-    category = "AllMetrics"
-  }
-}

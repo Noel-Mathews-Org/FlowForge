@@ -1,11 +1,11 @@
-name: Terraform Provisioning (Prod)
+name: Terraform Provisioning (Dev)
 
 # on:
 #   push:
 #     branches:
-#       - Cloud-Track-prod
+#       - Cloud-Track-dev
 #     paths:
-#       - 'terraform/env/prod/**'
+#       - 'terraform/env/dev/**'
 #       - 'terraform/modules/**'
 on:
   workflow_dispatch:
@@ -19,7 +19,7 @@ jobs:
       ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-      WORKING_DIR: terraform/env/prod
+      WORKING_DIR: terraform/env/dev
     
     steps:
       - name: Checkout Code
@@ -111,12 +111,12 @@ jobs:
           password: ${{ secrets.MAIL_PASSWORD }}
           to: ${{ secrets.DEVELOPMENT_TEAM_EMAIL }}
           from: FlowForge DevOps <${{ secrets.MAIL_USERNAME }}>
-          subject: "${{ steps.status.outputs.EMOJI }} ${{ steps.status.outputs.STATUS_TEXT }} | Terraform Prod | ${{ github.event_name }}"
+          subject: "${{ steps.status.outputs.EMOJI }} ${{ steps.status.outputs.STATUS_TEXT }} | Terraform Dev | ${{ github.event_name }}"
           html_body: |
             <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden">
               <div style="background:${{ steps.status.outputs.COLOR }};color:white;padding:20px">
                 <h2 style="margin:0;font-size:20px">${{ steps.status.outputs.EMOJI }} Terraform Provisioning ${{ steps.status.outputs.STATUS_TEXT }}</h2>
-                <p style="margin:6px 0 0;opacity:0.9;font-size:14px">Environment: PROD</p>
+                <p style="margin:6px 0 0;opacity:0.9;font-size:14px">Environment: DEV</p>
               </div>
               <div style="background:#f8f9fa;padding:16px 20px;border-bottom:1px solid #e9ecef">
                 <h3 style="margin:0 0 12px;font-size:14px;color:#6c757d;text-transform:uppercase">Trigger Details</h3>

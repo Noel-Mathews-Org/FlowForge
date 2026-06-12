@@ -3,7 +3,7 @@ name: Auth Service CI
 on:
   push:
     branches:
-      - flowforgev2
+      - Cloud-Track-dev
     paths:
       - 'auth-service/**'
 

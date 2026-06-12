@@ -45,21 +45,3 @@ resource "azurerm_private_endpoint" "pe_storage" {
   tags = { Env = var.env, Owner = var.owner }
 }
 
-resource "azurerm_monitor_diagnostic_setting" "sa_diag" {
-  name                       = "diag-sa"
-  target_resource_id         = "${azurerm_storage_account.sa.id}/blobServices/default"
-  log_analytics_workspace_id = var.log_analytics_workspace_id
-
-  enabled_log {
-    category = "StorageRead"
-  }
-  enabled_log {
-    category = "StorageWrite"
-  }
-  enabled_metric {
-    category = "Capacity"
-  }
-  enabled_metric {
-    category = "Transaction"
-  }
-}

@@ -46,18 +46,3 @@ resource "azurerm_virtual_network_gateway" "vpngw" {
   tags = { Env = var.env, Owner = var.owner }
 }
 
-resource "azurerm_monitor_diagnostic_setting" "vpngw_diag" {
-  name                       = "diag-vpngw"
-  target_resource_id         = azurerm_virtual_network_gateway.vpngw.id
-  log_analytics_workspace_id = var.log_analytics_workspace_id
-
-  enabled_log {
-    category = "GatewayDiagnosticLog"
-  }
-  enabled_log {
-    category = "TunnelDiagnosticLog"
-  }
-  enabled_metric {
-    category = "AllMetrics"
-  }
-}
