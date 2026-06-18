@@ -32,8 +32,9 @@ jobs:
           echo "service=$SERVICE" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Fetch Dev SHA
+      - name: Fetch Dev SHA (Microservices Only)
         id: fetch-sha
+        if: steps.parse.outputs.service != 'frontend'
         run: |
           git fetch origin Cloud-Track-dev
           git show origin/Cloud-Track-dev:Helm/values-dev.yaml > values-dev-temp.yaml
@@ -54,22 +55,35 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Pull Image
-        run: docker pull ghcr.io/${{ steps.repo.outputs.name }}/${{ steps.parse.outputs.service }}:${{ steps.fetch-sha.outputs.sha }}
+      - name: Pull and Retag Image (Microservices Only)
+        if: steps.parse.outputs.service != 'frontend'
+        run: |
+          docker pull ghcr.io/${{ steps.repo.outputs.name }}/${{ steps.parse.outputs.service }}:${{ steps.fetch-sha.outputs.sha }}
+          docker tag ghcr.io/${{ steps.repo.outputs.name }}/${{ steps.parse.outputs.service }}:${{ steps.fetch-sha.outputs.sha }} ghcr.io/${{ steps.repo.outputs.name }}/${{ steps.parse.outputs.service }}:${{ steps.parse.outputs.version }}
+
+      - name: Build Docker Image (Frontend Only)
+        if: steps.parse.outputs.service == 'frontend'
+        run: |
+          export ENTRA_CLIENT_ID=$(yq '.global.entra.clientId' Helm/values-prod.yaml)
+          export ENTRA_TENANT_ID=$(yq '.global.azure.tenantId' Helm/values-prod.yaml)
+          
+          echo "Building image for Prod..."
+          docker build \
+            --build-arg NEXT_PUBLIC_ENTRA_CLIENT_ID=$ENTRA_CLIENT_ID \
+            --build-arg NEXT_PUBLIC_ENTRA_TENANT_ID=$ENTRA_TENANT_ID \
+            -t ghcr.io/${{ steps.repo.outputs.name }}/${{ steps.parse.outputs.service }}:${{ steps.parse.outputs.version }} \
+            ./${{ steps.parse.outputs.service }}
 
       - name: Trivy Scan Before Promotion
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: 'ghcr.io/${{ steps.repo.outputs.name }}/${{ steps.parse.outputs.service }}:${{ steps.fetch-sha.outputs.sha }}'
+          image-ref: 'ghcr.io/${{ steps.repo.outputs.name }}/${{ steps.parse.outputs.service }}:${{ steps.parse.outputs.version }}'
           format: 'table'
           exit-code: '0'
           severity: 'CRITICAL,HIGH'
 
-      - name: Build or Retag and Push
-        run: |
-          echo "Retagging image..."
-          docker tag ghcr.io/${{ steps.repo.outputs.name }}/${{ steps.parse.outputs.service }}:${{ steps.fetch-sha.outputs.sha }} ghcr.io/${{ steps.repo.outputs.name }}/${{ steps.parse.outputs.service }}:${{ steps.parse.outputs.version }}
-          docker push ghcr.io/${{ steps.repo.outputs.name }}/${{ steps.parse.outputs.service }}:${{ steps.parse.outputs.version }}
+      - name: Push Image
+        run: docker push ghcr.io/${{ steps.repo.outputs.name }}/${{ steps.parse.outputs.service }}:${{ steps.parse.outputs.version }}
 
       - name: Update values-prod.yaml and Push
         run: |
