@@ -35,4 +35,5 @@ analysis-service:
 notification-worker:
   enabled: true
   image:
-    tag: v2.0.0
+    tag: v1.1.0
+

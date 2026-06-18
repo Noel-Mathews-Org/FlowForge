@@ -7,3 +7,6 @@ output "storage_account_name" {
 output "storage_container_name" {
   value = azurerm_storage_container.app_data.name
 }
+output "ai_reports_container_name" {
+  value = azurerm_storage_container.ai_reports.name
+}

@@ -14,20 +14,15 @@ resource "azurerm_public_ip" "fw_pip" {
   tags                = { Env = var.env, Owner = var.owner }
 }
 
-resource "azurerm_subnet" "fw_mgmt" {
-  name                 = "AzureFirewallManagementSubnet"
-  resource_group_name  = var.resource_group_name
-  virtual_network_name = var.hub_vnet_name
-  address_prefixes     = [var.fw_management_subnet_cidr]
-}
-
-resource "azurerm_public_ip" "fw_mgmt_pip" {
-  name                = "pip-fw-mgmt-${var.env}"
-  location            = var.location
+resource "azurerm_firewall_policy" "fw_policy" {
+  name                = "fw-policy-${var.env}"
   resource_group_name = var.resource_group_name
-  allocation_method   = "Static"
+  location            = var.location
   sku                 = "Standard"
-  tags                = { Env = var.env, Owner = var.owner }
+
+  dns {
+    proxy_enabled = true
+  }
 }
 
 resource "azurerm_firewall" "fw" {
@@ -35,7 +30,8 @@ resource "azurerm_firewall" "fw" {
   location            = var.location
   resource_group_name = var.resource_group_name
   sku_name            = "AZFW_VNet"
-  sku_tier            = "Basic"
+  sku_tier            = "Standard"
+  firewall_policy_id  = azurerm_firewall_policy.fw_policy.id
 
   ip_configuration {
     name                 = "configuration"
@@ -43,93 +39,100 @@ resource "azurerm_firewall" "fw" {
     public_ip_address_id = azurerm_public_ip.fw_pip.id
   }
 
-  management_ip_configuration {
-    name                 = "mgmt-configuration"
-    subnet_id            = azurerm_subnet.fw_mgmt.id
-    public_ip_address_id = azurerm_public_ip.fw_mgmt_pip.id
-  }
-
   tags = { Env = var.env, Owner = var.owner }
 }
 
-resource "azurerm_firewall_application_rule_collection" "aks_rules" {
-  name                = "aks-app-rules"
-  azure_firewall_name = azurerm_firewall.fw.name
-  resource_group_name = var.resource_group_name
-  priority            = 100
-  action              = "Allow"
-
-  rule {
-    name             = "AllowAKSReqs"
-    source_addresses = ["*"]
-    target_fqdns     = var.aks_allowed_fqdns
-    protocol {
-      port = 443
-      type = "Https"
-    }
-    protocol {
-      port = 80
-      type = "Http"
-    }
-  }
-
-  rule {
-    name             = "AllowAKSFQDNTags"
-    source_addresses = ["*"]
-    fqdn_tags        = ["AzureKubernetesService"]
-  }
+resource "azurerm_virtual_network_dns_servers" "hub_dns" {
+  virtual_network_id = var.hub_vnet_id
+  dns_servers        = [azurerm_firewall.fw.ip_configuration[0].private_ip_address]
 }
 
-resource "azurerm_firewall_network_rule_collection" "aks_net_rules" {
-  name                = "aks-net-rules"
-  azure_firewall_name = azurerm_firewall.fw.name
-  resource_group_name = var.resource_group_name
-  priority            = 100
-  action              = "Allow"
+resource "azurerm_firewall_policy_rule_collection_group" "fw_policy_rcg" {
+  name               = "fw-policy-rcg-${var.env}"
+  firewall_policy_id = azurerm_firewall_policy.fw_policy.id
+  priority           = 100
 
-  rule {
-    name                  = "AllowAKS_UDP"
-    source_addresses      = ["*"]
-    destination_addresses = ["AzureCloud"]
-    destination_ports     = ["1194"]
-    protocols             = ["UDP"]
-  }
-  rule {
-    name                  = "AllowAKS_TCP"
-    source_addresses      = ["*"]
-    destination_addresses = ["AzureCloud"]
-    destination_ports     = ["9000"]
-    protocols             = ["TCP"]
-  }
-  rule {
-    name                  = "AllowAKS_API"
-    source_addresses      = ["*"]
-    destination_addresses = ["AzureCloud"]
-    destination_ports     = ["443", "80"]
-    protocols             = ["TCP"]
-  }
-  rule {
-    name                  = "AllowNTP"
-    source_addresses      = ["*"]
-    destination_addresses = ["*"]
-    destination_ports     = ["123"]
-    protocols             = ["UDP"]
-  }
-}
+  application_rule_collection {
+    name     = "aks-app-rules"
+    priority = 100
+    action   = "Allow"
 
-resource "azurerm_firewall_network_rule_collection" "internal_net_rules" {
-  name                = "internal-net-rules"
-  azure_firewall_name = azurerm_firewall.fw.name
-  resource_group_name = var.resource_group_name
-  priority            = 200
-  action              = "Allow"
+    rule {
+      name              = "AllowAKSReqs"
+      source_addresses  = ["*"]
+      destination_fqdns = var.aks_allowed_fqdns
+      protocols {
+        type = "Https"
+        port = 443
+      }
+      protocols {
+        type = "Http"
+        port = 80
+      }
+    }
 
-  rule {
-    name                  = "AllowInternalAnyToAny"
-    source_addresses      = [var.hub_vnet_cidr, var.spoke_vnet_cidr, var.vpn_client_address_pool]
-    destination_addresses = [var.hub_vnet_cidr, var.spoke_vnet_cidr, var.vpn_client_address_pool]
-    destination_ports     = ["*"]
-    protocols             = ["Any"]
+    rule {
+      name                  = "AllowAKSFQDNTags"
+      source_addresses      = ["*"]
+      destination_fqdn_tags = ["AzureKubernetesService"]
+      protocols {
+        type = "Https"
+        port = 443
+      }
+      protocols {
+        type = "Http"
+        port = 80
+      }
+    }
+  }
+
+  network_rule_collection {
+    name     = "aks-net-rules"
+    priority = 200
+    action   = "Allow"
+
+    rule {
+      name                  = "AllowAKS_UDP"
+      source_addresses      = ["*"]
+      destination_addresses = ["AzureCloud"]
+      destination_ports     = ["1194"]
+      protocols             = ["UDP"]
+    }
+    rule {
+      name                  = "AllowAKS_TCP"
+      source_addresses      = ["*"]
+      destination_addresses = ["AzureCloud"]
+      destination_ports     = ["9000"]
+      protocols             = ["TCP"]
+    }
+    rule {
+      name                  = "AllowAKS_API"
+      source_addresses      = ["*"]
+      destination_addresses = ["AzureCloud"]
+      destination_ports     = ["443", "80"]
+      protocols             = ["TCP"]
+    }
+    rule {
+      name                  = "AllowNTP"
+      source_addresses      = ["*"]
+      destination_addresses = ["*"]
+      destination_ports     = ["123"]
+      protocols             = ["UDP"]
+    }
+  }
+
+  network_rule_collection {
+    name     = "internal-net-rules"
+    priority = 300
+    action   = "Allow"
+
+    rule {
+      name                  = "AllowInternalAnyToAny"
+      source_addresses      = [var.hub_vnet_cidr, var.spoke_vnet_cidr, var.vpn_client_address_pool]
+      destination_addresses = [var.hub_vnet_cidr, var.spoke_vnet_cidr, var.vpn_client_address_pool]
+      destination_ports     = ["*"]
+      protocols             = ["Any"]
+    }
   }
 }
 

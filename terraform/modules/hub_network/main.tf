@@ -59,3 +59,48 @@ resource "azurerm_private_dns_zone_virtual_network_link" "hub_aks" {
   virtual_network_id    = azurerm_virtual_network.hub.id
   registration_enabled  = false
 }
+
+resource "azurerm_monitor_workspace" "amw" {
+  name                = "amw-${var.env}-hub"
+  resource_group_name = var.resource_group_name
+  location            = var.location
+  tags = {
+    Env   = var.env
+    Owner = var.owner
+  }
+}
+
+resource "azurerm_dashboard_grafana" "grafana" {
+  name                              = "grafana-${var.env}-hub"
+  resource_group_name               = var.resource_group_name
+  location                          = var.location
+  api_key_enabled                   = true
+  deterministic_outbound_ip_enabled = true
+  public_network_access_enabled     = true
+  grafana_major_version             = "12"
+
+  identity {
+    type = "SystemAssigned"
+  }
+
+  azure_monitor_workspace_integrations {
+    resource_id = azurerm_monitor_workspace.amw.id
+  }
+
+  tags = {
+    Env   = var.env
+    Owner = var.owner
+  }
+}
+
+resource "azurerm_role_assignment" "grafana_monitoring_reader" {
+  scope                = azurerm_monitor_workspace.amw.id
+  role_definition_name = "Monitoring Data Reader"
+  principal_id         = azurerm_dashboard_grafana.grafana.identity[0].principal_id
+}
+
+resource "azurerm_role_assignment" "grafana_admin" {
+  scope                = azurerm_dashboard_grafana.grafana.id
+  role_definition_name = "Grafana Admin"
+  principal_id         = var.devops_group_object_id
+}

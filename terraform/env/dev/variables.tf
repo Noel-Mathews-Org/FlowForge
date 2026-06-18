@@ -25,5 +25,13 @@ variable "redis_cache_name" { type = string }
 
 variable "devops_group_object_id" { type = string }
 variable "devtest_group_object_id" { type = string }
-variable "jumpbox_admin_password" { type = string }
+variable "jumpbox_admin_password" {
+  type      = string
+  sensitive = true
+}
+variable "jumpbox_vm_size" {
+  type        = string
+  description = "VM size for the jumpbox. Must be available in the target region."
+  default     = "Standard_B2s"
+}
 variable "aks_cluster_name" { type = string }

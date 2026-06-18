@@ -8,17 +8,23 @@ resource "azurerm_network_interface" "jumpbox_nic" {
     subnet_id                     = var.subnet_id
     private_ip_address_allocation = "Dynamic"
   }
+
+  tags = {
+    Env   = var.env
+    Owner = var.owner
+  }
 }
 
 resource "azurerm_linux_virtual_machine" "jumpbox" {
-  name                = "vm-jumpbox-${var.env}"
-  resource_group_name = var.resource_group_name
-  location            = var.location
-  size                = "Standard_D2s_v3"
+  name                            = "vm-jumpbox-${var.env}"
+  resource_group_name             = var.resource_group_name
+  location                        = var.location
+  size                            = var.vm_size
   admin_username                  = "adminuser"
   admin_password                  = var.admin_password
   disable_password_authentication = false
-  
+  zone                            = "2"
+
   network_interface_ids = [
     azurerm_network_interface.jumpbox_nic.id,
   ]

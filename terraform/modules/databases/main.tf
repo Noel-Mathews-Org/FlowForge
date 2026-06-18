@@ -86,3 +86,18 @@ resource "azurerm_private_endpoint" "pe_redis" {
   tags = { Env = var.env, Owner = var.owner }
 }
 
+# Diagnostic settings for PostgreSQL -> Log Analytics
+resource "azurerm_monitor_diagnostic_setting" "postgres_diag" {
+  name                       = "diag-postgres-${var.env}"
+  target_resource_id         = azurerm_postgresql_flexible_server.postgres.id
+  log_analytics_workspace_id = var.log_analytics_workspace_id
+
+  enabled_log {
+    category = "PostgreSQLLogs"
+  }
+
+  enabled_metric {
+    category = "AllMetrics"
+  }
+}
+
