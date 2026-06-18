@@ -90,7 +90,7 @@ export const tryRefresh = async (): Promise<string | null> => {
 
 const ENTRA_CLIENT_ID = process.env.NEXT_PUBLIC_ENTRA_CLIENT_ID || "";
 const ENTRA_TENANT_ID = process.env.NEXT_PUBLIC_ENTRA_TENANT_ID || "";
-const ENTRA_REDIRECT_URI = process.env.NEXT_PUBLIC_ENTRA_REDIRECT_URI || (typeof window !== "undefined" ? window.location.origin : "http://localhost:3000");
+const ENTRA_REDIRECT_URI = typeof window !== "undefined" ? window.location.origin + "/login" : "http://localhost:3000/login";
 
 export const isEntraEnabled = Boolean(ENTRA_CLIENT_ID && ENTRA_TENANT_ID);
 

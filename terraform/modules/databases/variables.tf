@@ -13,3 +13,5 @@ variable "redis_enterprise_sku" { type = string }
 variable "log_analytics_workspace_id" { type = string }
 variable "postgres_admin_username" { type = string }
 variable "postgres_admin_password" { type = string }
+variable "postgres_server_name" { type = string }
+variable "redis_cache_name" { type = string }

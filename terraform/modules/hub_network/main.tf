@@ -46,3 +46,16 @@ resource "azurerm_application_insights" "appinsights" {
     Owner = var.owner
   }
 }
+
+resource "azurerm_private_dns_zone" "aks" {
+  name                = "privatelink.${var.location}.azmk8s.io"
+  resource_group_name = var.resource_group_name
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "hub_aks" {
+  name                  = "link-hub-to-aks"
+  resource_group_name   = var.resource_group_name
+  private_dns_zone_name = azurerm_private_dns_zone.aks.name
+  virtual_network_id    = azurerm_virtual_network.hub.id
+  registration_enabled  = false
+}

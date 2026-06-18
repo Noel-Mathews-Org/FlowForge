@@ -1,4 +1,5 @@
 environment               = "prod"
+domain                    = "flowforge.fun"
 owner                     = "prod-team"
 location                  = "canadacentral"
 hub_vnet_cidr             = "192.168.0.0/20"
@@ -13,7 +14,7 @@ aks_subnet_cidr           = "192.168.18.0/23"
 pe_subnet_cidr            = "192.168.20.0/24"
 db_subnet_cidr            = "192.168.21.0/24"
 vpn_client_address_pool   = "172.16.0.0/24"
-aks_vm_size               = "Standard_D2s_v3"
+aks_vm_size               = "Standard_D2ps_v6"
 postgres_sku              = "B_Standard_B1ms"
 postgres_version          = "16"
 postgres_storage_mb       = 131072
@@ -27,3 +28,13 @@ aks_allowed_fqdns = [
 postgres_admin_username = "pgadmin"
 postgres_admin_password = "P@ssw0rd1234!"
 entra_audience          = "41b23e61-6c1e-4545-b367-cd054e0ed4b4"
+key_vault_name          = "kv-prod-ff-48x9"
+storage_account_name    = "stffprod48x9"
+postgres_server_name    = "psql-prod-ff-48x9"
+redis_cache_name        = "redis-prod-ff-48x9"
+aks_cluster_name        = "aks-prod-48x9"
+
+# Security & Access Control
+devops_group_object_id  = "e0703be8-b8c7-4eab-9c3c-73ffc06843b8"
+devtest_group_object_id = "97012306-ede4-4162-8b23-be2a2c886b95"
+jumpbox_admin_password  = "P@ssw0rdJumpb0x!"

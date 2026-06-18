@@ -130,10 +130,19 @@ resource "azurerm_private_dns_zone_virtual_network_link" "spoke_storage" {
 }
 
 resource "azurerm_private_dns_zone_virtual_network_link" "spoke_postgres" {
-  name                  = "spoke-link-postgres"
+  name                  = "link-spoke-to-postgres"
   resource_group_name   = var.hub_resource_group_name
   private_dns_zone_name = split("/", var.private_dns_zone_postgres_id)[8]
   virtual_network_id    = azurerm_virtual_network.spoke.id
+  registration_enabled  = false
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "spoke_aks" {
+  name                  = "link-spoke-to-aks"
+  resource_group_name   = var.hub_resource_group_name
+  private_dns_zone_name = split("/", var.private_dns_zone_aks_id)[8]
+  virtual_network_id    = azurerm_virtual_network.spoke.id
+  registration_enabled  = false
 }
 
 resource "azurerm_private_dns_zone_virtual_network_link" "spoke_redis" {

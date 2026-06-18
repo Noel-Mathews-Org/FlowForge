@@ -10,3 +10,6 @@ output "aks_managed_identity_principal_id" {
 output "aks_kubelet_identity_client_id" {
   value = azurerm_kubernetes_cluster.aks.kubelet_identity[0].client_id
 }
+output "oidc_issuer_url" {
+  value = azurerm_kubernetes_cluster.aks.oidc_issuer_url
+}

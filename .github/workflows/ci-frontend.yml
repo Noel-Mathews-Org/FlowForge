@@ -6,6 +6,8 @@ on:
       - Cloud-Track-dev
     paths:
       - 'frontend/**'
+      - 'Helm/values-common.yaml'
+      - 'Helm/values-dev.yaml'
 
 permissions:
   contents: write
@@ -13,6 +15,7 @@ permissions:
 
 jobs:
   run-ci:
+    if: "!contains(github.event.head_commit.message, 'chore(gitops)')"
     uses: ./.github/workflows/_ci-reusable.yml
     with:
       service_name: frontend

@@ -42,15 +42,12 @@ jobs:
 
       - name: Build Docker Image
         run: |
-          export ENTRA_CLIENT_ID=$(yq '.global.entra.clientId' Helm/values-dev.yaml)
-          export ENTRA_TENANT_ID=$(yq '.global.azure.tenantId' Helm/values-dev.yaml)
-          export DOMAIN=$(yq '.global.domain' Helm/values-dev.yaml)
+          export ENTRA_CLIENT_ID=$(yq '.global.entra.clientId' Helm/values-common.yaml)
+          export ENTRA_TENANT_ID=$(yq '.global.azure.tenantId' Helm/values-common.yaml)
           
           docker build \
             --build-arg NEXT_PUBLIC_ENTRA_CLIENT_ID=$ENTRA_CLIENT_ID \
             --build-arg NEXT_PUBLIC_ENTRA_TENANT_ID=$ENTRA_TENANT_ID \
-            --build-arg BASE_PUBLIC_URL="https://$DOMAIN" \
-            --build-arg NEXT_PUBLIC_ENTRA_REDIRECT_URI="https://$DOMAIN/login" \
             -t ghcr.io/${{ steps.repo.outputs.name }}/${{ inputs.service_name }}:${{ steps.vars.outputs.short_sha }} \
             ./${{ inputs.service_name }}
 

@@ -14,3 +14,4 @@ variable "private_dns_zone_kv_id" { type = string }
 variable "private_dns_zone_storage_id" { type = string }
 variable "private_dns_zone_postgres_id" { type = string }
 variable "private_dns_zone_redis_id" { type = string }
+variable "private_dns_zone_aks_id" { type = string }
