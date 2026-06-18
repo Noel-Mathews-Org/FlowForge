@@ -2,8 +2,6 @@
 
 ![FlowForge Hybrid Cloud Architecture](./Architecture.png)
 
-*(Note: If the image above does not render on GitHub, please ensure that the `Architecture.png` file is committed and pushed to the `Cloud-Track-prod` branch in the `Review-2` folder. The link uses a relative path `./Architecture.png` to display it natively).*
-
 ---
 
 ## 1. Implemented Components & Topology
