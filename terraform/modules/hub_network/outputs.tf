@@ -7,6 +7,9 @@ output "hub_vnet_name" {
 output "bastion_subnet_id" {
   value = azurerm_subnet.bastion.id
 }
+output "management_subnet_id" {
+  value = azurerm_subnet.management.id
+}
 output "log_analytics_workspace_id" {
   value = azurerm_log_analytics_workspace.law.id
 }
@@ -21,4 +24,7 @@ output "private_dns_zone_postgres_id" {
 }
 output "private_dns_zone_redis_id" {
   value = azurerm_private_dns_zone.redis.id
+}
+output "private_dns_zone_aks_id" {
+  value = azurerm_private_dns_zone.aks.id
 }

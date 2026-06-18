@@ -47,6 +47,7 @@ module "spoke_network" {
   private_dns_zone_storage_id  = module.hub_network.private_dns_zone_storage_id
   private_dns_zone_postgres_id = module.hub_network.private_dns_zone_postgres_id
   private_dns_zone_redis_id    = module.hub_network.private_dns_zone_redis_id
+  private_dns_zone_aks_id      = module.hub_network.private_dns_zone_aks_id
 }
 
 # Firewall and VPN Gateway are explicitly omitted in Dev
@@ -71,8 +72,11 @@ module "aks" {
   appgw_id                   = module.app_gateway.appgw_id
   spoke_vnet_id              = module.spoke_network.spoke_vnet_id
   log_analytics_workspace_id = module.hub_network.log_analytics_workspace_id
+  private_dns_zone_id        = module.hub_network.private_dns_zone_aks_id
   aks_vm_size                = var.aks_vm_size
+  aks_cluster_name           = var.aks_cluster_name
   spoke_resource_group_name  = azurerm_resource_group.app.name
+  tenant_id                  = data.azurerm_client_config.current.tenant_id
 }
 
 module "databases" {
@@ -92,6 +96,8 @@ module "databases" {
   log_analytics_workspace_id   = module.hub_network.log_analytics_workspace_id
   postgres_admin_username      = var.postgres_admin_username
   postgres_admin_password      = var.postgres_admin_password
+  postgres_server_name         = var.postgres_server_name
+  redis_cache_name             = var.redis_cache_name
 }
 
 module "key_vault" {
@@ -104,7 +110,8 @@ module "key_vault" {
   private_dns_zone_kv_id            = module.hub_network.private_dns_zone_kv_id
   log_analytics_workspace_id        = module.hub_network.log_analytics_workspace_id
   tenant_id                         = data.azurerm_client_config.current.tenant_id
-  aks_managed_identity_principal_id = module.aks.aks_managed_identity_principal_id
+  aks_managed_identity_principal_id = azurerm_user_assigned_identity.app_identity.principal_id
+  key_vault_name                    = var.key_vault_name
 }
 
 module "storage" {
@@ -116,7 +123,8 @@ module "storage" {
   pe_subnet_id                      = module.spoke_network.pe_subnet_id
   private_dns_zone_storage_id       = module.hub_network.private_dns_zone_storage_id
   log_analytics_workspace_id        = module.hub_network.log_analytics_workspace_id
-  aks_managed_identity_principal_id = module.aks.aks_managed_identity_principal_id
+  aks_managed_identity_principal_id = azurerm_user_assigned_identity.app_identity.principal_id
+  storage_account_name              = var.storage_account_name
 }
 
 # VNet Peering Dev (No VPN Gateway)
@@ -138,6 +146,47 @@ resource "azurerm_virtual_network_peering" "hub_to_spoke" {
   allow_virtual_network_access = true
   allow_forwarded_traffic      = true
   allow_gateway_transit        = false
+}
+
+module "jumpbox" {
+  source               = "../../modules/jumpbox"
+  env                  = var.environment
+  location             = var.location
+  resource_group_name  = azurerm_resource_group.hub.name
+  subnet_id            = module.hub_network.management_subnet_id
+  admin_password       = var.jumpbox_admin_password
+  owner                = var.owner
+}
+
+resource "azurerm_user_assigned_identity" "app_identity" {
+  name                = "mi-flowforge-app-${var.environment}"
+  resource_group_name = azurerm_resource_group.app.name
+  location            = azurerm_resource_group.app.location
+}
+
+locals {
+  microservices = ["frontend", "gateway", "auth-service", "project-service", "task-service", "analysis-service", "notification-worker"]
+}
+
+resource "azurerm_federated_identity_credential" "app_fid" {
+  for_each                  = toset(local.microservices)
+  name                      = "fid-flowforge-${each.key}"
+  audience                  = ["api://AzureADTokenExchange"]
+  issuer                    = module.aks.oidc_issuer_url
+  user_assigned_identity_id = azurerm_user_assigned_identity.app_identity.id
+  subject                   = "system:serviceaccount:flowforge:flowforge-${var.environment}-${each.key}"
+}
+
+resource "azurerm_role_assignment" "aks_cluster_admin" {
+  scope                = module.aks.aks_id
+  role_definition_name = "Azure Kubernetes Service RBAC Cluster Admin"
+  principal_id         = var.devops_group_object_id
+}
+
+resource "azurerm_role_assignment" "aks_devtest_reader" {
+  scope                = "${module.aks.aks_id}/namespaces/flowforge"
+  role_definition_name = "Azure Kubernetes Service RBAC Reader"
+  principal_id         = var.devtest_group_object_id
 }
 
 # Commented out to prevent deployment in lab account

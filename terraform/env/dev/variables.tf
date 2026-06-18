@@ -1,4 +1,5 @@
 variable "environment" { type = string }
+variable "domain" { type = string }
 variable "owner" { type = string }
 variable "location" { type = string }
 variable "hub_vnet_cidr" { type = string }
@@ -17,3 +18,12 @@ variable "postgres_storage_tier" { type = string }
 variable "redis_enterprise_sku" { type = string }
 variable "postgres_admin_username" { type = string }
 variable "postgres_admin_password" { type = string }
+variable "key_vault_name" { type = string }
+variable "storage_account_name" { type = string }
+variable "postgres_server_name" { type = string }
+variable "redis_cache_name" { type = string }
+
+variable "devops_group_object_id" { type = string }
+variable "devtest_group_object_id" { type = string }
+variable "jumpbox_admin_password" { type = string }
+variable "aks_cluster_name" { type = string }

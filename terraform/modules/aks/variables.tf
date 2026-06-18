@@ -12,3 +12,6 @@ variable "aks_outbound_type" {
   type    = string
   default = "loadBalancer"
 }
+variable "private_dns_zone_id" { type = string }
+variable "tenant_id" { type = string }
+variable "aks_cluster_name" { type = string }

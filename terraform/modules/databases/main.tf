@@ -1,6 +1,6 @@
 # PostgreSQL Flexible Server
 resource "azurerm_postgresql_flexible_server" "postgres" {
-  name                         = "psql-${var.env}-ff"
+  name                         = var.postgres_server_name
   resource_group_name          = var.resource_group_name
   location                     = var.location
   version                      = var.postgres_version
@@ -50,7 +50,7 @@ resource "azurerm_private_endpoint" "pe_postgres" {
 
 # Azure Managed Redis
 resource "azurerm_managed_redis" "redis" {
-  name                = "redis-${var.env}-ff"
+  name                = var.redis_cache_name
   location            = var.location
   resource_group_name = var.resource_group_name
   sku_name            = var.redis_enterprise_sku
