@@ -18,6 +18,12 @@ resource "azurerm_resource_group" "data" {
 
 data "azurerm_client_config" "current" {}
 
+resource "random_string" "suffix" {
+  length  = 5
+  special = false
+  upper   = false
+}
+
 module "hub_network" {
   source                 = "../../modules/hub_network"
   resource_group_name    = azurerm_resource_group.hub.name
@@ -27,6 +33,7 @@ module "hub_network" {
   hub_vnet_cidr          = var.hub_vnet_cidr
   bastion_subnet_cidr    = var.bastion_subnet_cidr
   management_subnet_cidr = var.management_subnet_cidr
+  devops_group_object_id = var.devops_group_object_id
 }
 
 module "spoke_network" {
@@ -77,6 +84,7 @@ module "aks" {
   aks_cluster_name           = var.aks_cluster_name
   spoke_resource_group_name  = azurerm_resource_group.app.name
   tenant_id                  = data.azurerm_client_config.current.tenant_id
+  monitor_workspace_id       = module.hub_network.monitor_workspace_id
 }
 
 module "databases" {
@@ -111,7 +119,7 @@ module "key_vault" {
   log_analytics_workspace_id        = module.hub_network.log_analytics_workspace_id
   tenant_id                         = data.azurerm_client_config.current.tenant_id
   aks_managed_identity_principal_id = azurerm_user_assigned_identity.app_identity.principal_id
-  key_vault_name                    = var.key_vault_name
+  key_vault_name                    = "${random_string.suffix.result}-ff-${var.environment}"
 }
 
 module "storage" {
@@ -124,7 +132,7 @@ module "storage" {
   private_dns_zone_storage_id       = module.hub_network.private_dns_zone_storage_id
   log_analytics_workspace_id        = module.hub_network.log_analytics_workspace_id
   aks_managed_identity_principal_id = azurerm_user_assigned_identity.app_identity.principal_id
-  storage_account_name              = var.storage_account_name
+  storage_account_name              = "${random_string.suffix.result}ff${var.environment}"
 }
 
 # VNet Peering Dev (No VPN Gateway)
@@ -149,13 +157,14 @@ resource "azurerm_virtual_network_peering" "hub_to_spoke" {
 }
 
 module "jumpbox" {
-  source               = "../../modules/jumpbox"
-  env                  = var.environment
-  location             = var.location
-  resource_group_name  = azurerm_resource_group.hub.name
-  subnet_id            = module.hub_network.management_subnet_id
-  admin_password       = var.jumpbox_admin_password
-  owner                = var.owner
+  source              = "../../modules/jumpbox"
+  env                 = var.environment
+  location            = var.location
+  resource_group_name = azurerm_resource_group.hub.name
+  subnet_id           = module.hub_network.management_subnet_id
+  admin_password      = var.jumpbox_admin_password
+  owner               = var.owner
+  vm_size             = var.jumpbox_vm_size
 }
 
 resource "azurerm_user_assigned_identity" "app_identity" {

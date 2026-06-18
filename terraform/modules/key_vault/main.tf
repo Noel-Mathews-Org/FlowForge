@@ -51,3 +51,18 @@ resource "azurerm_private_endpoint" "pe_kv" {
   tags = { Env = var.env, Owner = var.owner }
 }
 
+# Diagnostic settings for Key Vault -> Log Analytics
+resource "azurerm_monitor_diagnostic_setting" "kv_diag" {
+  name                       = "diag-kv-${var.env}"
+  target_resource_id         = azurerm_key_vault.kv.id
+  log_analytics_workspace_id = var.log_analytics_workspace_id
+
+  enabled_log {
+    category = "AuditEvent"
+  }
+
+  enabled_metric {
+    category = "AllMetrics"
+  }
+}
+

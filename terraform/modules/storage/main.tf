@@ -16,6 +16,12 @@ resource "azurerm_storage_container" "app_data" {
   container_access_type = "private"
 }
 
+resource "azurerm_storage_container" "ai_reports" {
+  name                  = "ai-incident-reports"
+  storage_account_id    = azurerm_storage_account.sa.id
+  container_access_type = "private"
+}
+
 # Role Assignment for AKS to access Storage
 resource "azurerm_role_assignment" "aks_storage_blob_data_contributor" {
   scope                = azurerm_storage_account.sa.id
@@ -43,5 +49,28 @@ resource "azurerm_private_endpoint" "pe_storage" {
   }
 
   tags = { Env = var.env, Owner = var.owner }
+}
+
+# Diagnostic settings for Storage Account -> Log Analytics
+resource "azurerm_monitor_diagnostic_setting" "storage_diag" {
+  name                       = "diag-storage-${var.env}"
+  target_resource_id         = "${azurerm_storage_account.sa.id}/blobServices/default"
+  log_analytics_workspace_id = var.log_analytics_workspace_id
+
+  enabled_log {
+    category = "StorageRead"
+  }
+
+  enabled_log {
+    category = "StorageWrite"
+  }
+
+  enabled_log {
+    category = "StorageDelete"
+  }
+
+  enabled_metric {
+    category = "Transaction"
+  }
 }
 

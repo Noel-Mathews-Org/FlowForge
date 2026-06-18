@@ -15,3 +15,5 @@ variable "aks_outbound_type" {
 variable "private_dns_zone_id" { type = string }
 variable "tenant_id" { type = string }
 variable "aks_cluster_name" { type = string }
+variable "monitor_workspace_id" { type = string }
+
