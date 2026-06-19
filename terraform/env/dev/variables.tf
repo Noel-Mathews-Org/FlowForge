@@ -1,6 +1,5 @@
 variable "environment" { type = string }
 variable "domain" { type = string }
-variable "owner" { type = string }
 variable "location" { type = string }
 variable "hub_vnet_cidr" { type = string }
 variable "bastion_subnet_cidr" { type = string }

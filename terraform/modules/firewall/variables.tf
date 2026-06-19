@@ -1,7 +1,6 @@
 variable "location" { type = string }
 variable "resource_group_name" { type = string }
 variable "env" { type = string }
-variable "owner" { type = string }
 variable "hub_vnet_name" { type = string }
 variable "fw_subnet_cidr" { type = string }
 variable "log_analytics_workspace_id" { type = string }

@@ -18,6 +18,12 @@ on:
         required: true
       GH_PAT:
         required: true
+      SONAR_TOKEN:
+        required: true
+      SONAR_HOST_URL:
+        required: true
+      SNYK_TOKEN:
+        required: true
 
 permissions:
   contents: write
@@ -40,6 +46,27 @@ jobs:
         id: repo
         run: echo "name=${GITHUB_REPOSITORY,,}" >> $GITHUB_OUTPUT
 
+      - name: SonarQube Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectBaseDir: ./${{ inputs.service_name }}
+          args: >
+            -Dsonar.projectKey=${{ inputs.project_key }}
+        continue-on-error: true
+
+      - name: Setup Snyk
+        uses: snyk/actions/setup@master
+      - name: Snyk Security Scan
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          cd ./${{ inputs.service_name }}
+          snyk test --project-name=${{ inputs.service_name }} || true
+        continue-on-error: true
+
       - name: Build Docker Image
         run: |
           export ENTRA_CLIENT_ID=$(yq '.global.entra.clientId' Helm/values-dev.yaml)
@@ -50,6 +77,17 @@ jobs:
             --build-arg NEXT_PUBLIC_ENTRA_TENANT_ID=$ENTRA_TENANT_ID \
             -t ghcr.io/${{ steps.repo.outputs.name }}/${{ inputs.service_name }}:${{ steps.vars.outputs.short_sha }} \
             ./${{ inputs.service_name }}
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'ghcr.io/${{ steps.repo.outputs.name }}/${{ inputs.service_name }}:${{ steps.vars.outputs.short_sha }}'
+          format: 'table'
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+        continue-on-error: true
 
       - name: Login to GHCR
         uses: docker/login-action@v3

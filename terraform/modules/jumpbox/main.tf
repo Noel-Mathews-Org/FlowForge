@@ -11,7 +11,7 @@ resource "azurerm_network_interface" "jumpbox_nic" {
 
   tags = {
     Env   = var.env
-    Owner = var.owner
+    Layer = "hub ${var.env}"
   }
 }
 
@@ -23,7 +23,7 @@ resource "azurerm_linux_virtual_machine" "jumpbox" {
   admin_username                  = "adminuser"
   admin_password                  = var.admin_password
   disable_password_authentication = false
-  zone                            = "2"
+  zone                            = "1"
 
   network_interface_ids = [
     azurerm_network_interface.jumpbox_nic.id,
@@ -43,6 +43,6 @@ resource "azurerm_linux_virtual_machine" "jumpbox" {
 
   tags = {
     Env   = var.env
-    Owner = var.owner
+    Layer = "hub ${var.env}"
   }
 }

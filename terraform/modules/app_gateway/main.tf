@@ -4,7 +4,7 @@ resource "azurerm_public_ip" "appgw_pip" {
   resource_group_name = var.resource_group_name
   allocation_method   = "Static"
   sku                 = "Standard"
-  tags                = { Env = var.env, Owner = var.owner }
+  tags                = { Env = var.env, Layer = "spoke ${var.env}" }
 }
 
 resource "azurerm_application_gateway" "appgw" {
@@ -63,7 +63,7 @@ resource "azurerm_application_gateway" "appgw" {
 
   firewall_policy_id = azurerm_web_application_firewall_policy.waf.id
 
-  tags = { Env = var.env, Owner = var.owner }
+  tags = { Env = var.env, Layer = "spoke ${var.env}" }
 
   # Ignore changes made by AGIC
   lifecycle {
@@ -100,6 +100,6 @@ resource "azurerm_web_application_firewall_policy" "waf" {
     }
   }
 
-  tags = { Env = var.env, Owner = var.owner }
+  tags = { Env = var.env, Layer = "spoke ${var.env}" }
 }
 

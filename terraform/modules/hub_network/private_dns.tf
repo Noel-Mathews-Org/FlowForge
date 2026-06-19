@@ -4,7 +4,7 @@ resource "azurerm_private_dns_zone" "kv" {
   resource_group_name = var.resource_group_name
   tags = {
     Env   = var.env
-    Owner = var.owner
+    Layer = "hub ${var.env}"
   }
 }
 
@@ -14,7 +14,7 @@ resource "azurerm_private_dns_zone" "storage" {
   resource_group_name = var.resource_group_name
   tags = {
     Env   = var.env
-    Owner = var.owner
+    Layer = "hub ${var.env}"
   }
 }
 
@@ -24,7 +24,7 @@ resource "azurerm_private_dns_zone" "postgres" {
   resource_group_name = var.resource_group_name
   tags = {
     Env   = var.env
-    Owner = var.owner
+    Layer = "hub ${var.env}"
   }
 }
 
@@ -34,7 +34,7 @@ resource "azurerm_private_dns_zone" "redis" {
   resource_group_name = var.resource_group_name
   tags = {
     Env   = var.env
-    Owner = var.owner
+    Layer = "hub ${var.env}"
   }
 }
 

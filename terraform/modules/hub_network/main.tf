@@ -5,7 +5,7 @@ resource "azurerm_virtual_network" "hub" {
   address_space       = [var.hub_vnet_cidr]
   tags = {
     Env   = var.env
-    Owner = var.owner
+    Layer = "hub ${var.env}"
   }
 }
 
@@ -31,7 +31,7 @@ resource "azurerm_log_analytics_workspace" "law" {
   retention_in_days   = 30
   tags = {
     Env   = var.env
-    Owner = var.owner
+    Layer = "hub ${var.env}"
   }
 }
 
@@ -43,7 +43,7 @@ resource "azurerm_application_insights" "appinsights" {
   application_type    = "web"
   tags = {
     Env   = var.env
-    Owner = var.owner
+    Layer = "hub ${var.env}"
   }
 }
 
@@ -66,7 +66,7 @@ resource "azurerm_monitor_workspace" "amw" {
   location            = var.location
   tags = {
     Env   = var.env
-    Owner = var.owner
+    Layer = "hub ${var.env}"
   }
 }
 
@@ -89,7 +89,7 @@ resource "azurerm_dashboard_grafana" "grafana" {
 
   tags = {
     Env   = var.env
-    Owner = var.owner
+    Layer = "hub ${var.env}"
   }
 }
 

@@ -1,7 +1,6 @@
 variable "location" { type = string }
 variable "resource_group_name" { type = string }
 variable "env" { type = string }
-variable "owner" { type = string }
 variable "aks_subnet_id" { type = string }
 variable "appgw_id" { type = string }
 variable "spoke_vnet_id" { type = string }

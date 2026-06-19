@@ -5,7 +5,7 @@ resource "azurerm_virtual_network" "spoke" {
   address_space       = [var.spoke_vnet_cidr]
   tags = {
     Env   = var.env
-    Owner = var.owner
+    Layer = "spoke ${var.env}"
   }
 }
 
@@ -68,7 +68,7 @@ resource "azurerm_network_security_group" "appgw_nsg" {
     source_address_prefix      = "Internet"
     destination_address_prefix = "*"
   }
-  tags = { Env = var.env, Owner = var.owner }
+  tags = { Env = var.env, Layer = "spoke ${var.env}" }
 }
 
 resource "azurerm_subnet_network_security_group_association" "appgw_nsg_assoc" {
@@ -80,7 +80,7 @@ resource "azurerm_network_security_group" "aks_nsg" {
   name                = "nsg-aks-${var.env}"
   location            = var.location
   resource_group_name = var.resource_group_name
-  tags                = { Env = var.env, Owner = var.owner }
+  tags                = { Env = var.env, Layer = "spoke ${var.env}" }
 }
 
 resource "azurerm_subnet_network_security_group_association" "aks_nsg_assoc" {
@@ -92,7 +92,7 @@ resource "azurerm_network_security_group" "pe_nsg" {
   name                = "nsg-pe-${var.env}"
   location            = var.location
   resource_group_name = var.resource_group_name
-  tags                = { Env = var.env, Owner = var.owner }
+  tags                = { Env = var.env, Layer = "spoke ${var.env}" }
 }
 
 resource "azurerm_subnet_network_security_group_association" "pe_nsg_assoc" {
@@ -104,7 +104,7 @@ resource "azurerm_network_security_group" "db_nsg" {
   name                = "nsg-db-${var.env}"
   location            = var.location
   resource_group_name = var.resource_group_name
-  tags                = { Env = var.env, Owner = var.owner }
+  tags                = { Env = var.env, Layer = "spoke ${var.env}" }
 }
 
 resource "azurerm_subnet_network_security_group_association" "db_nsg_assoc" {

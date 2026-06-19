@@ -11,7 +11,7 @@ resource "azurerm_public_ip" "fw_pip" {
   resource_group_name = var.resource_group_name
   allocation_method   = "Static"
   sku                 = "Standard"
-  tags                = { Env = var.env, Owner = var.owner }
+  tags                = { Env = var.env, Layer = "hub ${var.env}" }
 }
 
 resource "azurerm_firewall_policy" "fw_policy" {
@@ -39,7 +39,7 @@ resource "azurerm_firewall" "fw" {
     public_ip_address_id = azurerm_public_ip.fw_pip.id
   }
 
-  tags = { Env = var.env, Owner = var.owner }
+  tags = { Env = var.env, Layer = "hub ${var.env}" }
 }
 
 resource "azurerm_virtual_network_dns_servers" "hub_dns" {
@@ -150,7 +150,7 @@ resource "azurerm_route_table" "spoke_rt" {
     next_hop_in_ip_address = azurerm_firewall.fw.ip_configuration[0].private_ip_address
   }
 
-  tags = { Env = var.env, Owner = var.owner }
+  tags = { Env = var.env, Layer = "hub ${var.env}" }
 }
 
 # Route Table Associations

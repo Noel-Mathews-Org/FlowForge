@@ -5,13 +5,13 @@ terraform {
       version = "4.77.0"
     }
   }
-  # backend "azurerm" {
-  #   # Assuming backend config is passed via terraform init or partial config
-  #   resource_group_name  = "rg-terraform-state"
-  #   storage_account_name = "stffstate001"
-  #   container_name       = "tfstate"
-  #   key                  = "prod.terraform.tfstate"
-  # }
+  backend "azurerm" {
+    # Assuming backend config is passed via terraform init or partial config
+    resource_group_name  = "Noel-STF"
+    storage_account_name = "noelstf98"
+    container_name       = "statefile"
+    key                  = "prod.terraform.tfstate"
+  }
 }
 
 provider "azurerm" {

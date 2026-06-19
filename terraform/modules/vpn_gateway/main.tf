@@ -12,7 +12,8 @@ resource "azurerm_public_ip" "vpngw_pip" {
   allocation_method   = "Static" # VpnGw1AZ requires Static PIP
   sku                 = "Standard"
   zones               = ["1", "2", "3"]
-  tags                = { Env = var.env, Owner = var.owner }
+
+  tags                = { Env = var.env, Layer = "hub ${var.env}" }
 }
 
 resource "azurerm_virtual_network_gateway" "vpngw" {
@@ -43,6 +44,6 @@ resource "azurerm_virtual_network_gateway" "vpngw" {
     aad_issuer           = "https://sts.windows.net/${var.entra_tenant_id}/"
   }
 
-  tags = { Env = var.env, Owner = var.owner }
+  tags = { Env = var.env, Layer = "hub ${var.env}" }
 }
 

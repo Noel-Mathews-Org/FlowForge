@@ -32,7 +32,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
     vm_size              = var.aks_vm_size
     vnet_subnet_id       = var.aks_subnet_id
     auto_scaling_enabled = true
-    min_count            = 1
+    min_count            = 2
     max_count            = 3
     type                 = "VirtualMachineScaleSets"
   }
@@ -71,7 +71,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
     secret_rotation_interval = "5m"
   }
 
-  tags = { Env = var.env, Owner = var.owner }
+  tags = { Env = var.env, Layer = "spoke ${var.env}" }
 }
 
 data "azurerm_client_config" "current" {}

@@ -1,10 +1,10 @@
 # Example Policy Assignment for Tagging (Require Env and Owner)
 resource "azurerm_subscription_policy_assignment" "require_tags" {
-  name                 = "require-env-owner-tags"
+  name                 = "require-env-tag"
   subscription_id      = "/subscriptions/${var.subscription_id}"
   policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/1e30110a-5ceb-460c-a204-c1c3969c6d62"
-  description          = "Require Env and Owner tags on resources"
-  display_name         = "Require Env and Owner Tags"
+  description          = "Require Env tag on resources"
+  display_name         = "Require Env Tag"
 
   parameters = jsonencode({
     "tagName" : {
