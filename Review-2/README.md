@@ -4,6 +4,7 @@
 
 ---
 
+
 ## 1. Implemented Components & Topology
 
 The environment leverages a highly secure Hub-and-Spoke topology within Azure, peered with an AWS Virtual Private Cloud (VPC) to house database assets.
