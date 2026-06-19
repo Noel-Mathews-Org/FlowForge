@@ -11,6 +11,7 @@ terraform {
     storage_account_name = "noelstf98"
     container_name       = "statefile"
     key                  = "prod.terraform.tfstate"
+    use_oidc             = true
   }
 }
 
