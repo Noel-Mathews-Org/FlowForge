@@ -16,7 +16,7 @@ permissions:
 jobs:
   run-ci:
     if: "!contains(github.event.head_commit.message, 'chore(gitops)')"
-    uses: ./.github/workflows/_ci-reusable.yml
+    uses: Noel-Mathews-Org/.github/.github/workflows/_ci-reusable.yml@main
     with:
       service_name: frontend
       project_key: Flow_frontend

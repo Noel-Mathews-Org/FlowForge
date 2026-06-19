@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   run-ci:
-    uses: ./.github/workflows/_ci-reusable.yml
+    uses: Noel-Mathews-Org/.github/.github/workflows/_ci-reusable.yml@main
     with:
       service_name: analysis-service
       project_key: Flow_analysis_service
