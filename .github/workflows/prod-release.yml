@@ -32,21 +32,23 @@ jobs:
           echo "service=$SERVICE" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
+      - name: Lowercase Repository Name
+        id: repo
+        run: echo "name=${GITHUB_REPOSITORY,,}" >> $GITHUB_OUTPUT
+
       - name: Fetch Dev SHA (Microservices Only)
         id: fetch-sha
         if: steps.parse.outputs.service != 'frontend'
         run: |
-          git fetch origin Cloud-Track-dev
-          git show origin/Cloud-Track-dev:Helm/values-dev.yaml > values-dev-temp.yaml
+          git clone https://x-access-token:${{ secrets.GH_PAT }}@github.com/Noel-Mathews-Org/FlowForge-Helm.git helm-repo-tmp
+          cd helm-repo-tmp
+          git checkout Cloud-Track-dev
           
-          DEV_SHA=$(yq eval ".\"${{ steps.parse.outputs.service }}\".image.tag" values-dev-temp.yaml)
+          DEV_SHA=$(yq eval ".\"${{ steps.parse.outputs.service }}\".image.tag" values-dev.yaml)
           echo "Found verified SHA in Dev: $DEV_SHA"
           echo "sha=$DEV_SHA" >> $GITHUB_OUTPUT
-          rm values-dev-temp.yaml
-
-      - name: Lowercase Repository Name
-        id: repo
-        run: echo "name=${GITHUB_REPOSITORY,,}" >> $GITHUB_OUTPUT
+          cd ..
+          rm -rf helm-repo-tmp
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -64,8 +66,10 @@ jobs:
       - name: Build Docker Image (Frontend Only)
         if: steps.parse.outputs.service == 'frontend'
         run: |
-          export ENTRA_CLIENT_ID=$(yq '.global.entra.clientId' Helm/values-prod.yaml)
-          export ENTRA_TENANT_ID=$(yq '.global.azure.tenantId' Helm/values-prod.yaml)
+          git clone https://x-access-token:${{ secrets.GH_PAT }}@github.com/Noel-Mathews-Org/FlowForge-Helm.git helm-repo-tmp
+          export ENTRA_CLIENT_ID=$(yq '.global.entra.clientId' helm-repo-tmp/values-prod.yaml)
+          export ENTRA_TENANT_ID=$(yq '.global.azure.tenantId' helm-repo-tmp/values-prod.yaml)
+          rm -rf helm-repo-tmp
           
           echo "Building image for Prod..."
           docker build \
@@ -81,20 +85,25 @@ jobs:
           format: 'table'
           exit-code: '0'
           severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
 
       - name: Push Image
         run: docker push ghcr.io/${{ steps.repo.outputs.name }}/${{ steps.parse.outputs.service }}:${{ steps.parse.outputs.version }}
 
-      - name: Update values-prod.yaml and Push
+      - name: Update values-prod.yaml in FlowForge-Helm
         run: |
-          git pull --rebase origin Cloud-Track-prod
-          yq eval ".\"${{ steps.parse.outputs.service }}\".image.tag = \"${{ steps.parse.outputs.version }}\"" -i Helm/values-prod.yaml
+          git clone https://x-access-token:${{ secrets.GH_PAT }}@github.com/Noel-Mathews-Org/FlowForge-Helm.git helm-repo
+          cd helm-repo
+          git checkout main
+          
+          yq eval ".\"${{ steps.parse.outputs.service }}\".image.tag = \"${{ steps.parse.outputs.version }}\"" -i values-prod.yaml
           
           git config user.name "FlowForge Release Bot"
           git config user.email "releases@flowforge.com"
-          git add Helm/values-prod.yaml
+          git add values-prod.yaml
           git commit -m "chore(release): promote ${{ steps.parse.outputs.service }} to ${{ steps.parse.outputs.version }} in PROD" || echo "No changes"
-          git push origin Cloud-Track-prod
+          git push origin main
 
   notify:
     name: Notify Team
