@@ -6,15 +6,16 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: 'https://github.com/Noel-Mathews-Org/FlowForge.git'
-    targetRevision: test
-    path: Helm
+    repoURL: 'https://github.com/Noel-Mathews-Org/FlowForge-Helm.git'
+    targetRevision: Cloud-Track-dev
+    path: .
     helm:
       valueFiles:
+        - values-common.yaml
         - values-dev.yaml
   destination:
     server: 'https://kubernetes.default.svc'
-    namespace: dev
+    namespace: flowforge
   syncPolicy:
     automated:
       prune: true

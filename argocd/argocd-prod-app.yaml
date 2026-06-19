@@ -6,9 +6,9 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: 'https://github.com/Noel-Mathews-Org/FlowForge.git'
-    targetRevision: Cloud-Track-prod
-    path: Helm
+    repoURL: 'https://github.com/Noel-Mathews-Org/FlowForge-Helm.git'
+    targetRevision: main
+    path: .
     helm:
       valueFiles:
         - values-common.yaml
