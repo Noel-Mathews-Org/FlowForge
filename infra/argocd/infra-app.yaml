@@ -7,7 +7,7 @@ spec:
   project: default
   source:
     repoURL: 'https://github.com/Noel-Mathews-Org/FlowForge.git'
-    targetRevision: test
+    targetRevision: Cloud-Track-dev
     path: infra/infrastructure
   destination:
     server: 'https://kubernetes.default.svc'

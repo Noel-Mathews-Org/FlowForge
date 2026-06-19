@@ -6,8 +6,6 @@ on:
       - Cloud-Track-dev
     paths:
       - 'frontend/**'
-      - 'Helm/values-common.yaml'
-      - 'Helm/values-dev.yaml'
 
 permissions:
   contents: write
