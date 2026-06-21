@@ -14,7 +14,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: Cloud-Track-prod
           token: ${{ secrets.GH_PAT }}
 
       - name: Parse Release Tag
