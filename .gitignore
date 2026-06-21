@@ -12,3 +12,5 @@ secrets.env1
 *.dll
 *.so
 *.dylib
+secrets-dev.env
+secrets-prod.env
