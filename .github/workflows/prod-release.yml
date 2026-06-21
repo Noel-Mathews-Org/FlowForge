@@ -44,7 +44,7 @@ jobs:
           cd helm-repo-tmp
           git checkout Cloud-Track-dev
           
-          DEV_SHA=$(yq eval ".\"${{ steps.parse.outputs.service }}\".image.tag" values-dev.yaml)
+          DEV_SHA=$(yq eval ".\"${{ steps.parse.outputs.service }}\".image.tag" Helm/values-dev.yaml)
           echo "Found verified SHA in Dev: $DEV_SHA"
           echo "sha=$DEV_SHA" >> $GITHUB_OUTPUT
           cd ..
@@ -67,8 +67,8 @@ jobs:
         if: steps.parse.outputs.service == 'frontend'
         run: |
           git clone https://x-access-token:${{ secrets.GH_PAT }}@github.com/Noel-Mathews-Org/FlowForge-Helm.git helm-repo-tmp
-          export ENTRA_CLIENT_ID=$(yq '.global.entra.clientId' helm-repo-tmp/values-prod.yaml)
-          export ENTRA_TENANT_ID=$(yq '.global.azure.tenantId' helm-repo-tmp/values-prod.yaml)
+          export ENTRA_CLIENT_ID=$(yq '.global.entra.clientId' helm-repo-tmp/Helm/values-prod.yaml)
+          export ENTRA_TENANT_ID=$(yq '.global.azure.tenantId' helm-repo-tmp/Helm/values-prod.yaml)
           rm -rf helm-repo-tmp
           
           echo "Building image for Prod..."
@@ -97,11 +97,11 @@ jobs:
           cd helm-repo
           git checkout main
           
-          yq eval ".\"${{ steps.parse.outputs.service }}\".image.tag = \"${{ steps.parse.outputs.version }}\"" -i values-prod.yaml
+          yq eval ".\"${{ steps.parse.outputs.service }}\".image.tag = \"${{ steps.parse.outputs.version }}\"" -i Helm/values-prod.yaml
           
           git config user.name "FlowForge Release Bot"
           git config user.email "releases@flowforge.com"
-          git add values-prod.yaml
+          git add Helm/values-prod.yaml
           git commit -m "chore(release): promote ${{ steps.parse.outputs.service }} to ${{ steps.parse.outputs.version }} in PROD" || echo "No changes"
           git push origin main
 
