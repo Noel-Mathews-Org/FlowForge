@@ -50,18 +50,21 @@ jobs:
           cd ..
           rm -rf helm-repo-tmp
 
-      - name: Login to GHCR
-        uses: docker/login-action@v3
+      - name: Azure Login
+        uses: azure/login@v2
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: ACR Login
+        run: az acr login --name ${{ secrets.ACR_NAME }}
 
       - name: Pull and Retag Image (Microservices Only)
         if: steps.parse.outputs.service != 'frontend'
         run: |
-          docker pull ghcr.io/${{ steps.repo.outputs.name }}/${{ steps.parse.outputs.service }}:${{ steps.fetch-sha.outputs.sha }}
-          docker tag ghcr.io/${{ steps.repo.outputs.name }}/${{ steps.parse.outputs.service }}:${{ steps.fetch-sha.outputs.sha }} ghcr.io/${{ steps.repo.outputs.name }}/${{ steps.parse.outputs.service }}:${{ steps.parse.outputs.version }}
+          docker pull ${{ secrets.ACR_LOGIN_SERVER }}/flowforge/${{ steps.parse.outputs.service }}:${{ steps.fetch-sha.outputs.sha }}
+          docker tag ${{ secrets.ACR_LOGIN_SERVER }}/flowforge/${{ steps.parse.outputs.service }}:${{ steps.fetch-sha.outputs.sha }} ${{ secrets.ACR_LOGIN_SERVER }}/flowforge/${{ steps.parse.outputs.service }}:${{ steps.parse.outputs.version }}
 
       - name: Build Docker Image (Frontend Only)
         if: steps.parse.outputs.service == 'frontend'
@@ -75,13 +78,13 @@ jobs:
           docker build \
             --build-arg NEXT_PUBLIC_ENTRA_CLIENT_ID=$ENTRA_CLIENT_ID \
             --build-arg NEXT_PUBLIC_ENTRA_TENANT_ID=$ENTRA_TENANT_ID \
-            -t ghcr.io/${{ steps.repo.outputs.name }}/${{ steps.parse.outputs.service }}:${{ steps.parse.outputs.version }} \
+            -t ${{ secrets.ACR_LOGIN_SERVER }}/flowforge/${{ steps.parse.outputs.service }}:${{ steps.parse.outputs.version }} \
             ./${{ steps.parse.outputs.service }}
 
       - name: Trivy Scan Before Promotion
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: 'ghcr.io/${{ steps.repo.outputs.name }}/${{ steps.parse.outputs.service }}:${{ steps.parse.outputs.version }}'
+          image-ref: '${{ secrets.ACR_LOGIN_SERVER }}/flowforge/${{ steps.parse.outputs.service }}:${{ steps.parse.outputs.version }}'
           format: 'table'
           exit-code: '0'
           severity: 'CRITICAL,HIGH'
@@ -89,7 +92,7 @@ jobs:
           vuln-type: 'os,library'
 
       - name: Push Image
-        run: docker push ghcr.io/${{ steps.repo.outputs.name }}/${{ steps.parse.outputs.service }}:${{ steps.parse.outputs.version }}
+        run: docker push ${{ secrets.ACR_LOGIN_SERVER }}/flowforge/${{ steps.parse.outputs.service }}:${{ steps.parse.outputs.version }}
 
       - name: Update values-prod.yaml in FlowForge-Helm
         run: |
