@@ -28,20 +28,20 @@ async def close_redis() -> None:
 async def publish_manager_notification(payload: dict[str, Any]) -> None:
     if redis_client is None:
         return
-    await redis_client.publish("notify.manager", json.dumps(payload))
+    await redis_client.publish(f"{settings.redis_prefix}notify.manager", json.dumps(payload))
 
 
 async def publish_user_notification(requester_id: str, payload: dict[str, Any]) -> None:
     if redis_client is None:
         return
-    await redis_client.publish(f"notify.user.{requester_id}", json.dumps(payload))
+    await redis_client.publish(f"{settings.redis_prefix}notify.user.{requester_id}", json.dumps(payload))
 
 
 async def append_audit_log(event_type: str, user_id: str, project_id: str, metadata: dict[str, Any]) -> None:
     if redis_client is None:
         return
     await redis_client.xadd(
-        "audit_log",
+        f"{settings.redis_prefix}audit_log",
         fields={
             "event_type": event_type,
             "user_id": user_id,

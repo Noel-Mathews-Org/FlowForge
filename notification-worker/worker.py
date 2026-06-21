@@ -42,9 +42,10 @@ except Exception:
 
 # ─── Config ──────────────────────────────────────────────────────────────────
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379")
-CONSUMER_GROUP = os.getenv("STREAM_CONSUMER_GROUP", "notification-group")
+REDIS_PREFIX = os.getenv("REDIS_PREFIX", "")
+CONSUMER_GROUP = os.getenv("STREAM_CONSUMER_GROUP", f"{REDIS_PREFIX}notification-group")
 CONSUMER_NAME = os.getenv("STREAM_CONSUMER_NAME", "notification-worker-1")
-STREAM_NAME = "audit_log"
+STREAM_NAME = f"{REDIS_PREFIX}audit_log"
 
 SMTP_HOST = os.getenv("SMTP_HOST", "")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))

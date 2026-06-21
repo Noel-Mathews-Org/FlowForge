@@ -13,6 +13,7 @@ class Settings:
         if not self.database_url:
             raise RuntimeError("Missing required: DATABASE_URL")
         self.redis_url: str = os.getenv("REDIS_URL", "redis://redis:6379")
+        self.redis_prefix: str = os.getenv("REDIS_PREFIX", "")
         self.app_port: int = int(os.getenv("APP_PORT", "8003"))
         self.internal_api_key: str = os.getenv("INTERNAL_API_KEY", "")
 

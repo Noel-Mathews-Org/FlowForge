@@ -17,13 +17,13 @@ def get_redis() -> Redis:
 
 async def publish_event(channel: str, payload: dict) -> None:
     redis = get_redis()
-    await redis.publish(channel, json.dumps(payload))
+    await redis.publish(f"{settings.redis_prefix}{channel}", json.dumps(payload))
 
 
 async def subscribe_to_channel(channel: str) -> AsyncGenerator[str, None]:
     redis = get_redis()
     pubsub = redis.pubsub()
-    await pubsub.subscribe(channel)
+    await pubsub.subscribe(f"{settings.redis_prefix}{channel}")
     try:
         async for message in pubsub.listen():
             if message.get("type") == "message":
@@ -33,5 +33,5 @@ async def subscribe_to_channel(channel: str) -> AsyncGenerator[str, None]:
                 else:
                     yield str(data)
     finally:
-        await pubsub.unsubscribe(channel)
+        await pubsub.unsubscribe(f"{settings.redis_prefix}{channel}")
         await pubsub.aclose()

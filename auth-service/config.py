@@ -27,6 +27,7 @@ class Settings:
 
         self.database_url: str = os.getenv("DATABASE_URL", "")
         self.redis_url: str = os.getenv("REDIS_URL", "redis://redis:6379")
+        self.redis_prefix: str = os.getenv("REDIS_PREFIX", "")
         self.jwt_expiry_hours: int = _parse_int("JWT_EXPIRY_HOURS", 1)
         self.refresh_token_days: int = _parse_int("REFRESH_TOKEN_DAYS", 7)
 
