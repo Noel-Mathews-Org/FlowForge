@@ -35,3 +35,17 @@ async def subscribe_to_channel(channel: str) -> AsyncGenerator[str, None]:
     finally:
         await pubsub.unsubscribe(f"{settings.redis_prefix}{channel}")
         await pubsub.aclose()
+
+
+async def append_audit_log(event_type: str, user_id: str, metadata: dict) -> None:
+    redis = get_redis()
+    from datetime import datetime, timezone
+    await redis.xadd(
+        f"{settings.redis_prefix}audit_log",
+        fields={
+            "event_type": event_type,
+            "user_id": user_id,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "metadata": json.dumps(metadata),
+        },
+    )

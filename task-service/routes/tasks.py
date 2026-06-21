@@ -172,7 +172,7 @@ async def create_task(payload: TaskCreate, request: Request, db: AsyncSession = 
     audit: RedisAuditService = request.app.state.audit_service
     await audit.emit_event(
         event_type="task_created", user_id=user_id, user_email=user_email,
-        project_id=str(task.project_id), task_id=str(task.id), metadata={"title": task.title}
+        project_id=str(task.project_id), task_id=str(task.id), metadata={"title": task.title, "assignee_email": task.assignee_email}
     )
     return _to_response(task)
 
@@ -235,6 +235,11 @@ async def update_task(task_id: UUID, payload: TaskUpdate, request: Request, db: 
                                     f"Task '{task.title}' has been marked as DONE and requires your approval.",
                                     {"task_id": str(task.id), "project_id": str(task.project_id)},
                                 )
+                                audit: RedisAuditService = request.app.state.audit_service
+                                await audit.emit_event(
+                                    event_type="approval_requested", user_id=request.state.user_id, user_email=request.state.user_email,
+                                    project_id=str(task.project_id), task_id=str(task.id), metadata={"manager_email": project.get("manager_email")}
+                                )
                 except Exception as e:
                     pass  # Silent fail on notification if project service is down
             else:
@@ -262,6 +267,11 @@ async def update_task(task_id: UUID, payload: TaskUpdate, request: Request, db: 
                     f"Task Assigned: {task.title}",
                     f"You've been assigned '{task.title}'.",
                     {"task_id": str(task.id), "project_id": str(task.project_id)},
+                )
+                audit: RedisAuditService = request.app.state.audit_service
+                await audit.emit_event(
+                    event_type="task_assigned", user_id=request.state.user_id, user_email=request.state.user_email,
+                    project_id=str(task.project_id), task_id=str(task.id), metadata={"assignee_email": payload.assignee_email}
                 )
         if payload.position is not None:
             task.position = payload.position
@@ -315,7 +325,7 @@ async def approve_task(task_id: UUID, request: Request, db: AsyncSession = Depen
     audit: RedisAuditService = request.app.state.audit_service
     await audit.emit_event(
         event_type="approval_resolved", user_id=request.state.user_id, user_email=request.state.user_email,
-        project_id=str(task.project_id), task_id=str(task.id), metadata={"action": "approved", "new_status": task.status}
+        project_id=str(task.project_id), task_id=str(task.id), metadata={"action": "approved", "new_status": task.status, "assignee_email": task.assignee_email}
     )
     return _to_response(task)
 
@@ -360,7 +370,7 @@ async def reject_task(task_id: UUID, payload: ApprovalRejectRequest, request: Re
     audit: RedisAuditService = request.app.state.audit_service
     await audit.emit_event(
         event_type="approval_resolved", user_id=request.state.user_id, user_email=request.state.user_email,
-        project_id=str(task.project_id), task_id=str(task.id), metadata={"action": "rejected"}
+        project_id=str(task.project_id), task_id=str(task.id), metadata={"action": "rejected", "assignee_email": task.assignee_email}
     )
     return _to_response(task)
 

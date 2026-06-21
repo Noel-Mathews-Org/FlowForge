@@ -137,6 +137,9 @@ async def login_entra(payload: EntraLoginRequest, db: AsyncSession = Depends(get
         db.add(user)
         await db.commit()
         await db.refresh(user)
+        
+        from services.redis_service import append_audit_log
+        await append_audit_log("user_created", str(user.id), {"user_email": user.email, "full_name": user.full_name})
 
     # 4. Issue FlowForge JWT
     token = jwt_service.sign_jwt(user)
