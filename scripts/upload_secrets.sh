@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# Default values
+
 VAULT_NAME=""
 ENV_FILE="secrets.env"
 
-# Parse arguments
+
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         -v|--vault-name) VAULT_NAME="$2"; shift ;;
@@ -28,12 +28,11 @@ fi
 echo "Reading secrets from $ENV_FILE and uploading to Key Vault: $VAULT_NAME..."
 
 while IFS='=' read -r key value || [ -n "$key" ]; do
-    # Skip empty lines and comments
     if [[ -z "$key" ]] || [[ "$key" == \#* ]]; then
         continue
     fi
 
-    # Trim whitespace
+
     key=$(echo "$key" | xargs)
     value=$(echo "$value" | xargs)
 
@@ -45,7 +44,7 @@ while IFS='=' read -r key value || [ -n "$key" ]; do
     echo -n "Processing secret: $key ... "
     
     # Check current value to skip if identical
-    CURRENT_VALUE=$(az keyvault secret show --vault-name "$VAULT_NAME" --name "$key" --query value -o tsv 2>/dev/null || echo "")
+    CURRENT_VALUE=$(az keyvault secret show --vault-name "$VAULT_NAME" --name "$key" --query value -o tsv 2>/dev/null | tr -d '\r' || echo "")
     
     if [ "$CURRENT_VALUE" == "$value" ]; then
         echo -e "\e[33mSkipped (Value unchanged).\e[0m"
@@ -54,11 +53,11 @@ while IFS='=' read -r key value || [ -n "$key" ]; do
     
     # Upload new value and capture the new version ID
     echo -n "Updating... "
-    NEW_VERSION_ID=$(az keyvault secret set --vault-name "$VAULT_NAME" --name "$key" --value "$value" --query "id" -o tsv 2>/dev/null)
+    NEW_VERSION_ID=$(az keyvault secret set --vault-name "$VAULT_NAME" --name "$key" --value "$value" --query "id" -o tsv 2>/dev/null | tr -d '\r')
     
     if [ -n "$NEW_VERSION_ID" ]; then
         # Fetch all currently enabled versions for this secret
-        ALL_VERSIONS=$(az keyvault secret list-versions --vault-name "$VAULT_NAME" --name "$key" --query "[?attributes.enabled].id" -o tsv)
+        ALL_VERSIONS=$(az keyvault secret list-versions --vault-name "$VAULT_NAME" --name "$key" --query "[?attributes.enabled].id" -o tsv | tr -d '\r')
         
         # Disable older versions
         for version_url in $ALL_VERSIONS; do
