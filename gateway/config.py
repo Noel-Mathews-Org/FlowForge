@@ -35,6 +35,7 @@ def _parse_origins(raw: str) -> List[str]:
 class Settings:
     jwt_secret: str
     redis_url: str
+    redis_prefix: str
     auth_service_url: str
     project_service_url: str
     task_service_url: str
@@ -49,6 +50,7 @@ def get_settings() -> Settings:
     return Settings(
         jwt_secret=_get_env("JWT_SECRET", required=True),
         redis_url=_get_env("REDIS_URL", "redis://redis:6379"),
+        redis_prefix=_get_env("REDIS_PREFIX", ""),
         auth_service_url=_get_env("AUTH_SERVICE_URL", "http://auth-service:8001"),
         project_service_url=_get_env("PROJECT_SERVICE_URL", "http://project-service:8002"),
         task_service_url=_get_env("TASK_SERVICE_URL", "http://task-service:8003"),

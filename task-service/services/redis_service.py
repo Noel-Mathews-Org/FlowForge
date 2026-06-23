@@ -19,8 +19,9 @@ class RedisAuditService:
         task_id: str | None,
         metadata: dict[str, Any] | None = None,
     ) -> None:
+        from config import settings
         await self.redis_client.xadd(
-            "audit_log",
+            f"{settings.redis_prefix}audit_log",
             {
                 "event_type": event_type,
                 "user_id": user_id,

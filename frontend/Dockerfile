@@ -4,6 +4,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 
+
 FROM node:18-alpine AS builder
 WORKDIR /app
 ENV NEXT_PUBLIC_API_URL=/api
@@ -15,7 +16,6 @@ ENV NEXT_PUBLIC_ENTRA_TENANT_ID=$NEXT_PUBLIC_ENTRA_TENANT_ID
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
-
 
 FROM node:18-alpine AS runner
 WORKDIR /app

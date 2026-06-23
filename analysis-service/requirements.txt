@@ -11,3 +11,4 @@ azure-keyvault-secrets>=4.8.0
 pydantic==2.10.2
 redis[asyncio]>=4.5.0
 httpx>=0.27.0
+aiohttp>=3.9.0

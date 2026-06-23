@@ -372,7 +372,7 @@ async def add_member(project_id: UUID, payload: AddMemberRequest, request: Reque
         f"You have been added to project '{project.name}'.",
         {"project_id": str(project_id)},
     )
-    await append_audit_log("member_added", str(user_id), str(project_id), {"added_user_id": target_id_str})
+    await append_audit_log("member_added", str(user_id), str(project_id), {"added_user_id": target_id_str, "user_email": target_email})
 
     members = (await db.execute(
         select(ProjectMember).where(ProjectMember.project_id == project_id).order_by(ProjectMember.joined_at)

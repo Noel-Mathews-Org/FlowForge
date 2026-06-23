@@ -42,9 +42,10 @@ except Exception:
 
 # ─── Config ──────────────────────────────────────────────────────────────────
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379")
-CONSUMER_GROUP = os.getenv("STREAM_CONSUMER_GROUP", "notification-group")
+REDIS_PREFIX = os.getenv("REDIS_PREFIX", "")
+CONSUMER_GROUP = os.getenv("STREAM_CONSUMER_GROUP", f"{REDIS_PREFIX}notification-group")
 CONSUMER_NAME = os.getenv("STREAM_CONSUMER_NAME", "notification-worker-1")
-STREAM_NAME = "audit_log"
+STREAM_NAME = f"{REDIS_PREFIX}audit_log"
 
 SMTP_HOST = os.getenv("SMTP_HOST", "")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
@@ -243,6 +244,45 @@ def _handle_user_activated(fields: dict, metadata: dict) -> None:
     _send_email(email, subject, html)
 
 
+def _handle_user_created(fields: dict, metadata: dict) -> None:
+    """Notify a user when their account is created (first Entra ID login)."""
+    email = metadata.get("user_email") or ""
+    full_name = metadata.get("full_name") or "there"
+    if not email:
+        return
+    subject = "[FlowForge] Welcome to FlowForge!"
+    body_html = f"""
+    <p style="margin:0 0 16px;font-size:15px;color:#8993a4;">Welcome aboard, {full_name}!</p>
+    <div style="background:#f0fdf4;border-radius:8px;padding:20px 24px;margin-bottom:20px;">
+      <p style="margin:0;font-size:15px;color:#166534;">Your FlowForge account has been successfully created via Microsoft Entra ID. You can now access your projects and tasks.</p>
+    </div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:8px 0 16px;">
+      <a href="{FRONTEND_URL}/dashboard" style="display:inline-block;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;text-decoration:none;padding:12px 32px;border-radius:8px;font-size:14px;font-weight:600;">Go to Dashboard</a>
+    </td></tr></table>"""
+    html = _html_template("Welcome to FlowForge!", body_html, "Welcome to FlowForge")
+    _send_email(email, subject, html)
+
+
+def _handle_approval_requested(fields: dict, metadata: dict) -> None:
+    """Notify a manager when a member marks a task as DONE."""
+    manager_email = metadata.get("manager_email") or ""
+    if not manager_email:
+        return
+    task_title = metadata.get("title", "A task")
+    subject = f"[FlowForge] Approval Needed: {task_title}"
+    body_html = f"""
+    <p style="margin:0 0 16px;font-size:15px;color:#8993a4;">A task requires your review</p>
+    <div style="background:#fffbeb;border-radius:8px;padding:20px 24px;margin-bottom:20px;border-left:4px solid #f59e0b;">
+      <p style="margin:0;font-size:15px;color:#92400e;"><strong>Task:</strong> {task_title} has been marked as DONE and is awaiting your approval.</p>
+    </div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:8px 0 16px;">
+      <a href="{FRONTEND_URL}/dashboard" style="display:inline-block;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;text-decoration:none;padding:12px 32px;border-radius:8px;font-size:14px;font-weight:600;">Review Task</a>
+    </td></tr></table>"""
+    html = _html_template("Approval Needed", body_html, f"Task {task_title} needs review")
+    text = f"Task '{task_title}' has been marked as DONE and requires your approval. View at {FRONTEND_URL}/dashboard"
+    _send_email(manager_email, subject, html, text)
+
+
 def _handle_project_created(fields: dict, metadata: dict) -> None:
     """Notify org owner / platform admin when a new project is created (optional)."""
     admin_email = metadata.get("admin_email") or ""
@@ -266,10 +306,12 @@ def _handle_project_created(fields: dict, metadata: dict) -> None:
 EVENT_HANDLERS = {
     "task_created": _handle_task_assigned,
     "task_assigned": _handle_task_assigned,
+    "approval_requested": _handle_approval_requested,
     "approval_resolved": _handle_approval_resolved,
     "member_added": _handle_member_added,
     "member_removed": _handle_member_removed,
     "member_transferred": _handle_member_transferred,
+    "user_created": _handle_user_created,
     "user_revoked": _handle_user_revoked,
     "user_activated": _handle_user_activated,
     "project_created": _handle_project_created,

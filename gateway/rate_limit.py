@@ -14,7 +14,7 @@ async def check_rate_limit(identifier: str, redis_client) -> None:
     settings = get_settings()
     now = time.time()
     window_start = now - settings.rate_limit_window_seconds
-    key = f"rl:{identifier}"
+    key = f"{settings.redis_prefix}rl:{identifier}"
     member = f"{now}:{uuid.uuid4().hex}"
 
     async with redis_client.pipeline(transaction=True) as pipeline:

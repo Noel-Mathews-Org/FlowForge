@@ -47,13 +47,13 @@ async def _process_message(redis_client: Redis, session_factory: async_sessionma
             
             await _notify_members(session_factory, project_id, subject, message)
             
-        await redis_client.xack("audit_log", "project_notifications", message_id)
+        await redis_client.xack(f"{settings.redis_prefix}audit_log", f"{settings.redis_prefix}project_notifications", message_id)
     except Exception:
         logger.exception("Failed processing stream message %s", message_id)
 
 async def consume_stream(redis_client: Redis, session_factory: async_sessionmaker):
     try:
-        await redis_client.xgroup_create(name="audit_log", groupname="project_notifications", id="0", mkstream=True)
+        await redis_client.xgroup_create(name=f"{settings.redis_prefix}audit_log", groupname=f"{settings.redis_prefix}project_notifications", id="0", mkstream=True)
     except Exception as exc:
         if "BUSYGROUP" not in str(exc):
             logger.exception("Failed creating consumer group: %s", exc)
@@ -61,9 +61,9 @@ async def consume_stream(redis_client: Redis, session_factory: async_sessionmake
     while True:
         try:
             messages = await redis_client.xreadgroup(
-                groupname="project_notifications",
+                groupname=f"{settings.redis_prefix}project_notifications",
                 consumername="project_worker_1",
-                streams={"audit_log": ">"},
+                streams={f"{settings.redis_prefix}audit_log": ">"},
                 count=10,
                 block=1000,
             )

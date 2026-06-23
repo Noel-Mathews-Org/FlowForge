@@ -46,7 +46,7 @@ async def _upsert_user_stats(session: AsyncSession, *, event_type: str, event_da
 
 async def consume_stream(redis_client: Redis, session_factory: async_sessionmaker):
     try:
-        await redis_client.xgroup_create(name="audit_log", groupname=settings.STREAM_CONSUMER_GROUP, id="0", mkstream=True)
+        await redis_client.xgroup_create(name=f"{settings.REDIS_PREFIX}audit_log", groupname=settings.STREAM_CONSUMER_GROUP, id="0", mkstream=True)
     except Exception as exc:  # noqa: BLE001
         if "BUSYGROUP" not in str(exc):
             logger.exception("Failed creating consumer group: %s", exc)
@@ -56,7 +56,7 @@ async def consume_stream(redis_client: Redis, session_factory: async_sessionmake
             messages = await redis_client.xreadgroup(
                 groupname=settings.STREAM_CONSUMER_GROUP,
                 consumername=settings.STREAM_CONSUMER_NAME,
-                streams={"audit_log": ">"},
+                streams={f"{settings.REDIS_PREFIX}audit_log": ">"},
                 count=10,
                 block=1000,
             )
@@ -101,10 +101,10 @@ async def _process_message(redis_client: Redis, session_factory: async_sessionma
                 await _upsert_user_stats(session, event_type=event_type, event_date=event_date, user_id=user_id, user_email=user_email, metadata=metadata)
 
             await session.commit()
-            await redis_client.xack("audit_log", settings.STREAM_CONSUMER_GROUP, message_id)
+            await redis_client.xack(f"{settings.REDIS_PREFIX}audit_log", settings.STREAM_CONSUMER_GROUP, message_id)
         except Exception:  # noqa: BLE001
             await session.rollback()
             logger.exception("Failed processing stream message %s", message_id)
             # Acknowledge the message even on failure to prevent "poison pills" from clogging the PEL.
             # In a production system, this could instead push to a Dead Letter Queue (DLQ).
-            await redis_client.xack("audit_log", settings.STREAM_CONSUMER_GROUP, message_id)
+            await redis_client.xack(f"{settings.REDIS_PREFIX}audit_log", settings.STREAM_CONSUMER_GROUP, message_id)
