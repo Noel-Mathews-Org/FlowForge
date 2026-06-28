@@ -9,9 +9,21 @@ except Exception:
 
 
 class Settings:
+    # ── Managed Identity for PostgreSQL ──
+    AZURE_DB_USE_MANAGED_IDENTITY: bool = os.getenv("AZURE_DB_USE_MANAGED_IDENTITY", "false").lower() == "true"
+    AZURE_POSTGRES_HOST: str = os.getenv("AZURE_POSTGRES_HOST", "")
+    AZURE_POSTGRES_DB_NAME: str = os.getenv("AZURE_POSTGRES_DB_NAME", "")
+    AZURE_MANAGED_IDENTITY_NAME: str = os.getenv("AZURE_MANAGED_IDENTITY_NAME", "")
+
+    # Aliases for database.py compatibility
+    use_managed_identity_db = AZURE_DB_USE_MANAGED_IDENTITY
+    postgres_host = AZURE_POSTGRES_HOST
+    postgres_db_name = AZURE_POSTGRES_DB_NAME
+    managed_identity_name = AZURE_MANAGED_IDENTITY_NAME
+
     DATABASE_URL: str = os.getenv("DATABASE_URL", "")
-    if not DATABASE_URL:
-        raise RuntimeError("Missing required environment variable: DATABASE_URL")
+    if not DATABASE_URL and not AZURE_DB_USE_MANAGED_IDENTITY:
+        raise RuntimeError("Missing required: DATABASE_URL (or enable AZURE_DB_USE_MANAGED_IDENTITY)")
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://redis:6379")
     REDIS_PREFIX: str = os.getenv("REDIS_PREFIX", "")
     APP_PORT: int = int(os.getenv("APP_PORT", "8004"))

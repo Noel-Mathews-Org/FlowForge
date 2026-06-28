@@ -25,7 +25,16 @@ class Settings:
         if not self.internal_api_key:
             raise RuntimeError("Missing required environment variable: INTERNAL_API_KEY")
 
+        # ── Managed Identity for PostgreSQL ──
+        self.use_managed_identity_db: bool = os.getenv("AZURE_DB_USE_MANAGED_IDENTITY", "false").lower() == "true"
+        self.postgres_host: str = os.getenv("AZURE_POSTGRES_HOST", "")
+        self.postgres_db_name: str = os.getenv("AZURE_POSTGRES_DB_NAME", "")
+        self.managed_identity_name: str = os.getenv("AZURE_MANAGED_IDENTITY_NAME", "")
+
         self.database_url: str = os.getenv("DATABASE_URL", "")
+        if not self.database_url and not self.use_managed_identity_db:
+            raise RuntimeError("Missing required: DATABASE_URL (or enable AZURE_DB_USE_MANAGED_IDENTITY)")
+
         self.redis_url: str = os.getenv("REDIS_URL", "redis://redis:6379")
         self.redis_prefix: str = os.getenv("REDIS_PREFIX", "")
         self.jwt_expiry_hours: int = _parse_int("JWT_EXPIRY_HOURS", 1)
