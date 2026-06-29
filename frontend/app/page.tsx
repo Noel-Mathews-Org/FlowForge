@@ -9,9 +9,9 @@ export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-red-900 text-white">
+    <div className="min-h-screen bg-black text-white">
       {/* Navigation */}
-      <nav className="sticky top-0 z-50 w-full border-b border-red-800 bg-red-950/80 backdrop-blur-md">
+      <nav className="sticky top-0 z-50 w-full border-b border-zinc-800 bg-black/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-8 lg:px-16">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 font-bold text-white shadow-lg shadow-indigo-500/30">
