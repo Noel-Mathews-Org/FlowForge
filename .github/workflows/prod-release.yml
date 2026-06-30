@@ -6,8 +6,6 @@ on:
 
 permissions:
   contents: write
-  packages: write
-  id-token: write
 
 jobs:
   promote-to-prod:
@@ -32,10 +30,6 @@ jobs:
           
           echo "service=$SERVICE" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Lowercase Repository Name
-        id: repo
-        run: echo "name=${GITHUB_REPOSITORY,,}" >> $GITHUB_OUTPUT
 
       - name: Fetch Dev SHA (Microservices Only)
         id: fetch-sha
